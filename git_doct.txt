@@ -1,0 +1,2 @@
+Git pull push for master1 -> origin2 
+Git pull push for main -> origin
