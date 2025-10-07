@@ -16,7 +16,7 @@ class SearchContainer extends StatelessWidget {
     final r = ResponsiveHelper(context);
     final double containerWidth = r.fromSmallMediumLarge(
       small: r.size.width / 1.1,
-      medium: r.size.width / 1.1,
+      medium: r.size.width / 0,
       large: r.size.width / 1.1,
     );
    
@@ -27,7 +27,7 @@ class SearchContainer extends StatelessWidget {
     );
     final double fontSize = r.fromSmallMediumLarge(
       small: 12,
-      medium: 13,
+      medium: 14,
       large: 14,
     );
     final double iconScale = r.fromSmallMediumLarge(
@@ -79,8 +79,8 @@ class SearchContainer extends StatelessWidget {
                 ),
               ),
             ],
-          ).marginSymmetric( horizontal: 16),
-        ),
+          ).marginSymmetric(horizontal: 16)
+        ).marginSymmetric(horizontal: 24),
 
         // Simulating a "positioned" bottom container inside a column
         // SizedBox(height: 12), // Add space instead of Positioned
@@ -126,7 +126,7 @@ class SearchContainer extends StatelessWidget {
               ),
             ],
           ).marginSymmetric(horizontal: 14, vertical: 8),
-        ),
+        ).marginSymmetric(horizontal: 24),
       ],
     );
   }

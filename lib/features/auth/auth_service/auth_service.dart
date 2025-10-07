@@ -96,8 +96,6 @@
 //   }
 // }
 
-
-
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -106,6 +104,7 @@ class AuthService {
   static const _tokenKey = 'token'; // For general-purpose token
   static const _approvalTokenKey = 'approvalToken'; // For login approval token
   static const _userIdKey = 'id';
+  static const _userEmailKey = 'userEmail'; // For user email
   static const _role = 'UserType'; // Stores roles as a comma-separated string
   static const _isProfileCreated = 'isProfileCreated';
   static const _profileId = 'profileId';
@@ -116,6 +115,7 @@ class AuthService {
     required String approvalToken, // Required approval token from login
     required String userId, // Required user ID from login
     required String role, // Required role from login
+    String? userEmail, // Optional user email
     String? isProfileCreated, // Optional, defaults to 'false' if not provided
     String? profileId, // Optional, defaults to empty string if not provided
   }) async {
@@ -125,11 +125,14 @@ class AuthService {
     }
     await prefs.setString(_approvalTokenKey, approvalToken);
     await prefs.setString(_userIdKey, userId);
+    if (userEmail != null) {
+      await prefs.setString(_userEmailKey, userEmail);
+    }
     await prefs.setString(_role, role);
     await prefs.setString(_isProfileCreated, isProfileCreated ?? 'false');
     await prefs.setString(_profileId, profileId ?? '');
     debugPrint(
-      'Auth data saved: token=$token, approvalToken=$approvalToken, userId=$userId, role=$role, isProfileCreated=${isProfileCreated ?? 'false'}, profileId=${profileId ?? ''}',
+      'Auth data saved: token=$token, approvalToken=$approvalToken, userId=$userId, userEmail=$userEmail, role=$role, isProfileCreated=${isProfileCreated ?? 'false'}, profileId=${profileId ?? ''}',
     );
   }
 
@@ -149,6 +152,12 @@ class AuthService {
   static Future<String?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userIdKey);
+  }
+
+  // Get stored user email
+  static Future<String?> getUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userEmailKey);
   }
 
   // Get stored profile ID
@@ -179,6 +188,7 @@ class AuthService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_approvalTokenKey);
     await prefs.remove(_userIdKey);
+    await prefs.remove(_userEmailKey);
     await prefs.remove(_role);
     await prefs.remove(_isProfileCreated);
     await prefs.remove(_profileId);
@@ -202,6 +212,8 @@ class AuthService {
     Logger().d(
       "check in auth service isProfileCreated: ====> $isProfileCreated",
     );
-    return isProfileCreated != null && isProfileCreated.isNotEmpty && isProfileCreated == 'true';
+    return isProfileCreated != null &&
+        isProfileCreated.isNotEmpty &&
+        isProfileCreated == 'true';
   }
 }

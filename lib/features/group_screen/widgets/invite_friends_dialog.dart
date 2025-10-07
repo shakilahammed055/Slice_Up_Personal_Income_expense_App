@@ -9,21 +9,21 @@ void showInviteDialog(BuildContext context) {
     builder: (BuildContext context) {
       return CupertinoAlertDialog(
         title: Text(
-          'Invite friends to collaborate',
+          'Add more members',
           style: getTextStyle2(fontSize: 17, fontWeight: FontWeight.w600),
         ),
         content: Column(
           children: [
             Text(
-              'You need at least 2 members.',
+              'You need at least 2 members to add a transaction.',
               style: getTextStyle2(fontSize: 13, fontWeight: FontWeight.w400),
             ),
 
-            Text(
-              'Already invited?\nGive them a bit of time to join.',
-              textAlign: TextAlign.center,
-              style: getTextStyle2(fontSize: 13, fontWeight: FontWeight.w400),
-            ),
+            // Text(
+            //   'Already invited?\nGive them a bit of time to join.',
+            //   textAlign: TextAlign.center,
+            //   style: getTextStyle2(fontSize: 13, fontWeight: FontWeight.w400),
+            // ),
           ],
         ),
         actions: [

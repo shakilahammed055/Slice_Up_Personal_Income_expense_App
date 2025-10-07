@@ -5,6 +5,8 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/common/widgets/common_button.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
+import 'package:teddy_5618/features/set_expense_income/controller/expense_controller.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class AddCategoryBottomSheet extends StatelessWidget {
   final bool isIncome;
@@ -20,6 +22,7 @@ class AddCategoryBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextEditingController categoryController = TextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final expenseController = Get.find<ExpenseController>();
 
     return GestureDetector(
       onTap: () {
@@ -178,15 +181,15 @@ class AddCategoryBottomSheet extends StatelessWidget {
                           lineHeight: 25,
                         ),
                         textInputAction: TextInputAction.done,
-                        onSubmitted: (value) {
+                        onSubmitted: (value) async {
                           final newCategory = value.trim().isEmpty
                               ? 'New Category'.tr
                               : value.trim();
-                          onCategoryAdded(newCategory);
-                          Get.snackbar(
-                            'Success'.tr,
-                            'Category "$newCategory" added',
-                          );
+                          final success = await expenseController.createCategory(isIncome, newCategory);
+                          if (success) {
+                            EasyLoading.showSuccess('Category "$newCategory" added');
+                            onCategoryAdded(newCategory);
+                          }
                         },
                       ),
                     ),
@@ -194,15 +197,15 @@ class AddCategoryBottomSheet extends StatelessWidget {
                   SizedBox(height: 20.h),
                   CommonButton(
                     text: 'Save',
-                    onPressed: () {
+                    onPressed: () async {
                       final newCategory = categoryController.text.trim().isEmpty
                           ? 'New Category'.tr
                           : categoryController.text.trim();
-                      onCategoryAdded(newCategory);
-                      Get.snackbar(
-                        'Success'.tr,
-                        'Category "$newCategory" added',
-                      );
+                      final success = await expenseController.createCategory(isIncome, newCategory);
+                      if (success) {
+                        EasyLoading.showSuccess('Category "$newCategory" added');
+                        onCategoryAdded(newCategory);
+                      }
                     },
                   ),
                   SizedBox(height: MediaQuery.of(context).viewInsets.bottom),

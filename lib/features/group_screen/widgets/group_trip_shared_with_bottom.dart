@@ -21,6 +21,10 @@ class _GroupTripSharedWithBottomState extends State<GroupTripSharedWithBottom> {
     // Load group members when the bottom sheet opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = Get.find<GroupTripSpentController>();
+
+      // Clear any previous selections when opening the bottom sheet
+      controller.clearFriendSelections();
+
       if (controller.friendNames.isEmpty) {
         controller.getGroupMembers();
       }

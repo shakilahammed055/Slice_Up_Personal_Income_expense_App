@@ -128,8 +128,8 @@ class ShareWithEqual extends StatelessWidget {
                                     ' (me)',
                                     style: getTextStyle2(
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w400,
-                                      color: AppColors.green,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.black,
                                     ),
                                   ),
                               ],

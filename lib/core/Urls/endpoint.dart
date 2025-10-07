@@ -43,4 +43,16 @@ class Urls {
   static const deleteaccount = "$baseUrl/users/selfDestruct";
   static const getincomeandexpence =
       "$baseUrl/incomeAndExpences/getFilteredIncomeAndExpenses";
+   static String getGroupStatus(String groupId) =>
+      "$baseUrl/groupTransaction/getGroupStatus/$groupId";   
+     static String updateGroupName(String groupId) =>
+      "$baseUrl/groupTransaction/updateGroupName/$groupId";  
+
+   //sliceup api
+   static String getSliceUp(String groupId) =>
+      "$baseUrl/groupTransaction/$groupId/settlements"; 
+    static String postFilterSliceUp(String groupId) =>
+      "$baseUrl/groupTransaction/$groupId/settle-multiple-debts";   
+
+
 }

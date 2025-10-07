@@ -134,6 +134,7 @@ class SignUpController extends GetxController {
           approvalToken: '',
           userId: userId,
           role: role,
+          userEmail: emailController.text.trim(), // Save the email too
           isProfileCreated: isProfileCreated,
           profileId: userId,
           token: token,
@@ -160,7 +161,8 @@ class SignUpController extends GetxController {
         EasyLoading.showSuccess('Signup successful! Please verify your email');
       } else {
         final responseData = jsonDecode(response.body);
-        String errorMessage = responseData['message'] ?? 'Registration failed'.tr;
+        String errorMessage =
+            responseData['message'] ?? 'Registration failed'.tr;
         debugPrint('Error message: $errorMessage');
         EasyLoading.showError(errorMessage);
         passwordError.value = errorMessage;

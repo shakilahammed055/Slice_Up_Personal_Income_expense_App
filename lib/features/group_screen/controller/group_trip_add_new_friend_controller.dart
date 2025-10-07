@@ -32,74 +32,122 @@ class GroupTripAddNewFriendController extends GetxController {
     fetchAllFriendsFromAPI();
   }
 
-  // Set the current trip (simplified since we're using specific group API)
+  // Method to refresh both friends and trip members data
+  Future<void> refreshAllData() async {
+    await Future.wait([
+      fetchAllFriendsFromAPI(),
+      if (currentTripId != null && currentTripId!.isNotEmpty)
+        fetchTripMembersFromAPI(currentTripId!),
+    ]);
+  }
+
+  // Set the current trip and fetch its members
   void setCurrentTrip(String tripName, {String? tripId}) {
     currentTripName = tripName;
     currentTripId = tripId;
-    // No need to fetch trip members since we're using the specific addGroupMember API
+
+    // Automatically fetch trip members when trip is set
+    if (tripId != null && tripId.isNotEmpty) {
+      fetchTripMembersFromAPI(tripId);
+    }
   }
 
-  // Fetch trip members from API using getGroupTransactions
+  // Fetch trip members from API using getGroupMembers
   Future<void> fetchTripMembersFromAPI(String tripId) async {
     try {
       isLoading.value = true;
+      debugPrint("🔄 Fetching trip members for tripId: $tripId");
 
       String? token = await AuthService.getApprovalToken();
       if (token == null || token.isEmpty) {
+        debugPrint("❌ No auth token available");
         return;
       }
 
-      var headers = {'Authorization': token, 'Content-Type': 'text/plain'};
+      var headers = {'Authorization': token};
 
-      // Use dynamic getGroupTransactions API with the specific tripId
+      // Use getGroupMembers API with the specific tripId
       var request = http.Request(
         'GET',
-        Uri.parse(Urls.getGroupTransactions(tripId)),
+        Uri.parse(Urls.getGroupMembers(tripId)),
       );
-      request.body =
-          '''//Query Parameters\r\n//expenseView=involving_me_only\r\n//transactionType=i_borrowed | i_lent\r\n//search=Transport''';
       request.headers.addAll(headers);
 
+      debugPrint("🌐 Making request to: ${Urls.getGroupMembers(tripId)}");
       http.StreamedResponse response = await request.send();
+
+      debugPrint("📡 Response status code: ${response.statusCode}");
 
       if (response.statusCode == 200) {
         String responseBody = await response.stream.bytesToString();
+        debugPrint("📦 Response body: $responseBody");
         Map<String, dynamic> jsonResponse = json.decode(responseBody);
 
         // Extract group members from the response
-        if (jsonResponse['data'] != null &&
-            jsonResponse['data']['group'] != null) {
-          var groupData = jsonResponse['data']['group'];
-          List<dynamic> groupMembers = groupData['groupMembers'] ?? [];
-          String ownerEmail = groupData['ownerEmail'] ?? '';
-
+        if (jsonResponse['data'] != null) {
+          var membersData = jsonResponse['data'];
           List<String> memberNames = [];
 
-          // Add owner first if exists
-          if (ownerEmail.isNotEmpty) {
-            String ownerName = ownerEmail.split('@')[0];
-            memberNames.add(ownerName);
-          }
+          // Handle different response structures
+          if (membersData is List) {
+            // If data is directly a list of members
+            for (var member in membersData) {
+              String memberName = '';
+              if (member is Map<String, dynamic>) {
+                memberName =
+                    member['name'] ??
+                    member['email']?.split('@')[0] ??
+                    'Unknown Member';
+              } else if (member is String) {
+                memberName = member.contains('@')
+                    ? member.split('@')[0]
+                    : member;
+              }
+              if (memberName.isNotEmpty) {
+                memberNames.add(memberName);
+              }
+            }
+          } else if (membersData is Map<String, dynamic>) {
+            // If data contains nested member information
+            List<dynamic> members =
+                membersData['members'] ?? membersData['groupMembers'] ?? [];
 
-          // Add other group members
-          for (var memberEmail in groupMembers) {
-            if (memberEmail != ownerEmail) {
-              // Avoid duplicate owner
-              String memberName = memberEmail.split('@')[0];
-              memberNames.add(memberName);
+            for (var member in members) {
+              String memberName = '';
+              if (member is Map<String, dynamic>) {
+                memberName =
+                    member['name'] ??
+                    member['email']?.split('@')[0] ??
+                    'Unknown Member';
+              } else if (member is String) {
+                memberName = member.contains('@')
+                    ? member.split('@')[0]
+                    : member;
+              }
+              if (memberName.isNotEmpty) {
+                memberNames.add(memberName);
+              }
             }
           }
 
+          debugPrint("👥 Found ${memberNames.length} members: $memberNames");
           selectedFriendNames.assignAll(memberNames);
+        } else {
+          debugPrint("⚠️ No data field in response");
+          selectedFriendNames.clear();
         }
       } else {
+        String errorBody = await response.stream.bytesToString();
+        debugPrint("❌ Error response: ${response.statusCode} - $errorBody");
         // If no members found, that's okay - start with empty list
         selectedFriendNames.clear();
       }
     } catch (e) {
+      debugPrint("💥 Exception in fetchTripMembersFromAPI: $e");
       selectedFriendNames.clear();
     } finally {
       isLoading.value = false;
+      debugPrint("✅ Finished fetching trip members");
     }
   }
 
@@ -132,7 +180,7 @@ class GroupTripAddNewFriendController extends GetxController {
 
       var request = http.Request(
         'POST',
-        Uri.parse(Urls.addGroupExpense(tripId)),
+        Uri.parse(Urls.addGroupMember(tripId)),
       );
       request.body = json.encode({'tripId': tripId, 'memberIds': friendIds});
       request.headers.addAll(headers);
@@ -241,6 +289,6 @@ class GroupTripAddNewFriendController extends GetxController {
 
   // Refresh friends data
   Future<void> refreshFriends() async {
-    await fetchAllFriendsFromAPI();
+    await refreshAllData();
   }
 }

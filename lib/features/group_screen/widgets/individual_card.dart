@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 
-
 class IndividualTransactionEntry {
   final Color fromAvatarColor;
   final String fromAvatarText;
@@ -49,7 +48,7 @@ class ResponsiveHelper {
 
 class IndividualCard extends StatelessWidget {
   final List<IndividualTransactionEntry> entries;
-  final String ?title2;
+  final String? title2;
 
   const IndividualCard({super.key, required this.entries, this.title2});
 
@@ -59,6 +58,11 @@ class IndividualCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget buildIndividualRowContent(IndividualTransactionEntry entry) {
+      String _shorten(String s, [int len = 10]) {
+        if (s.length <= len) return s;
+        return '${s.substring(0, len)}...';
+      }
+
       return Row(
         children: [
           // FROM
@@ -75,12 +79,15 @@ class IndividualCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            entry.fromName,
-            style: getTextStyle2(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textWhite : AppColors.black,
+          Flexible(
+            child: Text(
+              _shorten(entry.fromName),
+              style: getTextStyle2(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark ? AppColors.textWhite : AppColors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 6),
@@ -105,12 +112,15 @@ class IndividualCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            entry.toName,
-            style: getTextStyle2(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textWhite : AppColors.black,
+          Flexible(
+            child: Text(
+              _shorten(entry.toName),
+              style: getTextStyle2(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: isDark ? AppColors.textWhite : AppColors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
 
@@ -167,7 +177,7 @@ class IndividualCard extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  title2?? '',
+                  title2 ?? '',
                   style: getTextStyle2(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

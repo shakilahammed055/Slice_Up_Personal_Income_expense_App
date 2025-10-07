@@ -7,17 +7,25 @@ import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
 import 'package:teddy_5618/core/utils/constants/responsive_helper.dart';
 import 'package:teddy_5618/features/home_screen/widgets/expense_bar_chart.dart';
+import 'package:teddy_5618/features/group_screen/controller/status_screen_controller.dart';
 
 class GroupStatusScreen extends StatelessWidget {
   const GroupStatusScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    
     final r = ResponsiveHelper(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  return SingleChildScrollView(
+    // Use Get.put to ensure controller is available, fallback to Get.find
+    StatusScreenController statusController;
+    try {
+      statusController = Get.find<StatusScreenController>();
+    } catch (e) {
+      statusController = Get.put(StatusScreenController());
+    }
+
+    return SingleChildScrollView(
       child: SizedBox(
         child: Column(
           children: [
@@ -25,7 +33,6 @@ class GroupStatusScreen extends StatelessWidget {
             // Top container
             Center(
               child: Container(
-              
                 width: r.size.width / 1.1,
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadiusDirectional.only(
@@ -64,8 +71,8 @@ class GroupStatusScreen extends StatelessWidget {
                         Spacer(),
                         Image.asset(
                           IconPath.rabbit1,
-                           width: 72.549.w,
-                          height: 92.647.h
+                          width: 72.549.w,
+                          height: 92.647.h,
                         ),
                       ],
                     ).marginOnly(left: 16, right: 10),
@@ -77,7 +84,6 @@ class GroupStatusScreen extends StatelessWidget {
             // Bottom container (was Positioned)
             // const SizedBox(height: 16),
             Container(
-            
               width: r.size.width / 1.1,
               decoration: BoxDecoration(
                 borderRadius: const BorderRadiusDirectional.only(
@@ -110,27 +116,32 @@ class GroupStatusScreen extends StatelessWidget {
                         ),
                       ).marginOnly(bottom: 20),
                       Spacer(),
-                      Column(
-                        children: [
-                          SizedBox(height: 10),
-                          Text(
-                            'S\$ 30,000',
-                            style: getTextStyle2(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textGrey,
+                      Obx(
+                        () => Column(
+                          children: [
+                            SizedBox(height: 10),
+                            Text(
+                              statusController.getFormattedAmount(
+                                statusController.totalExpenses.value,
+                                statusController.involvedCurrency.value,
+                              ),
+                              style: getTextStyle2(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textGrey,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            '+ ₩ 100,000',
-                            style: getTextStyle2(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textGrey,
+                            SizedBox(height: 10),
+                            Text(
+                              '+ ${statusController.getFormattedAmount(statusController.involvedAmount.value, statusController.involvedCurrency.value)}',
+                              style: getTextStyle2(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textGrey,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ).marginOnly(left: 16, right: 16),
@@ -150,12 +161,17 @@ class GroupStatusScreen extends StatelessWidget {
                         ),
                       ),
                       Spacer(),
-                      Text(
-                        'S\$ 20,000',
-                        style: getTextStyle2(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textGrey,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedAmount(
+                            statusController.involvedAmount.value,
+                            statusController.involvedCurrency.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textGrey,
+                          ),
                         ),
                       ),
                     ],
@@ -173,21 +189,30 @@ class GroupStatusScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '30%',
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textGrey,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedPercentage(
+                            statusController.myExpensesPercentage.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textGrey,
+                          ),
                         ),
                       ),
                       Spacer(),
-                      Text(
-                        'S\$ 6,000',
-                        style: getTextStyle2(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.green,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedAmount(
+                            statusController.myExpensesAmount.value,
+                            statusController.myExpensesCurrency.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.green,
+                          ),
                         ),
                       ),
                     ],
@@ -206,14 +231,19 @@ class GroupStatusScreen extends StatelessWidget {
                       ),
 
                       Spacer(),
-                      Text(
-                        ' ₩ 100,000',
-                        style: getTextStyle2(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textGrey
-                              : AppColors.textGrey,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedAmount(
+                            statusController.involvedAmount.value,
+                            statusController.involvedCurrency.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.textGrey
+                                : AppColors.textGrey,
+                          ),
                         ),
                       ),
                     ],
@@ -231,21 +261,30 @@ class GroupStatusScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '30%',
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textGrey,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedPercentage(
+                            statusController.myExpensesPercentage.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textGrey,
+                          ),
                         ),
                       ),
                       Spacer(),
-                      Text(
-                        'S\$ 6,000',
-                        style: getTextStyle2(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.green,
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedAmount(
+                            statusController.myExpensesAmount.value,
+                            statusController.myExpensesCurrency.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.green,
+                          ),
                         ),
                       ),
                     ],
@@ -256,113 +295,141 @@ class GroupStatusScreen extends StatelessWidget {
 
             SizedBox(height: 32),
 
-            ExpenseBarChart(
-              iconWidget: Text('🚗'),
-              icontext: "Transport",
-              valueText: "₩ 1,000",
-              valueText2: "/₩20,000",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.5,
+            // Person wise data from API
+            Obx(
+              () => statusController.personWiseData.isEmpty
+                  ? statusController.isLoading.value
+                        ? Center(child: CircularProgressIndicator())
+                        : Center(
+                            child: Text(
+                              'No member data available',
+                              style: getTextStyle2(
+                                fontSize: 16,
+                                color: isDark
+                                    ? AppColors.textWhite
+                                    : AppColors.backgroundDark,
+                              ),
+                            ),
+                          )
+                  : Column(
+                      children: statusController.personWiseData.map((person) {
+                        final isMe = statusController.isCurrentUser(
+                          person.memberEmail,
+                        );
+
+                        // Extract name from email
+                        String displayName = person.memberEmail.split('@')[0];
+                        if (isMe) {
+                          displayName = "$displayName (Me)";
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: ExpenseBarChart(
+                            iconWidget: Container(
+                              height: 24,
+                              width: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isMe
+                                    ? AppColors.readishred
+                                    : AppColors.blueButton,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  person.memberEmail.isNotEmpty
+                                      ? person.memberEmail[0].toUpperCase()
+                                      : "U",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            icontext: displayName,
+                            valueText: statusController.getFormattedAmount(
+                              person.involved.amount,
+                              person.involved.currency,
+                            ),
+                            valueText2:
+                                "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                            valueColor: AppColors.green,
+                            lightbarColor: AppColors.greylightbarcolor,
+                            progressValue: person.involved.percentage / 100,
+                          ),
+                        );
+                      }).toList(),
+                    ),
             ),
-            SizedBox(height: 24),
-            ExpenseBarChart(
-              iconWidget: Text('👕'),
-              icontext: "Fashion",
-              valueText: "S\$ 120",
-              valueText2: "/800",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.8,
-            ),
-            SizedBox(height: 24),
-            ExpenseBarChart(
-              iconWidget: Text('✈️'),
-              icontext: "Flight long trans",
-              valueText: "S\$ 10,000,00 ",
-              valueText2: "/15,000,00",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.6,
-            ),
-            SizedBox(height: 24),
+
             Divider(),
-
             SizedBox(height: 24),
 
-            ExpenseBarChart(
-              iconWidget: Container(
-                height: 24, // desired height
-                width: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.readishred,
-                ),
+            // Category wise data from API
+            Obx(
+              () => statusController.categoryWiseData.isEmpty
+                  ? statusController.isLoading.value
+                        ? Center(child: CircularProgressIndicator())
+                        : Center(
+                            child: Text(
+                              'No category data available',
+                              style: getTextStyle2(
+                                fontSize: 16,
+                                color: isDark
+                                    ? AppColors.textWhite
+                                    : AppColors.backgroundDark,
+                              ),
+                            ),
+                          )
+                  : Column(
+                      children: statusController.categoryWiseData
+                          .where(
+                            (category) =>
+                                category.categoryName.isNotEmpty &&
+                                category.categoryName.toLowerCase() !=
+                                    'unknown',
+                          )
+                          .map((category) {
+                            // Extract emoji and name from category name like "🤖 robot"
+                            final categoryParts = category.categoryName
+                                .trim()
+                                .split(' ');
+                            final emoji = categoryParts.isNotEmpty
+                                ? categoryParts[0]
+                                : '📦';
+                            final categoryDisplayName = categoryParts.length > 1
+                                ? categoryParts.skip(1).join(' ')
+                                : category.categoryName;
 
-                child: Center(
-                  child: Text(
-                    "A",
-                    style: TextStyle(fontSize: 14, color: Colors.white),
-                  ),
-                ),
-              ),
-              icontext: "Ted (Me)",
-              valueText: "S\$ 120",
-              valueText2: "/800",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.2,
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 24),
+                              child: ExpenseBarChart(
+                                iconWidget: Text(
+                                  emoji,
+                                  style: const TextStyle(fontSize: 20),
+                                ),
+                                icontext: categoryDisplayName,
+                                valueText: statusController.getFormattedAmount(
+                                  category.involved.amount,
+                                  category.involved.currency,
+                                ),
+                                valueText2:
+                                    "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                                valueColor: AppColors.green,
+                                lightbarColor: AppColors.greylightbarcolor,
+                                progressValue: statusController
+                                    .getRelativeProgressForGroup(
+                                      category.involved.amount,
+                                    ), // Use group-specific relative progress
+                              ),
+                            );
+                          })
+                          .toList(),
+                    ),
             ),
 
-            SizedBox(height: 24),
-
-            ExpenseBarChart(
-              iconWidget: Container(
-                height: 24, // desired height
-                width: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.readishred,
-                ),
-
-                child: Center(
-                  child: Text(
-                    "A",
-                    style: TextStyle(fontSize: 14, color: Colors.white),
-                  ),
-                ),
-              ),
-              icontext: "Ted (Me)",
-              valueText: "S\$ 120",
-              valueText2: "/800",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.2,
-            ),
-            SizedBox(height: 24),
-            ExpenseBarChart(
-              iconWidget: Container(
-                height: 24, // desired height
-                width: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.blueButton,
-                ),
-
-                child: Center(
-                  child: Text(
-                    "A",
-                    style: TextStyle(fontSize: 14, color: Colors.white),
-                  ),
-                ),
-              ),
-              icontext: "Shanon",
-              valueText: "S\$ 120",
-              valueText2: "/800",
-              valueColor: AppColors.green,
-              lightbarColor: AppColors.greylightbarcolor,
-              progressValue: 0.2,
-            ),
+            SizedBox(height: 60.h),
           ],
         ),
       ),

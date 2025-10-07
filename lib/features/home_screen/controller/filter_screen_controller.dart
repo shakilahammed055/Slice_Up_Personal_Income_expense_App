@@ -1,3 +1,92 @@
+// // teddy_5618/features/home_screen/controller/filter_screen_controller.dart
+
+// import 'package:flutter/rendering.dart';
+// import 'package:get/get.dart';
+
+// class FilterScreenController extends GetxController {
+//   // Existing state for group 1
+//   RxInt groupOneSelected = 0.obs; // 0 for Total Remaining, 1 for Total Expense
+//   void selectGroupOne(int index) => groupOneSelected.value = index;
+
+//   // Existing state for group 2
+//   RxInt groupTwoSelected = 0.obs; // 0 for All, 1 for Expense Only, 2 for Income Only
+//   void selectGroupTwo(int index) => groupTwoSelected.value = index;
+
+//   // State for Month/Year Filter
+//   Rx<DateTime> selectedMonthYearFilter = DateTime(2025, 4, 1).obs;
+//   void updateMonthYearFilter(DateTime newDate) {
+//     selectedMonthYearFilter.value = newDate;
+
+//     debugPrint("Month/Year filter updated to: ${selectedMonthYearFilter.value.month}/${selectedMonthYearFilter.value.year}");
+
+//     // You would typically trigger your data filtering logic here
+//   }
+
+//   // --- NEW: State for Monthly/Yearly Toggle ---
+//   RxBool isMonthlySelected = true.obs; // true for Monthly, false for Yearly
+
+//   void toggleMonthlyYearly() {
+//     isMonthlySelected.value = !isMonthlySelected.value;
+
+//     debugPrint("Toggle unit to: ${isMonthlySelected.value ? 'Monthly' : 'Yearly'}");
+
+//     // You might trigger a re-filter or UI update based on this selection
+//   }
+
+//   String get currentPeriodUnit => isMonthlySelected.value ? "Monthly".tr : "Yearly".tr;
+//   // ---------------------------------------
+// }
+
+
+
+// // teddy_5618/features/home_screen/controller/filter_screen_controller.dart
+
+// import 'package:flutter/rendering.dart';
+// import 'package:get/get.dart';
+
+// class FilterScreenController extends GetxController {
+//   // Existing state for group 1
+//   RxInt groupOneSelected = 0.obs; // 0 for Total Remaining, 1 for Total Expense
+//   void selectGroupOne(int index) {
+//     groupOneSelected.value = index;
+//     if (index == 1) {
+//       groupTwoSelected.value = 1; // Auto-select "Expense only" when Total Expense is chosen
+//     } else if (index == 0) {
+//       groupTwoSelected.value = 0; // Reset to "All" when Total Remaining is chosen
+//     }
+//   }
+
+//   // Existing state for group 2
+//   RxInt groupTwoSelected = 0.obs; // 0 for All, 1 for Expense Only, 2 for Income Only
+//   void selectGroupTwo(int index) => groupTwoSelected.value = index;
+
+//   // State for Month/Year Filter
+//   Rx<DateTime> selectedMonthYearFilter = DateTime(2025, 4, 1).obs;
+//   void updateMonthYearFilter(DateTime newDate) {
+//     selectedMonthYearFilter.value = newDate;
+
+//     debugPrint("Month/Year filter updated to: ${selectedMonthYearFilter.value.month}/${selectedMonthYearFilter.value.year}");
+
+//     // You would typically trigger your data filtering logic here
+//   }
+
+//   // --- NEW: State for Monthly/Yearly Toggle ---
+//   RxBool isMonthlySelected = true.obs; // true for Monthly, false for Yearly
+
+//   void toggleMonthlyYearly() {
+//     isMonthlySelected.value = !isMonthlySelected.value;
+
+//     debugPrint("Toggle unit to: ${isMonthlySelected.value ? 'Monthly' : 'Yearly'}");
+
+//     // You might trigger a re-filter or UI update based on this selection
+//   }
+
+//   String get currentPeriodUnit => isMonthlySelected.value ? "Monthly".tr : "Yearly".tr;
+//   // ---------------------------------------
+// }
+
+
+
 // teddy_5618/features/home_screen/controller/filter_screen_controller.dart
 
 import 'package:flutter/rendering.dart';
@@ -6,20 +95,42 @@ import 'package:get/get.dart';
 class FilterScreenController extends GetxController {
   // Existing state for group 1
   RxInt groupOneSelected = 0.obs; // 0 for Total Remaining, 1 for Total Expense
-  void selectGroupOne(int index) => groupOneSelected.value = index;
+  void selectGroupOne(int index) {
+    groupOneSelected.value = index;
+    if (index == 1) {
+      groupTwoSelected.value = 1; // Auto-select "Expense only" when Total Expense is chosen
+    } else if (index == 0) {
+      groupTwoSelected.value = 0; // Reset to "All" when Total Remaining is chosen
+    }
+  }
 
   // Existing state for group 2
   RxInt groupTwoSelected = 0.obs; // 0 for All, 1 for Expense Only, 2 for Income Only
   void selectGroupTwo(int index) => groupTwoSelected.value = index;
 
   // State for Month/Year Filter
-  Rx<DateTime> selectedMonthYearFilter = DateTime(2025, 4, 1).obs;
+  Rx<DateTime?> selectedMonthYearFilter = Rx<DateTime?>(null);
+  @override
+  void onInit() {
+    super.onInit();
+    // Initially null to show all data
+    selectedMonthYearFilter.value = null;
+  }
   void updateMonthYearFilter(DateTime newDate) {
-    selectedMonthYearFilter.value = newDate;
+    final updatedDate = DateTime(newDate.year, newDate.month, 1);
+    selectedMonthYearFilter.value = updatedDate;
 
-    debugPrint("Month/Year filter updated to: ${selectedMonthYearFilter.value.month}/${selectedMonthYearFilter.value.year}");
+    final month = selectedMonthYearFilter.value?.month ?? 'N/A';
+    final year = selectedMonthYearFilter.value?.year ?? 'N/A';
+    debugPrint("Month/Year filter updated to: $month/$year");
 
     // You would typically trigger your data filtering logic here
+  }
+
+  // Method to clear month filter
+  void clearMonthFilter() {
+    selectedMonthYearFilter.value = null;
+    debugPrint("Month filter cleared");
   }
 
   // --- NEW: State for Monthly/Yearly Toggle ---

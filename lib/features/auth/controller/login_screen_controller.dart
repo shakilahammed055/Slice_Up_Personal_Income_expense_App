@@ -1,4 +1,3 @@
-
 // ignore_for_file: unnecessary_overrides
 
 import 'dart:convert';
@@ -64,20 +63,14 @@ class LoginController extends GetxController {
     isPasswordFocused.value = hasFocus;
   }
 
-
- 
-
-
-//Send OTP =========================================================================
+  //Send OTP =========================================================================
   Future<void> sendOTP(String approvalToken) async {
     debugPrint('Starting sendOTP with approvalToken: $approvalToken');
     EasyLoading.show(status: 'Sending OTP...');
     try {
       debugPrint('Making HTTP POST request to send_OTP endpoint');
       final otpResponse = await http.post(
-        Uri.parse(
-          Urls.sendotp,
-        ),
+        Uri.parse(Urls.sendotp),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': approvalToken,
@@ -150,95 +143,102 @@ class LoginController extends GetxController {
     debugPrint('sendOTP method completed');
   }
 
-
-
-
-//Log In=============================================================================
+  //Log In=============================================================================
   Future<void> login() async {
-  debugPrint('Starting login with email: ${emailController.text.trim()}');
-  EasyLoading.show(status: 'Logging in...');
-  try {
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-    debugPrint('Creating request body with email: $email');
-    final requestBody = {'email': email, 'password': password};
+    debugPrint('Starting login with email: ${emailController.text.trim()}');
+    EasyLoading.show(status: 'Logging in...');
+    try {
+      final email = emailController.text.trim();
+      final password = passwordController.text;
+      debugPrint('Creating request body with email: $email');
+      final requestBody = {'email': email, 'password': password};
 
-    debugPrint('Making HTTP POST request to login endpoint');
-    final response = await http.post(
-      Uri.parse(Urls.login),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(requestBody),
-    );
-
-    debugPrint('Received login response with status code: ${response.statusCode}');
-    debugPrint('Login response body: ${response.body}');
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint('Parsing login response JSON');
-      final responseData = jsonDecode(response.body);
-      debugPrint('Parsed response data: $responseData');
-
-      final otpVerified = responseData['user']['OTPVerified'] as bool;
-      final approvalToken = responseData['approvalToken'] as String;
-      final userId = responseData['user']['_id'] as String;
-      final role = responseData['user']['role'] as String;
-      final isProfileUpdated = responseData['user']['isProfileUpdated'] as bool;
-      debugPrint('OTPVerified: $otpVerified, ApprovalToken: $approvalToken, UserId: $userId, Role: $role, isProfileUpdated: $isProfileUpdated');
-
-      // Save auth data to AuthService
-      debugPrint('Saving auth data to AuthService');
-      await AuthService.saveAuthData(
-        approvalToken: approvalToken,
-        userId: userId,
-        role: role,
+      debugPrint('Making HTTP POST request to login endpoint');
+      final response = await http.post(
+        Uri.parse(Urls.login),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
       );
-      debugPrint('Auth data saved successfully');
 
-      // Navigate based on OTPVerified and isProfileUpdated status
-      if (otpVerified) {
-        debugPrint('OTP is verified, checking isProfileUpdated');
-        if (isProfileUpdated) {
-          debugPrint('isProfileUpdated is true, navigating to HomeScreen');
-          Get.offAll(() => BottomNavbarView());
+      debugPrint(
+        'Received login response with status code: ${response.statusCode}',
+      );
+      debugPrint('Login response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Parsing login response JSON');
+        final responseData = jsonDecode(response.body);
+        debugPrint('Parsed response data: $responseData');
+
+        final otpVerified = responseData['user']['OTPVerified'] as bool;
+        final approvalToken = responseData['approvalToken'] as String;
+        final userId = responseData['user']['_id'] as String;
+        final role = responseData['user']['role'] as String;
+        final isProfileUpdated =
+            responseData['user']['isProfileUpdated'] as bool;
+        debugPrint(
+          'OTPVerified: $otpVerified, ApprovalToken: $approvalToken, UserId: $userId, Role: $role, isProfileUpdated: $isProfileUpdated',
+        );
+
+        // Save auth data to AuthService
+        debugPrint('Saving auth data to AuthService');
+        await AuthService.saveAuthData(
+          approvalToken: approvalToken,
+          userId: userId,
+          role: role,
+          userEmail: email, // Save the email too
+        );
+        debugPrint('Auth data saved successfully');
+
+        // Navigate based on OTPVerified and isProfileUpdated status
+        if (otpVerified) {
+          debugPrint('OTP is verified, checking isProfileUpdated');
+          if (isProfileUpdated) {
+            debugPrint('isProfileUpdated is true, navigating to HomeScreen');
+            Get.offAll(() => BottomNavbarView());
+          } else {
+            debugPrint(
+              'isProfileUpdated is false, navigating to ProfileSetupScreen',
+            );
+            Get.offAll(() => ProfileSetupScreen());
+          }
+          debugPrint('Showing success message: Login successful!');
+          EasyLoading.showSuccess('Login successful!');
         } else {
-          debugPrint('isProfileUpdated is false, navigating to ProfileSetupScreen');
-          Get.offAll(() => ProfileSetupScreen());
+          debugPrint('OTP not verified, calling sendOTP');
+          await sendOTP(approvalToken);
         }
-        debugPrint('Showing success message: Login successful!');
-        EasyLoading.showSuccess('Login successful!');
-      } else {
-        debugPrint('OTP not verified, calling sendOTP');
-        await sendOTP(approvalToken);
-      }
 
-      // Clear input fields
-      debugPrint('Clearing input fields');
-      emailController.clear();
-      passwordController.clear();
-      debugPrint('Updating button state');
-      _updateButtonState();
-    } else {
-      debugPrint('Login request failed with status code: ${response.statusCode}');
-      debugPrint('Parsing error response JSON');
-      final responseData = jsonDecode(response.body);
-      debugPrint('Parsed error response data: $responseData');
-      String errorMessage = responseData['message'] ?? 'Login failed';
-      debugPrint('Error message: $errorMessage');
-      EasyLoading.showError(errorMessage);
-      passwordError.value = errorMessage;
+        // Clear input fields
+        debugPrint('Clearing input fields');
+        emailController.clear();
+        passwordController.clear();
+        debugPrint('Updating button state');
+        _updateButtonState();
+      } else {
+        debugPrint(
+          'Login request failed with status code: ${response.statusCode}',
+        );
+        debugPrint('Parsing error response JSON');
+        final responseData = jsonDecode(response.body);
+        debugPrint('Parsed error response data: $responseData');
+        String errorMessage = responseData['message'] ?? 'Login failed';
+        debugPrint('Error message: $errorMessage');
+        EasyLoading.showError(errorMessage);
+        passwordError.value = errorMessage;
+        debugPrint('Set passwordError to: ${passwordError.value}');
+      }
+    } catch (e) {
+      debugPrint('Exception caught in login: $e');
+      EasyLoading.showError('Login failed: ${e.toString()}');
+      passwordError.value = 'Login failed: ${e.toString()}';
       debugPrint('Set passwordError to: ${passwordError.value}');
+    } finally {
+      debugPrint('Dismissing EasyLoading');
+      EasyLoading.dismiss();
     }
-  } catch (e) {
-    debugPrint('Exception caught in login: $e');
-    EasyLoading.showError('Login failed: ${e.toString()}');
-    passwordError.value = 'Login failed: ${e.toString()}';
-    debugPrint('Set passwordError to: ${passwordError.value}');
-  } finally {
-    debugPrint('Dismissing EasyLoading');
-    EasyLoading.dismiss();
+    debugPrint('login method completed');
   }
-  debugPrint('login method completed');
-}
 
   @override
   void onClose() {

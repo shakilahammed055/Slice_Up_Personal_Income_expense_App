@@ -1208,7 +1208,7 @@ class SettingController extends GetxController {
 
       // Make API call to delete account
       final dio.Response response = await _dio.delete(
-        'https://teddybackend-mivk.onrender.com/api/v1/users/selfDestruct',
+        Urls.deleteaccount,
         options: dio.Options(
           headers: {
             'Authorization': approvalToken,

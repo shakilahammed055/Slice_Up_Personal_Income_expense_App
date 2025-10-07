@@ -17,74 +17,66 @@ class HireAssistantBottomsheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        height: size.height * 0.85,
         decoration: BoxDecoration(
           color: isDark ? AppColors.backgroundDark : AppColors.textWhite,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // AppBar Row
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: size.width * 0.04,
-                vertical: size.height * 0.015,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SizedBox(width: size.width * 0.08),
-                  Text(
-                    'Hire Assistant'.tr,
-                    style: getTextStyle2(
-                      fontSize: size.width * 0.045,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? AppColors.textWhite : AppColors.black,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Get.back(),
-                    child: Icon(
-                      Icons.close,
-                      size: size.width * 0.06,
-                      color: isDark ? AppColors.textWhite : AppColors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: size.height * 0.02),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header (fixed height = 56)
+              Container(
+                height: 56,
+                padding: EdgeInsets.symmetric(horizontal: size.width * 0.04),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: size.width * 0.06,
-                        vertical: size.height * 0.04,
-                      ),
-                      color: isDark
-                          ? AppColors.backgroundDark
-                          : Color(0xFFFCFCFD),
-
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildPlanList(context, controller),
-                          SizedBox(height: size.height * 0.03),
-                          _buildPricingOptions(context, controller),
-                        ],
+                    const SizedBox(width: 32),
+                    Text(
+                      'Hire Assistant'.tr,
+                      style: getTextStyle2(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.textWhite : AppColors.black,
                       ),
                     ),
-                    _buildFreeOption(context, controller),
-                    _buildHireButton(context, controller),
+                    GestureDetector(
+                      onTap: () => Get.back(),
+                      child: Icon(
+                        Icons.close,
+                        size: size.width * 0.06,
+                        color: isDark ? AppColors.textWhite : AppColors.black,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // Content section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                color: isDark
+                    ? AppColors.backgroundDark
+                    : const Color(0xFFFCFCFD),
+                child: Column(
+                  children: [
+                    _buildPlanList(context, controller),
+                    SizedBox(height: size.height * 0.03),
+                    _buildPricingOptions(context, controller),
+                  ],
+                ),
+              ),
+
+              // Sticky bottom hire button
+              _buildHireButton(context, controller),
+            ],
+          ),
         ),
       ),
     );
@@ -109,30 +101,46 @@ class HireAssistantBottomsheet extends StatelessWidget {
             onTap: () => controller.selectPlan('ai_assistant'),
           ),
           Opacity(
-            opacity: 0.20,
+            opacity: controller.isPremiumPlan ? 1.0 : 0.20,
             child: _buildPlanItem(
               context,
               emoji: '🤖',
               title: 'AI Assistant Chatbot'.tr,
-              isSelected: false,
-              onTap: () => controller.showComingSoon(),
+              isSelected:
+                  controller.isPremiumPlan &&
+                  controller.selectedPlan.value == 'ai_assistant_chatbot',
+              onTap: () {
+                if (controller.isPremiumPlan) {
+                  controller.selectPlan('ai_assistant_chatbot');
+                } else {
+                  controller.showComingSoon();
+                }
+              },
             ),
           ),
           Opacity(
-            opacity: 0.20,
+            opacity: controller.isPremiumPlan ? 1.0 : 0.20,
             child: _buildPlanItem(
               context,
               emoji: '🧠',
               title: 'Smart Budget Suggestions'.tr,
-              isSelected: false,
-              onTap: () => controller.showComingSoon(),
+              isSelected:
+                  controller.isPremiumPlan &&
+                  controller.selectedPlan.value == 'smart_budget',
+              onTap: () {
+                if (controller.isPremiumPlan) {
+                  controller.selectPlan('smart_budget');
+                } else {
+                  controller.showComingSoon();
+                }
+              },
             ),
           ),
           _buildPlanItem(
             context,
             emoji: '🤝',
             title: 'Split Bills'.tr,
-            subtitle: '(Up to 3 groups)'.tr,
+            subtitle: '(Up to 2 groups)'.tr,
             isSelected: controller.selectedPlan.value == 'split_bills',
             onTap: () => controller.selectPlan('split_bills'),
           ),
@@ -141,6 +149,7 @@ class HireAssistantBottomsheet extends StatelessWidget {
     );
   }
 
+  // =================== PLAN ITEM ===================
   Widget _buildPlanItem(
     BuildContext context, {
     required String emoji,
@@ -149,75 +158,67 @@ class HireAssistantBottomsheet extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final size = MediaQuery.of(context).size;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: size.height * 0.015,
-          horizontal: size.width * 0.02,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? isDark
-                    ? AppColors.deepGrey
-                    : AppColors.lightGreyContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Text(
-              emoji,
-              style: getTextStyle2(
-                fontSize: size.width * 0.05,
-                fontWeight: FontWeight.w500,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          height: 20,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            children: [
+              Text(
+                emoji,
+                style: getTextStyle2(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-            ),
-            SizedBox(width: size.width * 0.03),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: title,
-                      style: getTextStyle2(
-                        color: isDark ? AppColors.textWhite : AppColors.black,
-                        fontSize: size.width * 0.04,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (subtitle != null)
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
                       TextSpan(
-                        text: ' $subtitle',
+                        text: title,
                         style: getTextStyle2(
-                          color: Color(0xFFAAAAAA),
-                          fontSize: size.width * 0.035,
-                          fontWeight: FontWeight.w400,
+                          color: isDark ? AppColors.textWhite : AppColors.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                  ],
+                      if (subtitle != null) ...[
+                        const TextSpan(text: ' '),
+                        TextSpan(
+                          text: subtitle,
+                          style: getTextStyle2(
+                            color: const Color(0xFFAAAAAA),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (isSelected)
+              // Tick mark icon - always show
               Icon(
-                Icons.check_circle,
+                Icons.check,
                 color: isDark ? AppColors.textWhite : AppColors.black,
-                size: size.width * 0.06,
+                size: 20,
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
+  // =================== PRICING OPTIONS ===================
   Widget _buildPricingOptions(
     BuildContext context,
     HireAssistantController controller,
   ) {
-    final size = MediaQuery.of(context).size;
     return Obx(
       () => Column(
         children: [
@@ -237,11 +238,18 @@ class HireAssistantBottomsheet extends StatelessWidget {
             isSelected: controller.selectedPricing.value == 'yearly',
             onTap: () => controller.selectPricing('yearly'),
           ),
-        ].withSpacing(size.height * 0.02),
+          _buildPricingCard(
+            context,
+            title: 'Free Plan'.tr,
+            isSelected: controller.selectedPricing.value == 'free',
+            onTap: () => controller.selectPricing('free'),
+          ),
+        ],
       ),
     );
   }
 
+  // =================== PRICING CARD ===================
   Widget _buildPricingCard(
     BuildContext context, {
     String? icon,
@@ -250,34 +258,29 @@ class HireAssistantBottomsheet extends StatelessWidget {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    final size = MediaQuery.of(context).size;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bool hasDiscount = (price ?? '').contains('-22%');
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: size.width * 0.06),
-        decoration: ShapeDecoration(
-          color: isDark ? Color(0xFF38383A) : Color(0xFFEDEDF0),
-
-          shape: RoundedRectangleBorder(
-            side: BorderSide(
-              width: isSelected ? 2 : 0,
-              color: isSelected
-                  ? isDark
-                        ? Color(0xFFEDEDF0)
-                        : AppColors.backgroundDark
-                  : Colors.transparent,
-            ),
-            borderRadius: BorderRadius.circular(24),
+        height: 68,
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF38383A) : const Color(0xFFEDEDF0),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.black : Colors.transparent,
+            width: isSelected ? 2 : 0,
           ),
         ),
         child: Row(
           children: [
-            if (icon != null)
+            if (icon != null) ...[
               Container(
-                width: size.width * 0.15,
-                height: size.width * 0.2,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage(icon),
@@ -285,98 +288,53 @@ class HireAssistantBottomsheet extends StatelessWidget {
                   ),
                 ),
               ),
-            if (icon != null) SizedBox(width: size.width * 0.03),
+              const SizedBox(width: 12),
+            ],
             Expanded(
               child: Text(
                 title,
                 style: getTextStyle2(
                   color: isDark ? AppColors.textWhite : AppColors.black,
-                  fontSize: size.width * 0.04,
+                  fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
               ),
             ),
             if (price != null)
-              Text.rich(
-                TextSpan(
-                  children: [
-                    if (price.contains('-22%'))
+              hasDiscount
+                  ? Text.rich(
                       TextSpan(
-                        text: '-22%',
-                        style: getTextStyle2(
-                          color: const Color(0xFFE21818),
-                          fontSize: size.width * 0.04,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        children: [
+                          TextSpan(
+                            text: '-22%',
+                            style: getTextStyle2(
+                              color: const Color(0xFFE21818),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          TextSpan(
+                            text: '  \$18',
+                            style: getTextStyle2(
+                              color: isDark
+                                  ? AppColors.textWhite
+                                  : AppColors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                    TextSpan(
-                      text: price.contains('-22%') ? '  \$18' : price,
+                    )
+                  : Text(
+                      price,
                       style: getTextStyle2(
                         color: isDark ? AppColors.textWhite : AppColors.black,
-                        fontSize: size.width * 0.04,
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ],
-                ),
-              ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFreeOption(
-    BuildContext context,
-    HireAssistantController controller,
-  ) {
-    final size = MediaQuery.of(context).size;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: size.width * 0.06,
-        vertical: size.height * 0.02,
-      ),
-      child: GestureDetector(
-        onTap: () => controller.selectPricing('free'),
-        child: Obx(
-          () => Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(
-              horizontal: size.width * 0.06,
-              vertical: size.height * 0.02,
-            ),
-            decoration: ShapeDecoration(
-              color: controller.selectedPricing.value == 'free'
-                  ? isDark
-                        ? AppColors.deepGrey
-                        : AppColors.lightGreyContainer
-                  : isDark
-                  ? AppColors.deepGrey
-                  : AppColors.lightGreyContainer,
-              //  const Color(0xFFEDEDF0),
-              shape: RoundedRectangleBorder(
-                side: BorderSide(
-                  width: controller.selectedPricing.value == 'free' ? 2 : 0,
-                  color: controller.selectedPricing.value == 'free'
-                      ? isDark
-                            ? AppColors.textWhite
-                            : AppColors.black
-                      : Colors.transparent,
-                ),
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-            child: Text(
-              'Free'.tr,
-              textAlign: TextAlign.center,
-              style: getTextStyle2(
-                color: isDark ? AppColors.textWhite : AppColors.black,
-                fontSize: size.width * 0.045,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
         ),
       ),
     );
@@ -386,64 +344,40 @@ class HireAssistantBottomsheet extends StatelessWidget {
     BuildContext context,
     HireAssistantController controller,
   ) {
-    final size = MediaQuery.of(context).size;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: size.width * 0.05,
-        vertical: size.height * 0.02,
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 18),
       decoration: BoxDecoration(
         color: isDark ? AppColors.backgroundDark : AppColors.textWhite,
-        border: const Border(top: BorderSide(color: Color(0xFF38383A))),
+        border: const Border(top: BorderSide(color: Color(0xFFEDEDF0))),
       ),
-      child: Column(
-        children: [
-          Obx(
-            () => GestureDetector(
-              onTap: controller.canHire.value ? controller.hireAssistant : null,
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
-                decoration: ShapeDecoration(
-                  color: controller.canHire.value
-                      ? isDark
-                            ? AppColors.textWhite
-                            : AppColors.backgroundDark
-                      : AppColors.backgroundDark,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  controller.isProcessing.value
-                      ? 'Processing...'.tr
-                      : 'Hire'.tr,
-                  textAlign: TextAlign.center,
-                  style: getTextStyle2(
-                    color: isDark
-                        ? AppColors.backgroundDark
-                        : AppColors.textWhite,
-                    fontSize: size.width * 0.045,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+      child: Obx(
+        () => GestureDetector(
+          onTap: controller.canHire.value ? controller.hireAssistant : null,
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: controller.canHire.value
+                  ? (isDark
+                        ? AppColors.textWhite
+                        : Colors
+                              .black) // dark mode: white bg, light mode: black bg
+                  : Colors.grey[400],
+              borderRadius: BorderRadius.circular(100),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              controller.isProcessing.value ? 'Processing...'.tr : 'Hire'.tr,
+              style: getTextStyle2(
+                color: isDark ? Colors.black : Colors.white, // flip text color
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          SizedBox(height: size.height * 0.01),
-          // Container(
-          //   width: size.width * 0.3,
-          //   height: 4,
-          //   decoration: ShapeDecoration(
-          //     color: const Color(0xFF2B2F38),
-          //     shape: RoundedRectangleBorder(
-          //       borderRadius: BorderRadius.circular(100),
-          //     ),
-          //   ),
-          // ),
-        ],
+        ),
       ),
     );
   }

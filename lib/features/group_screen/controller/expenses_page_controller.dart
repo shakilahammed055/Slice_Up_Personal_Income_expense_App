@@ -27,18 +27,71 @@ class ExpensesPageController extends GetxController {
   var totalLent = 0.0.obs;
   var netBalance = 0.0.obs;
 
+  // Filter state
+  var currentExpenseView = ''.obs;
+  var currentTransactionType = ''.obs;
+  var currentSearchQuery = ''.obs;
+
   // Constructor to accept group ID
   ExpensesPageController({String? groupId}) {
     if (groupId != null) {
       this.groupId.value = groupId;
+      debugPrint("💰 [EXPENSES_CONTROLLER] Initialized with groupId: $groupId");
     }
   }
 
   @override
   void onInit() {
     super.onInit();
+    debugPrint(
+      "🔄 [EXPENSES_CONTROLLER] onInit called for groupId: ${groupId.value}",
+    );
     // Load group details when controller is initialized
-    loadGroupDetails();
+    if (groupId.value.isNotEmpty) {
+      loadGroupDetails();
+    }
+  }
+
+  // Method to clear all data for this trip
+  void clearTripData() {
+    debugPrint(
+      "🧹 [EXPENSES_CONTROLLER] Clearing trip data for groupId: ${groupId.value}",
+    );
+    expenses.clear();
+    error.value = '';
+    totalAmount.value = 0.0;
+    totalOwed.value = 0.0;
+    totalLent.value = 0.0;
+    netBalance.value = 0.0;
+    groupInfo.clear();
+    groupMembers.clear();
+    isLoading.value = false;
+    isRefreshing.value = false;
+
+    // Clear filter state
+    currentExpenseView.value = '';
+    currentTransactionType.value = '';
+    currentSearchQuery.value = '';
+  }
+
+  // Method to set new group ID and clear previous data
+  void setGroupId(String newGroupId) {
+    if (groupId.value != newGroupId) {
+      debugPrint(
+        "🔄 [EXPENSES_CONTROLLER] Switching from groupId: ${groupId.value} to: $newGroupId",
+      );
+      clearTripData();
+      groupId.value = newGroupId;
+      loadGroupDetails();
+    }
+  }
+
+  @override
+  void onClose() {
+    debugPrint(
+      "🗑️ [EXPENSES_CONTROLLER] Disposing controller for groupId: ${groupId.value}",
+    );
+    super.onClose();
   }
 
   // Main method to load group details and expenses for this specific group
@@ -48,6 +101,10 @@ class ExpensesPageController extends GetxController {
     String? search,
   }) async {
     try {
+      debugPrint(
+        "📊 [EXPENSES_CONTROLLER] loadGroupDetails called for groupId: ${groupId.value}",
+      );
+
       if (!isRefreshing.value) {
         isLoading.value = true;
       }
@@ -69,18 +126,24 @@ class ExpensesPageController extends GetxController {
 
       // Get the current group ID - if not set, get user's groups first
       String currentGroupId = groupId.value;
-      
+
       if (currentGroupId.isEmpty) {
-        debugPrint('🔍 No group ID set, fetching user groups first...');
+        debugPrint(
+          '🔍 [EXPENSES_CONTROLLER] No group ID set, fetching user groups first...',
+        );
         currentGroupId = await getUserGroupsAndGetFirst(token);
         if (currentGroupId.isEmpty) {
           // No groups found - show empty state instead of error
           expenses.clear();
-          debugPrint('📋 No groups found for user');
+          debugPrint('📋 [EXPENSES_CONTROLLER] No groups found for user');
           return;
         }
         groupId.value = currentGroupId;
-        debugPrint('✅ Using group ID: $currentGroupId');
+        debugPrint('✅ [EXPENSES_CONTROLLER] Using group ID: $currentGroupId');
+      } else {
+        debugPrint(
+          '🎯 [EXPENSES_CONTROLLER] Using provided group ID: $currentGroupId',
+        );
       }
 
       await getGroupDetails(
@@ -95,9 +158,10 @@ class ExpensesPageController extends GetxController {
       expenses.clear();
       error.value = ''; // Clear error to show empty state instead
       debugPrint('❌ Error in loadGroupDetails: $e');
-      
+
       // Only show error snackbar for critical errors (like network issues)
-      if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('TimeoutException')) {
         Get.snackbar(
           'Connection Error',
           'Please check your internet connection',
@@ -125,6 +189,16 @@ class ExpensesPageController extends GetxController {
       }
       error.value = '';
 
+      // Store filter parameters
+      currentExpenseView.value = expenseView ?? '';
+      currentTransactionType.value = transactionType ?? '';
+      currentSearchQuery.value = search ?? '';
+
+      print('💰 [EXPENSES] Filter parameters stored:');
+      print('💰 [EXPENSES] - expenseView: ${currentExpenseView.value}');
+      print('💰 [EXPENSES] - transactionType: ${currentTransactionType.value}');
+      print('💰 [EXPENSES] - search: ${currentSearchQuery.value}');
+
       // Get token from AuthService
       final token = await AuthService.getApprovalToken();
       debugPrint('token: $token');
@@ -142,7 +216,7 @@ class ExpensesPageController extends GetxController {
 
       // Get the current group ID - if not set, get user's groups first
       String currentGroupId = groupId.value;
-      
+
       if (currentGroupId.isEmpty) {
         debugPrint('🔍 No group ID set, fetching user groups first...');
         currentGroupId = await getUserGroupsAndGetFirst(token);
@@ -190,12 +264,14 @@ class ExpensesPageController extends GetxController {
   ) async {
     try {
       // Prepare headers
-      var headers = {'Authorization': token, 'Content-Type': 'application/json'};
+      var headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      };
 
       // Use the getGroupTransactions endpoint instead
       final url = Urls.getGroupTransactions(groupId);
       // final url = '${Urls.getGroupDetails}$groupId';
-
 
       debugPrint('🌐 Making request to: $url');
       debugPrint('🔑 Headers: $headers');
@@ -213,23 +289,27 @@ class ExpensesPageController extends GetxController {
       if (response.statusCode == 200) {
         final responseString = await response.stream.bytesToString();
         debugPrint('📋 Raw Response: $responseString');
-        
+
         final responseData =
             json.decode(responseString) as Map<String, dynamic>;
 
         debugPrint('🔍 Parsed Response: $responseData');
 
-        if (responseData['status'] == 'success' || responseData['success'] == true) {
+        if (responseData['status'] == 'success' ||
+            responseData['success'] == true) {
           final data = responseData['data'] as Map<String, dynamic>? ?? {};
 
           // For getGroupTransactions, look for expenses in the correct location
           List<dynamic> transactions = [];
-          
+
           // Based on your API response, expenses are in data.expenses.list
           if (data['expenses'] != null && data['expenses']['list'] is List) {
             transactions = data['expenses']['list'] as List<dynamic>;
-            debugPrint('📋 Found transactions in data.expenses.list: ${transactions.length}');
-          } else if (data['expenses'] != null && data['expenses']['byDate'] is Map) {
+            debugPrint(
+              '📋 Found transactions in data.expenses.list: ${transactions.length}',
+            );
+          } else if (data['expenses'] != null &&
+              data['expenses']['byDate'] is Map) {
             // Alternative: get from byDate structure
             final byDate = data['expenses']['byDate'] as Map<String, dynamic>;
             transactions = [];
@@ -238,13 +318,19 @@ class ExpensesPageController extends GetxController {
                 transactions.addAll(dateExpenses);
               }
             });
-            debugPrint('📋 Found transactions in data.expenses.byDate: ${transactions.length}');
+            debugPrint(
+              '📋 Found transactions in data.expenses.byDate: ${transactions.length}',
+            );
           } else if (data['transactions'] is List) {
             transactions = data['transactions'] as List<dynamic>;
-            debugPrint('📋 Found transactions in data.transactions: ${transactions.length}');
+            debugPrint(
+              '📋 Found transactions in data.transactions: ${transactions.length}',
+            );
           } else if (data is List) {
             transactions = data as List<dynamic>;
-            debugPrint('📋 Found transactions in data directly: ${transactions.length}');
+            debugPrint(
+              '📋 Found transactions in data directly: ${transactions.length}',
+            );
           }
 
           debugPrint('📋 Total transactions found: ${transactions.length}');
@@ -257,20 +343,25 @@ class ExpensesPageController extends GetxController {
           if (group.isNotEmpty) {
             groupInfo.value = group;
             groupName.value = group['groupName']?.toString() ?? 'Unknown Group';
-            
+
             // Convert groupMembers from list of emails to proper format
             final memberEmails = group['groupMembers'] as List<dynamic>? ?? [];
-            groupMembers.value = memberEmails.map((email) => {
-              'email': email.toString(),
-              'name': _extractNameFromEmail(email.toString()),
-            }).toList();
+            groupMembers.value = memberEmails
+                .map(
+                  (email) => {
+                    'email': email.toString(),
+                    'name': _extractNameFromEmail(email.toString()),
+                  },
+                )
+                .toList();
           }
 
           // Update summary/totals if available
           if (summary.isNotEmpty) {
             final youllPay = summary['youllPay'] as Map<String, dynamic>? ?? {};
-            final youllCollect = summary['youllCollect'] as Map<String, dynamic>? ?? {};
-            
+            final youllCollect =
+                summary['youllCollect'] as Map<String, dynamic>? ?? {};
+
             totalOwed.value = _parseAmount(youllPay['amount']);
             totalLent.value = _parseAmount(youllCollect['amount']);
             netBalance.value = totalLent.value - totalOwed.value;
@@ -313,7 +404,9 @@ class ExpensesPageController extends GetxController {
       } else {
         // Clear expenses and log error without showing snackbar
         expenses.clear();
-        debugPrint('❌ Failed to load group transactions. Status: ${response.statusCode}');
+        debugPrint(
+          '❌ Failed to load group transactions. Status: ${response.statusCode}',
+        );
         final responseBody = await response.stream.bytesToString();
         debugPrint('❌ Response body: $responseBody');
       }
@@ -440,10 +533,76 @@ class ExpensesPageController extends GetxController {
   // Process expenses and group by date
   Future<void> processExpenses(List<dynamic> transactions) async {
     try {
+      print(
+        '💰 [EXPENSES] Processing ${transactions.length} transactions with filters:',
+      );
+      print('💰 [EXPENSES] - currentExpenseView: ${currentExpenseView.value}');
+      print(
+        '💰 [EXPENSES] - currentTransactionType: ${currentTransactionType.value}',
+      );
+
       Map<String, List<Map<String, dynamic>>> groupedExpenses = {};
+      int filteredCount = 0;
 
       for (var transaction in transactions) {
         final expense = await formatExpenseData(transaction);
+
+        // Filter out General/uncategorized transactions
+        final categoryName = expense['categoryName'] as String? ?? '';
+        if (categoryName.toLowerCase() == 'general' ||
+            categoryName.toLowerCase() == 'uncategorized' ||
+            categoryName.isEmpty) {
+          print(
+            '💰 [EXPENSES] Filtering out general/uncategorized transaction: ${expense['title']}',
+          );
+          continue; // Skip this transaction
+        }
+
+        // Apply transaction type filter
+        if (currentTransactionType.value.isNotEmpty) {
+          final status = expense['status'] as String;
+          bool shouldInclude = false;
+
+          if (currentTransactionType.value == 'borrowed' &&
+              status == 'You borrowed') {
+            shouldInclude = true;
+          } else if (currentTransactionType.value == 'lent' &&
+              status == 'You lent') {
+            shouldInclude = true;
+          }
+
+          if (!shouldInclude) {
+            filteredCount++;
+            print(
+              '💰 [EXPENSES] Filtered out transaction: ${expense['title']} - status: $status',
+            );
+            continue; // Skip this transaction
+          }
+        }
+
+        // Apply expense view filter (involving me only)
+        if (currentExpenseView.value == 'involving_me') {
+          final userInvolvement = transaction['userInvolvement'] ?? {};
+          final netAmount = userInvolvement['net'] ?? 0.0;
+
+          // Only include transactions where user has involvement (net amount != 0)
+          if (netAmount == 0.0) {
+            continue; // Skip this transaction
+          }
+        }
+
+        // Apply search filter
+        if (currentSearchQuery.value.isNotEmpty) {
+          final title = expense['title'] as String;
+          final notes = expense['notes'] as String;
+          final searchLower = currentSearchQuery.value.toLowerCase();
+
+          if (!title.toLowerCase().contains(searchLower) &&
+              !notes.toLowerCase().contains(searchLower)) {
+            continue; // Skip this transaction
+          }
+        }
+
         final date = expense['date'] as String;
 
         if (groupedExpenses[date] == null) {
@@ -470,8 +629,12 @@ class ExpensesPageController extends GetxController {
       });
 
       expenses.value = formattedExpenses;
+      print(
+        '💰 [EXPENSES] Final result: ${formattedExpenses.length} day groups, $filteredCount transactions filtered out',
+      );
     } catch (e) {
       error.value = 'Error processing expense data';
+      print('❌ [EXPENSES] Error in processExpenses: $e');
     }
   }
 
@@ -503,20 +666,11 @@ class ExpensesPageController extends GetxController {
 
       // Get category info from API data
       String categoryName = 'General';
-      String categoryIcon = '💰';
 
       if (category is Map && category.isNotEmpty) {
         categoryName = category['name'] ?? 'General';
-        // Extract emoji from category name (e.g., "🚗 Transport" -> "🚗")
-        if (categoryName.isNotEmpty && categoryName.contains(' ')) {
-          final parts = categoryName.split(' ');
-          if (parts.isNotEmpty && parts[0].isNotEmpty) {
-            // Check if first part is an emoji
-            categoryIcon = parts[0];
-            // Use the text part for title
-            categoryName = parts.sublist(1).join(' ');
-          }
-        }
+        // Keep the original category name as it comes from API (with emoji if present)
+        // No processing needed since we want to show "🩸 blood" as is
       }
 
       // Determine transaction status from userInvolvement
@@ -541,13 +695,12 @@ class ExpensesPageController extends GetxController {
         'id': transaction['id'] ?? '',
         'title': categoryName.isNotEmpty ? categoryName : 'Transport',
         'amount': formattedAmount,
-        'icon': categoryIcon,
         'date': formattedDate,
         'status': status,
         'statusColor': statusColor,
         'notes': notes,
         'category': categoryName,
-        'categoryIcon': categoryIcon,
+        'categoryName': categoryName, // Add this for filtering
         'rawData': transaction,
       };
     } catch (e) {
@@ -555,13 +708,12 @@ class ExpensesPageController extends GetxController {
         'id': '',
         'title': 'Unknown',
         'amount': 'US\$ 0',
-        'icon': '💰',
         'date': 'Today',
         'status': 'Unknown',
         'statusColor': Colors.grey,
         'notes': '',
         'category': 'General',
-        'categoryIcon': '💰',
+        'categoryName': 'General',
         'rawData': transaction,
       };
     }
@@ -780,6 +932,42 @@ class ExpensesPageController extends GetxController {
     await getGroupExpenses(transactionType: type);
   }
 
+  // Check if any filters are applied
+  bool get hasActiveFilters {
+    return currentExpenseView.value.isNotEmpty ||
+        currentTransactionType.value.isNotEmpty ||
+        currentSearchQuery.value.isNotEmpty;
+  }
+
+  // Clear all filters
+  Future<void> clearFilters() async {
+    currentExpenseView.value = '';
+    currentTransactionType.value = '';
+    currentSearchQuery.value = '';
+    await loadGroupDetails(); // Reload data without filters
+  }
+
+  // Get current filter description
+  String getActiveFiltersDescription() {
+    List<String> descriptions = [];
+
+    if (currentExpenseView.value == 'involving_me') {
+      descriptions.add('Involving me only');
+    }
+
+    if (currentTransactionType.value == 'borrowed') {
+      descriptions.add('I borrowed');
+    } else if (currentTransactionType.value == 'lent') {
+      descriptions.add('I lent');
+    }
+
+    if (currentSearchQuery.value.isNotEmpty) {
+      descriptions.add('Search: "${currentSearchQuery.value}"');
+    }
+
+    return descriptions.isEmpty ? 'No filters' : descriptions.join(' • ');
+  }
+
   // Formatted total amount getters
   String get formattedTotalAmount => formatCurrency(totalAmount.value, 'USD');
   String get formattedTotalOwed => formatCurrency(totalOwed.value, 'USD');
@@ -863,8 +1051,11 @@ class ExpensesPageController extends GetxController {
   Future<String> getUserGroupsAndGetFirst(String token) async {
     try {
       debugPrint('🔄 Getting user groups...');
-      
-      var headers = {'Authorization': token, 'Content-Type': 'application/json'};
+
+      var headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      };
       var request = http.Request('GET', Uri.parse(Urls.getGroups));
       request.headers.addAll(headers);
 
@@ -877,13 +1068,15 @@ class ExpensesPageController extends GetxController {
         final responseData = json.decode(responseBody);
         debugPrint('🔍 GetGroups Parsed Response: $responseData');
 
-        if (responseData['data'] != null && responseData['data']['groups'] != null) {
+        if (responseData['data'] != null &&
+            responseData['data']['groups'] != null) {
           final List<dynamic> groups = responseData['data']['groups'];
           debugPrint('👥 Found ${groups.length} groups');
 
           if (groups.isNotEmpty) {
             final firstGroup = groups.first;
-            final groupId = firstGroup['_id'] ?? firstGroup['id'] ?? firstGroup['groupId'];
+            final groupId =
+                firstGroup['_id'] ?? firstGroup['id'] ?? firstGroup['groupId'];
             if (groupId != null) {
               debugPrint('✅ Using first group ID: $groupId');
               return groupId.toString();
@@ -896,7 +1089,7 @@ class ExpensesPageController extends GetxController {
     } catch (e) {
       debugPrint('❌ Exception in getUserGroupsAndGetFirst: $e');
     }
-    
+
     return '';
   }
 }

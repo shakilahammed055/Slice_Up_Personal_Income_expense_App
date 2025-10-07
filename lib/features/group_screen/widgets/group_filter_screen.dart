@@ -7,7 +7,9 @@ import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_filter_screen_controller.dart';
 
 class GroupFilterScreen extends StatelessWidget {
-  const GroupFilterScreen({super.key});
+  final String? groupId;
+
+  const GroupFilterScreen({super.key, this.groupId});
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,7 @@ class GroupFilterScreen extends StatelessWidget {
                     ).marginOnly(left: 158),
                   ],
                 ),
-               IconButton(
+                IconButton(
                   icon: SvgPicture.asset(
                     'assets/icons/crossicon.svg',
                     height: 14.h,
@@ -107,7 +109,22 @@ class GroupFilterScreen extends StatelessWidget {
             const Spacer(),
             Divider(),
             GestureDetector(
-              onTap: () => Get.back(),
+              onTap: () async {
+                // Apply filters before closing
+                print('🎯 [FILTER_UI] Confirm button pressed');
+                print(
+                  '🎯 [FILTER_UI] Selected filters - View: ${controller.groupOneSelected.value}, Type: ${controller.groupTwoSelected.value}',
+                );
+
+                try {
+                  await controller.applyFilters(groupId);
+                  print('🎯 [FILTER_UI] Filters applied, closing modal');
+                } catch (e) {
+                  print('❌ [FILTER_UI] Error applying filters: $e');
+                }
+
+                Get.back();
+              },
               child: Container(
                 width: MediaQuery.of(context).size.width / 1.1,
                 height: 52,
@@ -147,9 +164,7 @@ class GroupFilterScreen extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isDark
-                ? AppColors.deepGrey
-                : AppColors.lightGreyContainer,
+            color: isDark ? AppColors.deepGrey : AppColors.lightGreyContainer,
             width: 2,
           ),
         ),

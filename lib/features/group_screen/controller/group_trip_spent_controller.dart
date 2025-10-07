@@ -4,6 +4,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:intl/intl.dart';
+import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
+import 'package:teddy_5618/features/group_screen/screen/group_trip_home_screen.dart';
+import 'package:teddy_5618/features/group_screen/controller/expenses_page_controller.dart';
+import 'package:teddy_5618/features/group_screen/controller/expense_event_controller.dart';
 
 class GroupTripSpentController extends GetxController {
   final TextEditingController totalAmountController = TextEditingController();
@@ -24,6 +29,7 @@ class GroupTripSpentController extends GetxController {
   final RxString error = ''.obs;
   final RxString groupOwnerEmail = ''.obs;
   final RxString currentGroupId = ''.obs;
+  final RxBool isInitialized = false.obs; // Add initialization flag
 
   // Constructor to accept group ID
   GroupTripSpentController({String? groupId}) {
@@ -41,12 +47,84 @@ class GroupTripSpentController extends GetxController {
 
   // Method to set the group ID after controller initialization
   void setGroupId(String groupId) {
-    if (groupId.isNotEmpty) {
+    if (groupId.isNotEmpty && currentGroupId.value != groupId) {
+      // Only clear data if we're switching to a different group
+      if (currentGroupId.value.isNotEmpty && currentGroupId.value != groupId) {
+        clearAllTripData();
+        debugPrint(
+          "🔄 Switching from group ${currentGroupId.value} to $groupId - cleared data",
+        );
+      }
+
       currentGroupId.value = groupId;
+      isInitialized.value = true;
       debugPrint("🔄 Updated groupId to: $groupId");
-      // Reload group members with new group ID
-      getGroupMembers();
+
+      // Only reload group members if we don't have them or group changed
+      if (groupMembers.isEmpty) {
+        getGroupMembers();
+      }
+    } else if (groupId.isNotEmpty && currentGroupId.value == groupId) {
+      debugPrint("✅ Group ID already set to $groupId - no action needed");
     }
+  } // Method to clear all trip-specific data
+
+  void clearAllTripData() {
+    debugPrint("🧹 Clearing all trip data for clean state");
+
+    // Clear member data
+    groupMembers.clear();
+    groupOwnerEmail.value = '';
+    error.value = '';
+
+    // Clear form data
+    totalAmountController.clear();
+    noteController.clear();
+    selectedCategoryName.value = '';
+    selectedCategoryIcon.value = '';
+    selectedType.value = '';
+    selectedDate.value = DateTime.now();
+
+    // Clear friend selections
+    clearFriendSelections();
+
+    // Clear loading states
+    isLoading.value = false;
+    isLoadingMembers.value = false;
+
+    // Clear currency selection
+    selectedCurrency.value = 'US\$';
+
+    // Reset focus states
+    isTotalAmountFocused.value = false;
+    isNoteFocused.value = false;
+
+    // Reset initialization flag
+    isInitialized.value = false;
+
+    debugPrint("✅ All trip data cleared successfully");
+  }
+
+  // Method to clear only user input (preserving group-specific data)
+  void clearUserInput() {
+    debugPrint("🧹 Clearing user input only");
+
+    // Clear form data
+    totalAmountController.clear();
+    noteController.clear();
+    selectedCategoryName.value = '';
+    selectedCategoryIcon.value = '';
+    selectedType.value = '';
+    selectedDate.value = DateTime.now();
+
+    // Clear friend selections
+    clearFriendSelections();
+
+    // Reset focus states
+    isTotalAmountFocused.value = false;
+    isNoteFocused.value = false;
+
+    debugPrint("✅ User input cleared successfully");
   }
 
   // ----------------------------
@@ -101,7 +179,7 @@ class GroupTripSpentController extends GetxController {
   // ----------------------------
   // ✅ Individual / Multiple toggle (reinstated for SlidingButtonIndivMul)
   // ----------------------------
-  final RxBool isMultipleSelected = true.obs;
+  final RxBool isMultipleSelected = false.obs;
 
   String get currentSelectionUnitMultiple =>
       isMultipleSelected.value ? 'Individual'.tr : 'Multiple'.tr;
@@ -189,6 +267,11 @@ class GroupTripSpentController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    debugPrint("🚀 GroupTripSpentController onInit called");
+
+    // Ensure Individual is selected by default
+    isMultipleSelected.value = false;
+
     // Add focus listener
     totalAmountFocusNode.addListener(() {
       isTotalAmountFocused.value = totalAmountFocusNode.hasFocus;
@@ -199,13 +282,15 @@ class GroupTripSpentController extends GetxController {
       totalAmountFocusNode.requestFocus();
     });
 
-    // Load group members when controller initializes
+    // Load group members ONLY if we have a valid group ID
     if (currentGroupId.value.isNotEmpty) {
-      // If we have a group ID, fetch members directly
+      debugPrint(
+        "🎯 Loading group members for groupId: ${currentGroupId.value}",
+      );
       getGroupMembers();
     } else {
-      // If no group ID, try to get user's groups first
-      getUserGroupsAndSetFirst();
+      debugPrint("⚠️ No group ID set - waiting for setGroupId() call");
+      // Don't auto-fetch groups, wait for explicit group selection
     }
 
     // Fetch categories from API
@@ -362,17 +447,19 @@ class GroupTripSpentController extends GetxController {
           for (var category in categories) {
             if (category is Map<String, dynamic>) {
               final categoryName = category['name']?.toString() ?? '';
-              final categoryIcon = category['icon']?.toString() ?? '';
               final categoryId =
                   category['_id']?.toString() ??
                   category['id']?.toString() ??
                   '';
 
               if (categoryName.isNotEmpty && categoryId.isNotEmpty) {
-                // Combine icon and name if both exist
-                String displayName = categoryIcon.isNotEmpty
-                    ? '$categoryIcon $categoryName'
-                    : categoryName;
+                debugPrint('🔍 Debug - categoryName: "$categoryName"');
+                debugPrint('🔍 Debug - categoryId: "$categoryId"');
+
+                // Use the category name directly since emoji is already included
+                String displayName = categoryName;
+
+                debugPrint('🔍 Debug - final displayName: "$displayName"');
 
                 expenseTypes.add(displayName);
                 categoryIdMap[displayName] = categoryId;
@@ -481,13 +568,16 @@ class GroupTripSpentController extends GetxController {
         'Content-Type': 'application/json',
       };
 
-      // Prepare request body
+      // Prepare request body - send the full category name (with emoji) as the name
       final requestBody = {
-        'name': categoryName,
-        'icon': icon.isNotEmpty ? icon : '📋', // Default icon if none provided
+        'name': categoryName, // This now contains the full string with emoji
+        'icon': icon.isNotEmpty
+            ? icon
+            : '', // Empty icon since emoji is in the name
       };
 
       debugPrint('📤 Request body: $requestBody');
+      debugPrint('🔍 Sending full categoryName: "$categoryName"');
 
       var request = http.Request('POST', Uri.parse(Urls.postallgroupcategory));
       request.body = json.encode(requestBody);
@@ -558,25 +648,14 @@ class GroupTripSpentController extends GetxController {
 
   // Local methods for backward compatibility
   void addCategory(String category) async {
+    debugPrint('🔍 addCategory called with: "$category"');
+
     if (category.isNotEmpty && !expenseTypes.contains(category)) {
-      // Extract icon and name from the category string
-      String icon = '';
-      String name = category;
+      // Instead of separating emoji and name, send the full category string
+      // This ensures the emoji is preserved as part of the category name
 
-      // If category contains emoji/icon, separate it
-      final RegExp emojiRegex = RegExp(
-        r'(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)',
-        unicode: true,
-      );
-      final match = emojiRegex.firstMatch(category);
-
-      if (match != null) {
-        icon = match.group(0) ?? '';
-        name = category.replaceFirst(icon, '').trim();
-      }
-
-      // Try to add to API first
-      bool apiSuccess = await addCategoryToAPI(name, icon: icon);
+      // Try to add to API first with the full category string
+      bool apiSuccess = await addCategoryToAPI(category, icon: '');
 
       if (!apiSuccess) {
         // If API fails, add locally as fallback
@@ -596,7 +675,6 @@ class GroupTripSpentController extends GetxController {
         selectedType.value = newCategory;
       }
 
-      
       debugPrint('📝 Category edited locally: $oldCategory -> $newCategory');
     }
   }
@@ -607,7 +685,6 @@ class GroupTripSpentController extends GetxController {
       selectedType.value = '';
     }
 
-   
     debugPrint('🗑️ Category deleted locally: $category');
   }
 
@@ -884,6 +961,44 @@ class GroupTripSpentController extends GetxController {
 
         // Clear form after successful submission
         clearForm();
+
+        // Notify other controllers that expenses have been updated using event system
+        try {
+          final eventController = Get.find<ExpenseEventController>();
+          eventController.notifyExpenseUpdated(currentGroupId.value);
+        } catch (e) {
+          debugPrint(
+            "⚠️ [EXPENSE_SAVED] Event controller not found, using direct refresh: $e",
+          );
+        }
+
+        // Also try direct controller refresh as backup
+        try {
+          final expensesController = Get.find<ExpensesPageController>(
+            tag: currentGroupId.value,
+          );
+          debugPrint(
+            "🔄 [EXPENSE_SAVED] Refreshing expenses for group: ${currentGroupId.value}",
+          );
+          expensesController.refreshExpenses();
+        } catch (e) {
+          debugPrint("⚠️ [EXPENSE_SAVED] Expenses controller not found: $e");
+          // This is normal if the expenses page isn't currently visible
+        }
+
+        // Navigate to GroupTripHomeScreen after successful expense addition
+        Future.delayed(Duration(seconds: 1), () {
+          // Create a Trip object - you might want to get actual trip data from API
+          final trip = Trip(
+            id: currentGroupId.value,
+            name:
+                'Group Trip', // You can get actual group name from groupInfo or API
+            date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+          );
+
+          // Navigate to GroupTripHomeScreen but keep navigation stack
+          Get.off(() => GroupTripHomeScreen(trip: trip));
+        });
       } else {
         // Show detailed error message
         try {
@@ -968,7 +1083,7 @@ class GroupTripSpentController extends GetxController {
             debugPrint('📦 First group data: $firstGroup');
 
             final groupId =
-                firstGroup['_id'] ?? firstGroup['id'] ?? firstGroup['groupId'];
+                firstGroup['groupId'] ?? firstGroup['id'] ?? firstGroup['_id'];
             debugPrint('🆔 Extracted groupId: $groupId');
 
             if (groupId != null) {
@@ -1288,6 +1403,26 @@ class GroupTripSpentController extends GetxController {
     return email;
   }
 
+  // Helper method to get current logged-in user ID
+  Future<String?> getCurrentUserId() async {
+    try {
+      return await AuthService.getUserId();
+    } catch (e) {
+      debugPrint('❌ Error getting current user ID: $e');
+      return null;
+    }
+  }
+
+  // Helper method to get current logged-in user email
+  Future<String?> getCurrentUserEmail() async {
+    try {
+      return await AuthService.getUserEmail();
+    } catch (e) {
+      debugPrint('❌ Error getting current user email: $e');
+      return null;
+    }
+  }
+
   // Post API to save expense with selected members
   Future<void> saveExpenseWithMembers() async {
     try {
@@ -1472,6 +1607,18 @@ class GroupTripSpentController extends GetxController {
     selectedCategoryIcon.value = '';
     selectedType.value = '';
     selectedDate.value = DateTime.now();
+
+    // Clear friend selection states
+    clearFriendSelections();
+  }
+
+  // Separate method to clear only friend selections
+  void clearFriendSelections() {
+    friendCheckStates.clear();
+    selectedSharedWithFriends.clear();
+    selectedPaidByFriend.value = '';
+    selectedSharedWithFriend.value = '';
+    debugPrint('🧹 Cleared all friend selection states');
   }
 
   @override

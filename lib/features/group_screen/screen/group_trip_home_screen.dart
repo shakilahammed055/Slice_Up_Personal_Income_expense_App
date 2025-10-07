@@ -7,12 +7,14 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
 import 'package:teddy_5618/features/group_screen/controller/create_trip_bottomsheet_controller.dart';
+import 'package:teddy_5618/features/group_screen/controller/trip_text_controller.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_edit_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_filter_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_search_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_trip_add_new_friend.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_trip_upper_navbar.dart';
+import 'package:teddy_5618/features/group_screen/widgets/trip_text.dart';
 
 class GroupTripHomeScreen extends StatelessWidget {
   final Trip trip;
@@ -22,7 +24,23 @@ class GroupTripHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tripController = Get.find<TripController>();
+    // Use Get.put to ensure TripController is available, or make it optional
+    final tripController = Get.put(TripController());
+
+    // ✅ Get TripTextController and set the group ID from the trip
+    final tripTextController = Get.isRegistered<TripTextController>()
+        ? Get.find<TripTextController>()
+        : Get.put(TripTextController());
+
+    // ✅ Set the group ID immediately when the screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (trip.id != null && trip.id!.isNotEmpty) {
+        debugPrint(
+          '🎯 [GROUP_TRIP_HOME] Setting TripTextController group ID: ${trip.id}',
+        );
+        tripTextController.setGroupId(trip.id!);
+      }
+    });
 
     return DefaultTabController(
       // ✅ Moved here
@@ -43,22 +61,13 @@ class GroupTripHomeScreen extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () {
-                    Get.to(GroupSearchScreen());
+                    Get.to(GroupSearchScreen(groupId: trip.id));
                   },
                   child: const Icon(Icons.search),
                 ),
                 const SizedBox(width: 15),
                 GestureDetector(
                   onTap: () {
-                    // showMaterialModalBottomSheet(
-                    //   context: context,
-                    //   shape: const RoundedRectangleBorder(
-                    //     borderRadius: BorderRadius.vertical(
-                    //       top: Radius.circular(34),
-                    //     ),
-                    //   ),
-                    //   builder: (context) => GroupEditScreen(),
-                    // );
                     showMaterialModalBottomSheet(
                       context: context,
                       shape: RoundedRectangleBorder(
@@ -68,6 +77,11 @@ class GroupTripHomeScreen extends StatelessWidget {
                       ),
                       builder: (context) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
+                          // Set the current group for editing
+                          tripController.setCurrentGroup(
+                            trip.id ?? '',
+                            trip.name,
+                          );
                           tripController.focusEdit();
                         });
                         return const GroupEditScreen();
@@ -92,7 +106,7 @@ class GroupTripHomeScreen extends StatelessWidget {
                           top: Radius.circular(34),
                         ),
                       ),
-                      builder: (context) => GroupFilterScreen(),
+                      builder: (context) => GroupFilterScreen(groupId: trip.id),
                     );
                   },
                   // child: Image.asset(
@@ -121,67 +135,31 @@ class GroupTripHomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              Text(
-                trip.name,
-                style: getTextStyle2(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w500,
-                  color: isDark
-                      ? AppColors.textWhite
-                      : AppColors.backgroundDark,
-                ),
-              ).marginOnly(left: 24),
+              Obx(() {
+                // Find the current trip in the controller's trips list to get updated name
+                final currentTrip = tripController.trips.firstWhere(
+                  (t) => t.id == trip.id,
+                  orElse: () => trip, // Fallback to original trip if not found
+                );
+                return Text(
+                  currentTrip.name,
+                  style: getTextStyle2(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w500,
+                    color: isDark
+                        ? AppColors.textWhite
+                        : AppColors.backgroundDark,
+                  ),
+                ).marginOnly(left: 24);
+              }),
               const SizedBox(height: 15),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'You’ll pay ',
-                      style: getTextStyle2(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF828282),
-                      ), // or any color you want
-                    ),
-                    TextSpan(
-                      text: 'US\$12,000 + S\$200',
-                      style: getTextStyle2(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFFEF5C00),
-                      ), // or any other color
-                    ),
-                  ],
-                ),
-              ).marginOnly(left: 24),
-              const SizedBox(height: 2),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'You’ll collect',
-                      style: getTextStyle2(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF828282),
-                      ), // or any color you want
-                    ),
-                    TextSpan(
-                      text: ' US\$120',
-                      style: getTextStyle2(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF00D460),
-                      ), // or any other color
-                    ),
-                  ],
-                ),
-              ).marginOnly(left: 24),
+
+              TripText(groupId: trip.id).marginOnly(left: 24),
               const SizedBox(height: 12),
               GroupTripAddNewFriend(trip: trip),
               const SizedBox(height: 12),
               // ✅ Make tab bar and view take remaining space
-              Expanded(child: GroupTripUpperNavbar()),
+              Expanded(child: GroupTripUpperNavbar(trip: trip)),
             ],
           ),
         ),

@@ -19,29 +19,29 @@ class GroupEditScreen extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-     padding: MediaQuery.of(context).viewInsets, 
+        padding: MediaQuery.of(context).viewInsets,
         child: Container(
           clipBehavior: Clip.antiAlias,
-                  
+
           decoration: BoxDecoration(
-            color: isDark ? Color(0xFF262626): AppColors.textWhite,
+            color: isDark ? Color(0xFF262626) : AppColors.textWhite,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SingleChildScrollView(
             child: Column(
-                  mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    SizedBox( width: 32),
+                    SizedBox(width: 32),
                     Text(
                       'Group title'.tr,
                       style: getTextStyle2(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                          color: isDark
+                        color: isDark
                             ? AppColors.textWhite
                             : AppColors.backgroundDark,
                       ),
@@ -57,7 +57,9 @@ class GroupEditScreen extends StatelessWidget {
                   height: 48.h,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: isDark ? AppColors.deepGrey : AppColors.lightGreyContainer,
+                    color: isDark
+                        ? AppColors.deepGrey
+                        : AppColors.lightGreyContainer,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: isDark
@@ -67,7 +69,6 @@ class GroupEditScreen extends StatelessWidget {
                     ),
                   ),
                   child: Center(
-
                     child: TextField(
                       controller: tripController.tripNameController,
                       focusNode: tripController.editTripFocusNode,
@@ -106,9 +107,7 @@ class GroupEditScreen extends StatelessWidget {
                           context: context,
                           builder: (BuildContext context) => ConfirmationDialog(
                             title: 'Are you sure you want to delete?'.tr,
-                            content:
-                                'You won’t be able to undo this.'
-                                    .tr,
+                            content: 'You won’t be able to undo this.'.tr,
                             button1: 'No'.tr,
                             button2: 'Yes'.tr,
                             onConfirm: () {
@@ -124,32 +123,42 @@ class GroupEditScreen extends StatelessWidget {
                       },
                       child: Container(
                         // width: MediaQuery.of(context).size.width / 2.2,
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 40),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 40,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.textWhite,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(width: 1, color: AppColors.borderGrey),
+                          border: Border.all(
+                            width: 1,
+                            color: AppColors.borderGrey,
+                          ),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           'Leave group'.tr,
                           style: getTextStyle2(
-                            color: isDark ? AppColors.textGrey : AppColors.textGrey,
+                            color: isDark
+                                ? AppColors.textGrey
+                                : AppColors.textGrey,
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     ),
-                    
+
                     // Update Button
                     GestureDetector(
                       onTap: () {
-                        tripController.addTrip();
+                        tripController.updateGroupName();
                       },
                       child: Container(
                         // width: MediaQuery.of(context).size.width / 2.2,
-                        padding: const EdgeInsets.symmetric(vertical: 16,  horizontal: 60,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 55,
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.green,
@@ -170,7 +179,7 @@ class GroupEditScreen extends StatelessWidget {
                     ),
                   ],
                 ).marginSymmetric(horizontal: 15),
-                SizedBox(height: 12.h,)
+                SizedBox(height: 12.h),
               ],
             ).marginSymmetric(horizontal: 10),
           ),

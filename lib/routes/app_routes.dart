@@ -72,10 +72,10 @@ class AppRoute {
   static String getgroupscreen() => groupscreen;
   static String getgroupTripHomescreen() => groupTripHomescreen;
   static String getgroupTripSpentscreen() => groupTripSpentscreen;
-    static String getexpensesPagescreen() => expensesPagescreen;
-    static String getsliceUpPagescreen() => sliceUpPagescreen;
-     static String getstatusPagescreen() => statusPagescreen;
-     static String getsettingscreen() => settingscreen;
+  static String getexpensesPagescreen() => expensesPagescreen;
+  static String getsliceUpPagescreen() => sliceUpPagescreen;
+  static String getstatusPagescreen() => statusPagescreen;
+  static String getsettingscreen() => settingscreen;
 
   static List<GetPage> routes = [
     GetPage(name: loginScreen, page: () => LoginScreen()),
@@ -89,7 +89,10 @@ class AppRoute {
     GetPage(name: expensescreen, page: () => ExpenseScreen()),
     GetPage(name: signupscreen, page: () => SignupScreen()),
     GetPage(name: otpscreen, page: () => OtpScreen()),
-    GetPage(name: forgetpasswordotpscreen,page: () => ForgetPasswordOtpScreen()),
+    GetPage(
+      name: forgetpasswordotpscreen,
+      page: () => ForgetPasswordOtpScreen(),
+    ),
     GetPage(name: resetpassword, page: () => ResetPassword()),
     GetPage(name: homescreen, page: () => HomeScreen()),
     GetPage(name: searchscreen, page: () => SearchScreen()),
@@ -97,11 +100,20 @@ class AppRoute {
     GetPage(name: filterscreen, page: () => FilterScreen()),
     GetPage(name: profileSetupscreen, page: () => ProfileSetupScreen()),
     GetPage(name: groupscreen, page: () => GroupScreen()),
-    GetPage(name: groupTripHomescreen, page: () => GroupTripHomeScreen( trip: Get.arguments as Trip ,)),
-    GetPage(name: groupTripSpentscreen, page: () => GroupTripSpentScreen()),
+    GetPage(
+      name: groupTripHomescreen,
+      page: () => GroupTripHomeScreen(trip: Get.arguments as Trip),
+    ),
+    GetPage(
+      name: groupTripSpentscreen,
+      page: () => GroupTripSpentScreen(groupId: Get.arguments as String?),
+    ),
     GetPage(name: expensesPagescreen, page: () => ExpensesPageScreen()),
     GetPage(name: sliceUpPagescreen, page: () => SliceupPageScreen()),
-     GetPage(name: statusPagescreen, page: () => StatusPageScreen()),
-       GetPage(name: settingscreen, page: () => SettingScreen()),
+    GetPage(
+      name: statusPagescreen,
+      page: () => StatusPageScreen(trip: Get.arguments as Trip?),
+    ),
+    GetPage(name: settingscreen, page: () => SettingScreen()),
   ];
 }

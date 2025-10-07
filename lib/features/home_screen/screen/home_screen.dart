@@ -1,3 +1,5 @@
+// // ignore_for_file: unnecessary_to_list_in_spreads
+
 // import 'package:flutter/material.dart';
 // import 'package:flutter_screenutil/flutter_screenutil.dart';
 // import 'package:get/get.dart';
@@ -62,6 +64,36 @@
 //     } else {
 //       Showmonthsetting(controller: controller).show(context);
 //     }
+//   }
+
+//   // New helper method to format date range display
+//   String _formatDateRangeDisplay(HomeController controller) {
+//     // If API data is loaded and has valid dates, use API dates
+//     if (controller.isApiDataLoaded.value &&
+//         controller.apiStartDate.value.isNotEmpty &&
+//         controller.apiEndDate.value.isNotEmpty) {
+//       try {
+//         final startDate = DateTime.parse(controller.apiStartDate.value);
+//         final endDate = DateTime.parse(controller.apiEndDate.value);
+
+//         final startMonth = DateFormat('MMMM').format(startDate);
+//         final endMonth = DateFormat('MMMM').format(endDate);
+//         final startDay = startDate.day;
+//         final endDay = endDate.day;
+
+//         return '$startMonth $startDay ~ $endMonth $endDay';
+//       } catch (e) {
+//         debugPrint('Error parsing API dates for display: $e');
+//       }
+//     }
+
+//     // Fallback to local settings
+//     if (controller.selectedStartDate.value != -1 &&
+//         controller.selectedEndDate.value != -1) {
+//       return '${controller.currentMonth.value} ${controller.selectedStartDate.value} ~ ${controller.nextMonth.value} ${controller.selectedEndDate.value}';
+//     }
+
+//     return 'Continue setting'.tr;
 //   }
 
 //   @override
@@ -143,6 +175,7 @@
 //               child: Obx(() {
 //                 final controller = Get.find<HomeController>();
 //                 final expenseController = Get.find<ExpenseController>();
+
 //                 return Column(
 //                   children: [
 //                     Container(
@@ -166,12 +199,9 @@
 //                                 mainAxisSize: MainAxisSize.min,
 //                                 crossAxisAlignment: CrossAxisAlignment.start,
 //                                 children: [
+//                                   // Updated: Use formatted date range from API or local settings
 //                                   Text(
-//                                     controller.selectedStartDate.value != -1 &&
-//                                             controller.selectedEndDate.value !=
-//                                                 -1
-//                                         ? '${controller.currentMonth.value} ${controller.selectedStartDate.value} ~ ${controller.nextMonth.value} ${controller.selectedEndDate.value}'
-//                                         : 'Continue setting'.tr,
+//                                     _formatDateRangeDisplay(controller),
 //                                     style: getTextStyle2(
 //                                       color: const Color(0xFF828282),
 //                                       fontSize: 12.sp,
@@ -206,19 +236,23 @@
 //                                 ),
 //                               ),
 //                               SizedBox(height: 4.h),
+//                               // Updated: Use remainingBalance from API when available
 //                               Text(
-//                                 expenseController.entries.isEmpty
-//                                     ? '0.00'
-//                                     : expenseController.entries
-//                                           .fold<double>(
-//                                             0.0,
-//                                             (sum, entry) =>
-//                                                 sum +
-//                                                 (entry.isIncome
-//                                                     ? entry.amount
-//                                                     : -entry.amount),
-//                                           )
-//                                           .toStringAsFixed(2),
+//                                 controller.isApiDataLoaded.value
+//                                     ? controller.remainingBalance.value
+//                                           .toStringAsFixed(2)
+//                                     : (expenseController.entries.isEmpty
+//                                           ? '0.00'
+//                                           : expenseController.entries
+//                                                 .fold<double>(
+//                                                   0.0,
+//                                                   (sum, entry) =>
+//                                                       sum +
+//                                                       (entry.isIncome
+//                                                           ? entry.amount
+//                                                           : -entry.amount),
+//                                                 )
+//                                                 .toStringAsFixed(2)),
 //                                 textAlign: TextAlign.right,
 //                                 style: getTextStyle2(
 //                                   color: isDark
@@ -378,285 +412,311 @@
 //                             ),
 //                           ),
 //                     SizedBox(height: 24.h),
+//                     // Updated entries display section
 //                     Obx(() {
-//                       final expenseController = Get.find<ExpenseController>();
-//                       final groupedEntries = expenseController
-//                           .getEntriesByDate();
-//                       if (groupedEntries.isEmpty) {
-//                         return Padding(
-//                           padding: EdgeInsets.symmetric(horizontal: 24.w),
-//                           child: Column(
-//                             children: [
-//                               Text(
-//                                 'No entries available'.tr,
-//                                 style: getTextStyle2(
-//                                   color: const Color(0xFF828282),
-//                                   fontSize: 14.sp,
-//                                   fontWeight: FontWeight.w500,
-//                                 ),
+//                       final homeController = Get.find<HomeController>();
+//                       final bool useApi =
+//                           homeController.isApiDataLoaded.value &&
+//                           homeController.apiGroupedByDate.isNotEmpty;
+
+//                       Widget noEntriesWidget = Padding(
+//                         padding: EdgeInsets.symmetric(horizontal: 24.w),
+//                         child: Column(
+//                           children: [
+//                             Text(
+//                               'No entries available'.tr,
+//                               style: getTextStyle2(
+//                                 color: const Color(0xFF828282),
+//                                 fontSize: 14.sp,
+//                                 fontWeight: FontWeight.w500,
 //                               ),
-//                               SizedBox(height: screenHeight * 0.1),
-//                             ],
-//                           ),
-//                         );
-//                       }
-//                       return Column(
-//                         children: groupedEntries.entries.map((entry) {
-//                           final date = entry.key;
-//                           final entries = entry.value;
-//                           String formattedDate;
-//                           if (date.contains('/')) {
-//                             try {
-//                               final parts = date.split('/');
-//                               final dateTime = DateTime(
-//                                 int.parse(parts[2]),
-//                                 int.parse(parts[1]),
-//                                 int.parse(parts[0]),
-//                               );
-//                               formattedDate = DateFormat(
-//                                 'EEE d MMM yyyy',
-//                               ).format(dateTime);
-//                             } catch (e) {
-//                               debugPrint('Error formatting date: $e');
-//                               formattedDate = date;
-//                             }
-//                           } else {
-//                             formattedDate = date;
-//                           }
-//                           return Padding(
-//                             padding: EdgeInsets.symmetric(
-//                               horizontal: 24.w,
-//                               vertical: 12.h,
 //                             ),
-//                             child: Container(
-//                               width: double.infinity,
-//                               clipBehavior: Clip.antiAlias,
-//                               decoration: ShapeDecoration(
-//                                 color: isDark
-//                                     ? AppColors.backgroundDark
-//                                     : AppColors.textWhite,
-//                                 shape: RoundedRectangleBorder(
-//                                   borderRadius: BorderRadius.circular(16.r),
-//                                 ),
-//                                 shadows: [
-//                                   BoxShadow(
-//                                     color: const Color(0x1E000000),
-//                                     blurRadius: 16.r,
-//                                     offset: Offset(0, 6.h),
-//                                     spreadRadius: 0,
-//                                   ),
-//                                 ],
+//                             SizedBox(height: screenHeight * 0.1),
+//                           ],
+//                         ),
+//                       );
+
+//                       if (useApi) {
+//                         if (homeController.apiGroupedByDate.isEmpty) {
+//                           return noEntriesWidget;
+//                         }
+//                         return Column(
+//                           children: homeController.apiGroupedByDate.map((
+//                             group,
+//                           ) {
+//                             final String dateStr = group['date'];
+//                             final DateTime dateTime = DateTime.parse(dateStr);
+//                             final String formattedDate = DateFormat(
+//                               'EEE d MMM yyyy',
+//                             ).format(dateTime);
+//                             final List<Map<String, dynamic>> transactions =
+//                                 (group['transactions'] as List)
+//                                     .cast<Map<String, dynamic>>();
+//                             final double net = (group['net'] as num).toDouble();
+
+//                             return Padding(
+//                               padding: EdgeInsets.symmetric(
+//                                 horizontal: 24.w,
+//                                 vertical: 12.h,
 //                               ),
-//                               child: Column(
-//                                 mainAxisSize: MainAxisSize.min,
-//                                 crossAxisAlignment: CrossAxisAlignment.start,
-//                                 children: [
-//                                   Container(
-//                                     width: double.infinity,
-//                                     height: 48.h,
-//                                     padding: EdgeInsets.symmetric(
-//                                       horizontal: 16.w,
-//                                       vertical: 12.h,
+//                               child: Container(
+//                                 width: double.infinity,
+//                                 clipBehavior: Clip.antiAlias,
+//                                 decoration: ShapeDecoration(
+//                                   color: isDark
+//                                       ? AppColors.backgroundDark
+//                                       : AppColors.textWhite,
+//                                   shape: RoundedRectangleBorder(
+//                                     borderRadius: BorderRadius.circular(16.r),
+//                                   ),
+//                                   shadows: [
+//                                     BoxShadow(
+//                                       color: const Color(0x1E000000),
+//                                       blurRadius: 16.r,
+//                                       offset: Offset(0, 6.h),
+//                                       spreadRadius: 0,
 //                                     ),
-//                                     decoration: ShapeDecoration(
-//                                       color: isDark
-//                                           ? Color(0xFF38383A)
-//                                           : const Color(0xFFEDEDF0),
-//                                       shape: RoundedRectangleBorder(
-//                                         side: BorderSide(
-//                                           width: 1.w,
-//                                           color: isDark
-//                                               ? Color(0xFF38383A)
-//                                               : const Color(0xFFEDEDF0),
-//                                         ),
+//                                   ],
+//                                 ),
+//                                 child: Column(
+//                                   mainAxisSize: MainAxisSize.min,
+//                                   crossAxisAlignment: CrossAxisAlignment.start,
+//                                   children: [
+//                                     Container(
+//                                       width: double.infinity,
+//                                       height: 48.h,
+//                                       padding: EdgeInsets.symmetric(
+//                                         horizontal: 16.w,
+//                                         vertical: 12.h,
 //                                       ),
-//                                     ),
-//                                     child: Row(
-//                                       mainAxisAlignment:
-//                                           MainAxisAlignment.spaceBetween,
-//                                       crossAxisAlignment:
-//                                           CrossAxisAlignment.center,
-//                                       children: [
-//                                         Text(
-//                                           formattedDate,
-//                                           style: getTextStyle2(
+//                                       decoration: ShapeDecoration(
+//                                         color: isDark
+//                                             ? Color(0xFF38383A)
+//                                             : const Color(0xFFEDEDF0),
+//                                         shape: RoundedRectangleBorder(
+//                                           side: BorderSide(
+//                                             width: 1.w,
 //                                             color: isDark
-//                                                 ? Color(0xFFAAAAAA)
-//                                                 : const Color(0xFF828282),
-//                                             fontSize: 14.sp,
-//                                             fontWeight: FontWeight.w500,
-//                                           ),
-//                                         ),
-//                                         SizedBox(
-//                                           width: 100.w,
-//                                           height: 24.h,
-//                                           child: Text(
-//                                             '\$${expenseController.getTotalAmountForDate(date).toStringAsFixed(2)}',
-//                                             textAlign: TextAlign.right,
-//                                             style: getTextStyle2(
-//                                               color: isDark
-//                                                   ? AppColors.textWhite
-//                                                   : AppColors.black,
-//                                               fontSize: 14.sp,
-//                                               fontWeight: FontWeight.w500,
-//                                               lineHeight: 22.sp,
-//                                             ),
-//                                           ),
-//                                         ),
-//                                       ],
-//                                     ),
-//                                   ),
-//                                   // Divider after date header
-//                                   Container(
-//                                     width: double.infinity,
-//                                     height: 1.h,
-//                                     color: isDark
-//                                         ? const Color(0xFF38383A)
-//                                         : const Color(0xFFEDEDF0),
-//                                   ),
-//                                   ...entries.asMap().entries.map((
-//                                     indexedEntry,
-//                                   ) {
-//                                     final entry = indexedEntry.value;
-//                                     final icon = entry.type.split(' ').first;
-//                                     final title = entry.note;
-//                                     return Column(
-//                                       children: [
-//                                         // Divider before each entry (except the first one)
-//                                         if (indexedEntry.key > 0)
-//                                           Container(
-//                                             width: double.infinity,
-//                                             height: 1.h,
-//                                             color: isDark
-//                                                 ? const Color(0xFF38383A)
+//                                                 ? Color(0xFF38383A)
 //                                                 : const Color(0xFFEDEDF0),
 //                                           ),
-//                                         Dismissible(
-//                                           key: Key(entry.id),
-//                                           direction:
-//                                               DismissDirection.endToStart,
-//                                           background: Container(
-//                                             width: double.infinity,
-//                                             height: 52.h,
-//                                             padding: EdgeInsets.symmetric(
-//                                               horizontal: 16.w,
-//                                               vertical: 12.h,
-//                                             ),
-//                                             decoration: const BoxDecoration(
-//                                               color: Color(0xFFE21818),
-//                                             ),
-//                                             alignment: Alignment.centerRight,
-//                                             child: Icon(
-//                                               Icons.delete,
-//                                               color: Colors.white,
-//                                               size: 24.sp,
+//                                         ),
+//                                       ),
+//                                       child: Row(
+//                                         mainAxisAlignment:
+//                                             MainAxisAlignment.spaceBetween,
+//                                         crossAxisAlignment:
+//                                             CrossAxisAlignment.center,
+//                                         children: [
+//                                           Text(
+//                                             formattedDate,
+//                                             style: getTextStyle2(
+//                                               color: isDark
+//                                                   ? Color(0xFFAAAAAA)
+//                                                   : const Color(0xFF828282),
+//                                               fontSize: 14.sp,
+//                                               fontWeight: FontWeight.w500,
 //                                             ),
 //                                           ),
-//                                           confirmDismiss: (direction) async {
-//                                             try {
-//                                               return await expenseController
-//                                                   .deleteEntry(entry);
-//                                             } catch (e) {
-//                                               debugPrint(
-//                                                 'Error deleting entry: $e',
-//                                               );
-//                                               return false;
-//                                             }
-//                                           },
-//                                           child: Container(
-//                                             width: double.infinity,
-//                                             height: 48.h,
-//                                             padding: EdgeInsets.symmetric(
-//                                               horizontal: 16.w,
-//                                               vertical: 8.h,
-//                                             ),
-//                                             decoration: ShapeDecoration(
-//                                               color: isDark
-//                                                   ? Color(0xFF262626)
-//                                                   : AppColors.textWhite,
-//                                               shape: RoundedRectangleBorder(
-//                                                 side: BorderSide(
-//                                                   width: 1.w,
-//                                                   color: isDark
-//                                                       ? Color(0xFF38383A)
-//                                                       : AppColors.textWhite,
-//                                                 ),
+//                                           SizedBox(
+//                                             width: 100.w,
+//                                             height: 24.h,
+//                                             child: Text(
+//                                               '\$${net.toStringAsFixed(2)}',
+//                                               textAlign: TextAlign.right,
+//                                               style: getTextStyle2(
+//                                                 color: isDark
+//                                                     ? AppColors.textWhite
+//                                                     : AppColors.black,
+//                                                 fontSize: 14.sp,
+//                                                 fontWeight: FontWeight.w500,
+//                                                 lineHeight: 22.sp,
 //                                               ),
 //                                             ),
-//                                             child: Row(
-//                                               mainAxisAlignment:
-//                                                   MainAxisAlignment
-//                                                       .spaceBetween,
-//                                               crossAxisAlignment:
-//                                                   CrossAxisAlignment.center,
-//                                               children: [
-//                                                 SizedBox(
-//                                                   width: 32.w,
-//                                                   height: 32.h,
-//                                                   child: Text(
-//                                                     icon,
-//                                                     style: getTextStyle2(
-//                                                       color: const Color(
-//                                                         0xFF828282,
+//                                           ),
+//                                         ],
+//                                       ),
+//                                     ),
+//                                     Container(
+//                                       width: double.infinity,
+//                                       height: 1.h,
+//                                       color: isDark
+//                                           ? const Color(0xFF38383A)
+//                                           : const Color(0xFFEDEDF0),
+//                                     ),
+//                                     ...transactions.asMap().entries.map((
+//                                       indexedEntry,
+//                                     ) {
+//                                       final Map<String, dynamic> trans =
+//                                           indexedEntry.value;
+//                                       final String iconStr =
+//                                           (trans['typeName'] as String)
+//                                               .split(' ')
+//                                               .first;
+//                                       final String title =
+//                                           trans['description'] as String? ?? '';
+//                                       final double amount =
+//                                           (trans['amount'] as num).toDouble();
+//                                       final bool isIncome =
+//                                           trans['transactionType'] == 'income';
+//                                       final String transId =
+//                                           trans['_id'] as String;
+
+//                                       return Column(
+//                                         children: [
+//                                           if (indexedEntry.key > 0)
+//                                             Container(
+//                                               width: double.infinity,
+//                                               height: 1.h,
+//                                               color: isDark
+//                                                   ? const Color(0xFF38383A)
+//                                                   : const Color(0xFFEDEDF0),
+//                                             ),
+//                                           Dismissible(
+//                                             key: Key(transId),
+//                                             direction:
+//                                                 DismissDirection.endToStart,
+//                                             background: Container(
+//                                               width: double.infinity,
+//                                               height: 52.h,
+//                                               padding: EdgeInsets.symmetric(
+//                                                 horizontal: 16.w,
+//                                                 vertical: 12.h,
+//                                               ),
+//                                               decoration: const BoxDecoration(
+//                                                 color: Color(0xFFE21818),
+//                                               ),
+//                                               alignment: Alignment.centerRight,
+//                                               child: Icon(
+//                                                 Icons.delete,
+//                                                 color: Colors.white,
+//                                                 size: 24.sp,
+//                                               ),
+//                                             ),
+//                                             confirmDismiss: (direction) async {
+//                                               try {
+//                                                 final String description =
+//                                                     trans['description']
+//                                                         as String? ??
+//                                                     'this transaction';
+//                                                 final success =
+//                                                     await homeController
+//                                                         .deleteTransaction(
+//                                                           transId,
+//                                                           description,
+//                                                         );
+//                                                 if (success) {
+//                                                   // Refresh after delete
+//                                                   await homeController
+//                                                       .refreshIncomeAndExpenses();
+//                                                 }
+//                                                 return success;
+//                                               } catch (e) {
+//                                                 debugPrint(
+//                                                   'Error deleting transaction: $e',
+//                                                 );
+//                                                 return false;
+//                                               }
+//                                             },
+//                                             child: Container(
+//                                               width: double.infinity,
+//                                               height: 48.h,
+//                                               padding: EdgeInsets.symmetric(
+//                                                 horizontal: 16.w,
+//                                                 vertical: 8.h,
+//                                               ),
+//                                               decoration: ShapeDecoration(
+//                                                 color: isDark
+//                                                     ? Color(0xFF262626)
+//                                                     : AppColors.textWhite,
+//                                                 shape: RoundedRectangleBorder(
+//                                                   side: BorderSide(
+//                                                     width: 1.w,
+//                                                     color: isDark
+//                                                         ? Color(0xFF38383A)
+//                                                         : AppColors.textWhite,
+//                                                   ),
+//                                                 ),
+//                                               ),
+//                                               child: Row(
+//                                                 mainAxisAlignment:
+//                                                     MainAxisAlignment
+//                                                         .spaceBetween,
+//                                                 crossAxisAlignment:
+//                                                     CrossAxisAlignment.center,
+//                                                 children: [
+//                                                   SizedBox(
+//                                                     // width: 80.w,
+//                                                     height: 32.h,
+//                                                     child: Text(
+//                                                       iconStr,
+//                                                       style: getTextStyle2(
+//                                                         color: const Color(
+//                                                           0xFF828282,
+//                                                         ),
+//                                                         fontSize: 24.sp,
+//                                                         fontWeight:
+//                                                             FontWeight.w600,
 //                                                       ),
-//                                                       fontSize: 24.sp,
-//                                                       fontWeight:
-//                                                           FontWeight.w600,
 //                                                     ),
 //                                                   ),
-//                                                 ),
-//                                                 SizedBox(
-//                                                   width: 170.w,
-//                                                   child: Text(
-//                                                     title,
-//                                                     style: getTextStyle2(
-//                                                       color: isDark
-//                                                           ? AppColors.textWhite
-//                                                           : const Color(
-//                                                               0xFF141414,
-//                                                             ),
-//                                                       fontSize: 14.sp,
-//                                                       fontWeight:
-//                                                           FontWeight.w500,
+//                                                   SizedBox(
+//                                                     width: 120.w,
+//                                                     child: Text(
+//                                                       title,
+//                                                       style: getTextStyle2(
+//                                                         color: isDark
+//                                                             ? AppColors
+//                                                                   .textWhite
+//                                                             : const Color(
+//                                                                 0xFF141414,
+//                                                               ),
+//                                                         fontSize: 14.sp,
+//                                                         fontWeight:
+//                                                             FontWeight.w500,
+//                                                       ),
+//                                                       overflow:
+//                                                           TextOverflow.ellipsis,
 //                                                     ),
-//                                                     overflow:
-//                                                         TextOverflow.ellipsis,
 //                                                   ),
-//                                                 ),
-//                                                 SizedBox(
-//                                                   width: 100.w,
-//                                                   child: Text(
-//                                                     '${entry.isIncome ? '+' : '-'} \$${entry.amount.toStringAsFixed(2)}',
-//                                                     textAlign: TextAlign.right,
-//                                                     style: getTextStyle2(
-//                                                       color: entry.isIncome
-//                                                           ? const Color(
-//                                                               0xFF00D460,
-//                                                             )
-//                                                           : const Color(
-//                                                               0xFFEF5B00,
-//                                                             ),
-//                                                       fontSize: 14.sp,
-//                                                       fontWeight:
-//                                                           FontWeight.w500,
+//                                                   SizedBox(
+//                                                     width: 100.w,
+//                                                     child: Text(
+//                                                       '${isIncome ? '+' : '-'} \$${amount.toStringAsFixed(2)}',
+//                                                       textAlign:
+//                                                           TextAlign.right,
+//                                                       style: getTextStyle2(
+//                                                         color: isIncome
+//                                                             ? const Color(
+//                                                                 0xFF00D460,
+//                                                               )
+//                                                             : const Color(
+//                                                                 0xFFEF5B00,
+//                                                               ),
+//                                                         fontSize: 14.sp,
+//                                                         fontWeight:
+//                                                             FontWeight.w500,
+//                                                       ),
+//                                                       overflow:
+//                                                           TextOverflow.ellipsis,
 //                                                     ),
-//                                                     overflow:
-//                                                         TextOverflow.ellipsis,
 //                                                   ),
-//                                                 ),
-//                                               ],
+//                                                 ],
+//                                               ),
 //                                             ),
 //                                           ),
-//                                         ),
-//                                       ],
-//                                     );
-//                                   }),
-//                                 ],
+//                                         ],
+//                                       );
+//                                     }).toList(),
+//                                   ],
+//                                 ),
 //                               ),
-//                             ),
-//                           );
-//                         }).toList(),
-//                       );
+//                             );
+//                           }).toList(),
+//                         );
+//                       }
+//                       // Add a fallback return to satisfy the Widget return type
+//                       return noEntriesWidget;
 //                     }),
 
 //                     SizedBox(height: screenHeight * 0.6),
@@ -690,6 +750,9 @@
 
 
 
+
+// ignore_for_file: unnecessary_to_list_in_spreads
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -698,6 +761,7 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
 import 'package:teddy_5618/features/home_screen/controller/home_screen_controller.dart';
+import 'package:teddy_5618/features/home_screen/controller/filter_screen_controller.dart';
 import 'package:teddy_5618/features/home_screen/screen/bar_chart_screen.dart';
 import 'package:teddy_5618/features/home_screen/screen/filter_screen.dart';
 import 'package:teddy_5618/features/home_screen/screen/search_screen.dart';
@@ -759,30 +823,30 @@ class HomeScreen extends StatelessWidget {
   // New helper method to format date range display
   String _formatDateRangeDisplay(HomeController controller) {
     // If API data is loaded and has valid dates, use API dates
-    if (controller.isApiDataLoaded.value && 
-        controller.apiStartDate.value.isNotEmpty && 
+    if (controller.isApiDataLoaded.value &&
+        controller.apiStartDate.value.isNotEmpty &&
         controller.apiEndDate.value.isNotEmpty) {
       try {
         final startDate = DateTime.parse(controller.apiStartDate.value);
         final endDate = DateTime.parse(controller.apiEndDate.value);
-        
+
         final startMonth = DateFormat('MMMM').format(startDate);
         final endMonth = DateFormat('MMMM').format(endDate);
         final startDay = startDate.day;
         final endDay = endDate.day;
-        
+
         return '$startMonth $startDay ~ $endMonth $endDay';
       } catch (e) {
         debugPrint('Error parsing API dates for display: $e');
       }
     }
-    
+
     // Fallback to local settings
-    if (controller.selectedStartDate.value != -1 && 
+    if (controller.selectedStartDate.value != -1 &&
         controller.selectedEndDate.value != -1) {
       return '${controller.currentMonth.value} ${controller.selectedStartDate.value} ~ ${controller.nextMonth.value} ${controller.selectedEndDate.value}';
     }
-    
+
     return 'Continue setting'.tr;
   }
 
@@ -791,6 +855,7 @@ class HomeScreen extends StatelessWidget {
     debugPrint('HomeScreen build called');
     Get.put(HomeController());
     Get.put(ExpenseController());
+    Get.put(FilterScreenController());
     final double screenHeight = MediaQuery.of(context).size.height;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final String currentDeviceMonth = DateFormat('MMMM').format(DateTime.now());
@@ -865,7 +930,8 @@ class HomeScreen extends StatelessWidget {
               child: Obx(() {
                 final controller = Get.find<HomeController>();
                 final expenseController = Get.find<ExpenseController>();
-                
+                final filterController = Get.find<FilterScreenController>();
+
                 return Column(
                   children: [
                     Container(
@@ -913,46 +979,84 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Total S\$'.tr,
-                                style: getTextStyle2(
-                                  color: const Color(0xFF828282),
-                                  fontSize: 12.sp,
-                                  fontWeight: FontWeight.w400,
+                          Obx(() {
+                            double displayAmount;
+                            final DateTime? selectedMonth = filterController.selectedMonthYearFilter.value;
+                            final int typeFilter = filterController.groupTwoSelected.value;
+                            final int groupOne = filterController.groupOneSelected.value;
+                            if (controller.isApiDataLoaded.value) {
+                              double inc = 0.0;
+                              double exp = 0.0;
+                              for (var group in controller.apiGroupedByDate) {
+                                final String gDateStr = group['date'];
+                                final DateTime gDate = DateTime.parse(gDateStr);
+                                if (selectedMonth != null && (gDate.year != selectedMonth.year || gDate.month != selectedMonth.month)) continue;
+                                final List<Map<String, dynamic>> trans = (group['transactions'] as List).cast<Map<String, dynamic>>();
+                                for (var t in trans) {
+                                  final double amt = (t['amount'] as num).toDouble();
+                                  if (t['transactionType'] == 'income') {
+                                    inc += amt;
+                                  } else {
+                                    exp += amt;
+                                  }
+                                }
+                              }
+                              if (typeFilter == 2) {
+                                displayAmount = inc;
+                              } else if (groupOne == 0) {
+                                displayAmount = inc - exp;
+                              } else {
+                                displayAmount = exp;
+                              }
+                            } else {
+                              if (expenseController.entries.isEmpty) {
+                                displayAmount = 0.0;
+                              } else {
+                                if (typeFilter == 2) {
+                                  displayAmount = expenseController.entries
+                                      .where((e) => e.isIncome)
+                                      .fold<double>(0.0, (sum, entry) => sum + entry.amount);
+                                } else {
+                                  if (groupOne == 0) {
+                                    displayAmount = expenseController.entries.fold<double>(
+                                      0.0,
+                                      (sum, entry) => sum + (entry.isIncome ? entry.amount : -entry.amount),
+                                    );
+                                  } else {
+                                    displayAmount = expenseController.entries
+                                        .where((e) => !e.isIncome)
+                                        .fold<double>(0.0, (sum, entry) => sum + entry.amount);
+                                  }
+                                }
+                              }
+                            }
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Total S\$'.tr,
+                                  style: getTextStyle2(
+                                    color: const Color(0xFF828282),
+                                    fontSize: 12.sp,
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 4.h),
-                              // Updated: Use remainingBalance from API when available
-                              Text(
-                                controller.isApiDataLoaded.value 
-                                    ? controller.remainingBalance.value.toStringAsFixed(2)
-                                    : (expenseController.entries.isEmpty
-                                        ? '0.00'
-                                        : expenseController.entries
-                                              .fold<double>(
-                                                0.0,
-                                                (sum, entry) =>
-                                                    sum +
-                                                    (entry.isIncome
-                                                        ? entry.amount
-                                                        : -entry.amount),
-                                              )
-                                              .toStringAsFixed(2)),
-                                textAlign: TextAlign.right,
-                                style: getTextStyle2(
-                                  color: isDark
-                                      ? Color(0xFF406DFF)
-                                      : Color(0xFF2A31EF),
-                                  fontSize: 30.sp,
-                                  fontWeight: FontWeight.w700,
+                                SizedBox(height: 4.h),
+                                Text(
+                                  displayAmount.toStringAsFixed(2),
+                                  textAlign: TextAlign.right,
+                                  style: getTextStyle2(
+                                    color: isDark
+                                        ? Color(0xFF406DFF)
+                                        : Color(0xFF2A31EF),
+                                    fontSize: 30.sp,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
+                              ],
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -1101,284 +1205,335 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                     SizedBox(height: 24.h),
-                    // Rest of your existing code for displaying entries remains the same
+                    // Updated entries display section
                     Obx(() {
-                      final expenseController = Get.find<ExpenseController>();
-                      final groupedEntries = expenseController
-                          .getEntriesByDate();
-                      if (groupedEntries.isEmpty) {
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24.w),
-                          child: Column(
-                            children: [
-                              Text(
-                                'No entries available'.tr,
-                                style: getTextStyle2(
-                                  color: const Color(0xFF828282),
-                                  fontSize: 14.sp,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                      final homeController = Get.find<HomeController>();
+                      final filterController = Get.find<FilterScreenController>();
+                      final bool useApi =
+                          homeController.isApiDataLoaded.value &&
+                          homeController.apiGroupedByDate.isNotEmpty;
+
+                      Widget noEntriesWidget = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24.w),
+                        child: Column(
+                          children: [
+                            Text(
+                              'No entries available'.tr,
+                              style: getTextStyle2(
+                                color: const Color(0xFF828282),
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
                               ),
-                              SizedBox(height: screenHeight * 0.1),
-                            ],
-                          ),
-                        );
-                      }
-                      return Column(
-                        children: groupedEntries.entries.map((entry) {
-                          final date = entry.key;
-                          final entries = entry.value;
-                          String formattedDate;
-                          if (date.contains('/')) {
-                            try {
-                              final parts = date.split('/');
-                              final dateTime = DateTime(
-                                int.parse(parts[2]),
-                                int.parse(parts[1]),
-                                int.parse(parts[0]),
-                              );
-                              formattedDate = DateFormat(
-                                'EEE d MMM yyyy',
-                              ).format(dateTime);
-                            } catch (e) {
-                              debugPrint('Error formatting date: $e');
-                              formattedDate = date;
-                            }
-                          } else {
-                            formattedDate = date;
-                          }
-                          return Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24.w,
-                              vertical: 12.h,
                             ),
-                            child: Container(
-                              width: double.infinity,
-                              clipBehavior: Clip.antiAlias,
-                              decoration: ShapeDecoration(
-                                color: isDark
-                                    ? AppColors.backgroundDark
-                                    : AppColors.textWhite,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.r),
+                            SizedBox(height: screenHeight * 0.1),
+                          ],
+                        ),
+                      );
+
+                      if (useApi) {
+                        return Obx(() {
+                          final DateTime? selectedMonth = filterController.selectedMonthYearFilter.value;
+                          final int typeFilter = filterController.groupTwoSelected.value;
+                          List<Widget> filteredGroupWidgets = [];
+
+                          for (var group in homeController.apiGroupedByDate) {
+                            final String dateStr = group['date'];
+                            final DateTime dateTime = DateTime.parse(dateStr);
+                            if (selectedMonth != null && (dateTime.year != selectedMonth.year || dateTime.month != selectedMonth.month)) continue;
+                            final String formattedDate = DateFormat(
+                              'EEE d MMM yyyy',
+                            ).format(dateTime);
+                            final List<Map<String, dynamic>> allTransactions =
+                                (group['transactions'] as List)
+                                    .cast<Map<String, dynamic>>();
+
+                            final List<Map<String, dynamic>> filteredTransactions = allTransactions.where((t) {
+                              if (typeFilter == 0) return true;
+                              final bool isIncome = t['transactionType'] == 'income';
+                              return typeFilter == 1 ? !isIncome : isIncome;
+                            }).toList();
+
+                            if (filteredTransactions.isEmpty) continue;
+
+                            final double net = filteredTransactions.fold<double>(
+                              0.0,
+                              (sum, t) {
+                                final double amount = (t['amount'] as num).toDouble();
+                                return sum + (t['transactionType'] == 'income' ? amount : -amount);
+                              },
+                            );
+
+                            filteredGroupWidgets.add(
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24.w,
+                                  vertical: 12.h,
                                 ),
-                                shadows: [
-                                  BoxShadow(
-                                    color: const Color(0x1E000000),
-                                    blurRadius: 16.r,
-                                    offset: Offset(0, 6.h),
-                                    spreadRadius: 0,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    height: 48.h,
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 16.w,
-                                      vertical: 12.h,
+                                child: Container(
+                                  width: double.infinity,
+                                  clipBehavior: Clip.antiAlias,
+                                  decoration: ShapeDecoration(
+                                    color: isDark
+                                        ? AppColors.backgroundDark
+                                        : AppColors.textWhite,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16.r),
                                     ),
-                                    decoration: ShapeDecoration(
-                                      color: isDark
-                                          ? Color(0xFF38383A)
-                                          : const Color(0xFFEDEDF0),
-                                      shape: RoundedRectangleBorder(
-                                        side: BorderSide(
-                                          width: 1.w,
+                                    shadows: [
+                                      BoxShadow(
+                                        color: const Color(0x1E000000),
+                                        blurRadius: 16.r,
+                                        offset: Offset(0, 6.h),
+                                        spreadRadius: 0,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: double.infinity,
+                                        height: 48.h,
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 16.w,
+                                          vertical: 12.h,
+                                        ),
+                                        decoration: ShapeDecoration(
                                           color: isDark
                                               ? Color(0xFF38383A)
                                               : const Color(0xFFEDEDF0),
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          formattedDate,
-                                          style: getTextStyle2(
-                                            color: isDark
-                                                ? Color(0xFFAAAAAA)
-                                                : const Color(0xFF828282),
-                                            fontSize: 14.sp,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 100.w,
-                                          height: 24.h,
-                                          child: Text(
-                                            '\$${expenseController.getTotalAmountForDate(date).toStringAsFixed(2)}',
-                                            textAlign: TextAlign.right,
-                                            style: getTextStyle2(
+                                          shape: RoundedRectangleBorder(
+                                            side: BorderSide(
+                                              width: 1.w,
                                               color: isDark
-                                                  ? AppColors.textWhite
-                                                  : AppColors.black,
-                                              fontSize: 14.sp,
-                                              fontWeight: FontWeight.w500,
-                                              lineHeight: 22.sp,
+                                                  ? Color(0xFF38383A)
+                                                  : const Color(0xFFEDEDF0),
                                             ),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    width: double.infinity,
-                                    height: 1.h,
-                                    color: isDark
-                                        ? const Color(0xFF38383A)
-                                        : const Color(0xFFEDEDF0),
-                                  ),
-                                  ...entries.asMap().entries.map((
-                                    indexedEntry,
-                                  ) {
-                                    final entry = indexedEntry.value;
-                                    final icon = entry.type.split(' ').first;
-                                    final title = entry.note;
-                                    return Column(
-                                      children: [
-                                        if (indexedEntry.key > 0)
-                                          Container(
-                                            width: double.infinity,
-                                            height: 1.h,
-                                            color: isDark
-                                                ? const Color(0xFF38383A)
-                                                : const Color(0xFFEDEDF0),
-                                          ),
-                                        Dismissible(
-                                          key: Key(entry.id),
-                                          direction:
-                                              DismissDirection.endToStart,
-                                          background: Container(
-                                            width: double.infinity,
-                                            height: 52.h,
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16.w,
-                                              vertical: 12.h,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              formattedDate,
+                                              style: getTextStyle2(
+                                                color: isDark
+                                                    ? Color(0xFFAAAAAA)
+                                                    : const Color(0xFF828282),
+                                                fontSize: 14.sp,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFFE21818),
-                                            ),
-                                            alignment: Alignment.centerRight,
-                                            child: Icon(
-                                              Icons.delete,
-                                              color: Colors.white,
-                                              size: 24.sp,
-                                            ),
-                                          ),
-                                          confirmDismiss: (direction) async {
-                                            try {
-                                              return await expenseController
-                                                  .deleteEntry(entry);
-                                            } catch (e) {
-                                              debugPrint(
-                                                'Error deleting entry: $e',
-                                              );
-                                              return false;
-                                            }
-                                          },
-                                          child: Container(
-                                            width: double.infinity,
-                                            height: 48.h,
-                                            padding: EdgeInsets.symmetric(
-                                              horizontal: 16.w,
-                                              vertical: 8.h,
-                                            ),
-                                            decoration: ShapeDecoration(
-                                              color: isDark
-                                                  ? Color(0xFF262626)
-                                                  : AppColors.textWhite,
-                                              shape: RoundedRectangleBorder(
-                                                side: BorderSide(
-                                                  width: 1.w,
+                                            SizedBox(
+                                              width: 100.w,
+                                              height: 24.h,
+                                              child: Text(
+                                                '\$${net.toStringAsFixed(2)}',
+                                                textAlign: TextAlign.right,
+                                                style: getTextStyle2(
                                                   color: isDark
-                                                      ? Color(0xFF38383A)
-                                                      : AppColors.textWhite,
+                                                      ? AppColors.textWhite
+                                                      : AppColors.black,
+                                                  fontSize: 14.sp,
+                                                  fontWeight: FontWeight.w500,
+                                                  lineHeight: 22.sp,
                                                 ),
                                               ),
                                             ),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                SizedBox(
-                                                  width: 32.w,
-                                                  height: 32.h,
-                                                  child: Text(
-                                                    icon,
-                                                    style: getTextStyle2(
-                                                      color: const Color(
-                                                        0xFF828282,
-                                                      ),
-                                                      fontSize: 24.sp,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: 170.w,
-                                                  child: Text(
-                                                    title,
-                                                    style: getTextStyle2(
-                                                      color: isDark
-                                                          ? AppColors.textWhite
-                                                          : const Color(
-                                                              0xFF141414,
-                                                            ),
-                                                      fontSize: 14.sp,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: 100.w,
-                                                  child: Text(
-                                                    '${entry.isIncome ? '+' : '-'} \$${entry.amount.toStringAsFixed(2)}',
-                                                    textAlign: TextAlign.right,
-                                                    style: getTextStyle2(
-                                                      color: entry.isIncome
-                                                          ? const Color(
-                                                              0xFF00D460,
-                                                            )
-                                                          : const Color(
-                                                              0xFFEF5B00,
-                                                            ),
-                                                      fontSize: 14.sp,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                          ],
                                         ),
-                                      ],
-                                    );
-                                  }),
-                                ],
+                                      ),
+                                      Container(
+                                        width: double.infinity,
+                                        height: 1.h,
+                                        color: isDark
+                                            ? const Color(0xFF38383A)
+                                            : const Color(0xFFEDEDF0),
+                                      ),
+                                      ...filteredTransactions.asMap().entries.map((
+                                        indexedEntry,
+                                      ) {
+                                        final Map<String, dynamic> trans =
+                                            indexedEntry.value;
+                                        final String iconStr =
+                                            (trans['typeName'] as String)
+                                                .split(' ')
+                                                .first;
+                                        final String title =
+                                            trans['description'] as String? ?? '';
+                                        final double amount =
+                                            (trans['amount'] as num).toDouble();
+                                        final bool isIncome =
+                                            trans['transactionType'] == 'income';
+                                        final String transId =
+                                            trans['_id'] as String;
+
+                                        return Column(
+                                          children: [
+                                            if (indexedEntry.key > 0)
+                                              Container(
+                                                width: double.infinity,
+                                                height: 1.h,
+                                                color: isDark
+                                                    ? const Color(0xFF38383A)
+                                                    : const Color(0xFFEDEDF0),
+                                              ),
+                                            Dismissible(
+                                              key: Key(transId),
+                                              direction:
+                                                  DismissDirection.endToStart,
+                                              background: Container(
+                                                width: double.infinity,
+                                                height: 52.h,
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 16.w,
+                                                  vertical: 12.h,
+                                                ),
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFFE21818),
+                                                ),
+                                                alignment: Alignment.centerRight,
+                                                child: Icon(
+                                                  Icons.delete,
+                                                  color: Colors.white,
+                                                  size: 24.sp,
+                                                ),
+                                              ),
+                                              confirmDismiss: (direction) async {
+                                                try {
+                                                  final String description =
+                                                      trans['description']
+                                                          as String? ??
+                                                      'this transaction';
+                                                  final success =
+                                                      await homeController
+                                                          .deleteTransaction(
+                                                            transId,
+                                                            description,
+                                                          );
+                                                  if (success) {
+                                                    // Refresh after delete
+                                                    await homeController
+                                                        .refreshIncomeAndExpenses();
+                                                  }
+                                                  return success;
+                                                } catch (e) {
+                                                  debugPrint(
+                                                    'Error deleting transaction: $e',
+                                                  );
+                                                  return false;
+                                                }
+                                              },
+                                              child: Container(
+                                                width: double.infinity,
+                                                height: 48.h,
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 16.w,
+                                                  vertical: 8.h,
+                                                ),
+                                                decoration: ShapeDecoration(
+                                                  color: isDark
+                                                      ? Color(0xFF262626)
+                                                      : AppColors.textWhite,
+                                                  shape: RoundedRectangleBorder(
+                                                    side: BorderSide(
+                                                      width: 1.w,
+                                                      color: isDark
+                                                          ? Color(0xFF38383A)
+                                                          : AppColors.textWhite,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.center,
+                                                  children: [
+                                                    SizedBox(
+                                                      // width: 80.w,
+                                                      height: 32.h,
+                                                      child: Text(
+                                                        iconStr,
+                                                        style: getTextStyle2(
+                                                          color: const Color(
+                                                            0xFF828282,
+                                                          ),
+                                                          fontSize: 24.sp,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      width: 120.w,
+                                                      child: Text(
+                                                        title,
+                                                        style: getTextStyle2(
+                                                          color: isDark
+                                                              ? AppColors
+                                                                    .textWhite
+                                                              : const Color(
+                                                                  0xFF141414,
+                                                                ),
+                                                          fontSize: 14.sp,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      width: 100.w,
+                                                      child: Text(
+                                                        '${isIncome ? '+' : '-'} \$${amount.toStringAsFixed(2)}',
+                                                        textAlign:
+                                                            TextAlign.right,
+                                                        style: getTextStyle2(
+                                                          color: isIncome
+                                                              ? const Color(
+                                                                  0xFF00D460,
+                                                                )
+                                                              : const Color(
+                                                                  0xFFEF5B00,
+                                                                ),
+                                                          fontSize: 14.sp,
+                                                          fontWeight:
+                                                              FontWeight.w500,
+                                                        ),
+                                                        overflow:
+                                                            TextOverflow.ellipsis,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      );
+                            );
+                          }
+
+                          if (filteredGroupWidgets.isEmpty) {
+                            return noEntriesWidget;
+                          }
+
+                          return Column(children: filteredGroupWidgets);
+                        });
+                      }
+                      // Add a fallback return to satisfy the Widget return type
+                      return noEntriesWidget;
                     }),
 
                     SizedBox(height: screenHeight * 0.6),

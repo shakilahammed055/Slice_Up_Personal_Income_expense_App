@@ -29,75 +29,102 @@ class PaidByIndividual extends StatelessWidget {
           itemBuilder: (context, index) {
             final friend = controller.friendNames[index];
 
-            // Find the corresponding member data to check if they're the owner
+            // Find the corresponding member data to get member info
             final memberData = controller.groupMembers.firstWhere(
               (member) => member['name'] == friend,
               orElse: () => <String, dynamic>{},
             );
-            final isOwner = memberData['isOwner'] == true;
 
             // Limit name to 10 characters
             final displayName = friend.length > 10
                 ? friend.substring(0, 10)
                 : friend;
 
-            return GestureDetector(
-              onTap: () {
-                controller.setSelectedPaidByFriend(friend);
-                // Don't auto-close to allow users to see deselection
-                // Get.back();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 8,
-                  horizontal: 24,
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: _getAvatarColor(friend, index),
-                      radius: 13,
-                      child: Text(
-                        friend.isNotEmpty ? friend[0] : '?',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+            return FutureBuilder<String?>(
+              future: controller.getCurrentUserEmail(),
+              builder: (context, snapshot) {
+                // Check if this member is the currently logged-in user
+                final currentUserEmail = snapshot.data;
+                final memberEmail = memberData['email']?.toString() ?? '';
+                final memberId = memberData['id']?.toString() ?? '';
+
+                // Debug logging
+                debugPrint('🔍 Current User Email: $currentUserEmail');
+                debugPrint('🔍 Member Email: $memberEmail');
+                debugPrint('🔍 Member ID: $memberId');
+                debugPrint('🔍 Friend Name: $friend');
+                debugPrint('🔍 Member Data: $memberData');
+
+                // Check if this member matches the logged-in user (by email)
+                final isCurrentUser =
+                    currentUserEmail != null &&
+                    currentUserEmail.isNotEmpty &&
+                    memberEmail.isNotEmpty &&
+                    memberEmail.toLowerCase() == currentUserEmail.toLowerCase();
+
+                debugPrint('🔍 Is Current User: $isCurrentUser');
+
+                return GestureDetector(
+                  onTap: () {
+                    controller.setSelectedPaidByFriend(friend);
+                    // Don't auto-close to allow users to see deselection
+                    // Get.back();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text(
-                            displayName,
-                            style: getTextStyle2(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? AppColors.textWhite
-                                  : AppColors.black,
-                            ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: _getAvatarColor(friend, index),
+                          radius: 13,
+                          child: Text(
+                            friend.isNotEmpty ? friend[0] : '?',
+                            style: const TextStyle(color: Colors.white),
                           ),
-                          if (isOwner) ...[
-                            const SizedBox(width: 4),
-                            Text(
-                              '(Me)',
-                              style: getTextStyle2(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.black,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Text(
+                                displayName,
+                                style: getTextStyle2(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark
+                                      ? AppColors.textWhite
+                                      : AppColors.black,
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
+                              if (isCurrentUser) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  '(Me)',
+                                  style: getTextStyle2(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark
+                                        ? AppColors.textWhite
+                                        : AppColors.black,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Obx(
+                          () => controller.selectedPaidByFriend.value == friend
+                              ? const Icon(Icons.check)
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
                     ),
-                    Obx(
-                      () => controller.selectedPaidByFriend.value == friend
-                          ? const Icon(Icons.check)
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         ),

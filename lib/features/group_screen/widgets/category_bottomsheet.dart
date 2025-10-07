@@ -182,19 +182,6 @@ class CategoryBottomsheet extends StatelessWidget {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    Obx(
-                                      () => Icon(
-                                        groupTripController
-                                                    .selectedType
-                                                    .value ==
-                                                type
-                                            ? Icons.check
-                                            : null,
-                                        color: isDark
-                                            ? AppColors.textWhite
-                                            : AppColors.black,
-                                      ),
-                                    ),
                                     const SizedBox(width: 20),
                                     // Edit
                                     GestureDetector(

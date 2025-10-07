@@ -57,6 +57,11 @@ class SliceupBalanceCard extends StatelessWidget {
 
     // Helper widget to build a single balance row without specific vertical margins
     Widget buildBalanceRowContent(BalanceEntry entry) {
+      String _shorten(String s, [int len = 10]) {
+        if (s.length <= len) return s;
+        return '${s.substring(0, len)}...';
+      }
+
       return Row(
         children: [
           CircleAvatar(
@@ -72,16 +77,19 @@ class SliceupBalanceCard extends StatelessWidget {
             ),
           ),
           SizedBox(width: 10),
-          Text(
-            entry.name,
-            style: getTextStyle2(
-              color: isDark ? AppColors.textWhite : AppColors.black,
-              fontSize: responsive.fromSmallMediumLarge(
-                small: 12,
-                medium: 14,
-                large: 14,
+          Expanded(
+            child: Text(
+              _shorten(entry.name),
+              style: getTextStyle2(
+                color: isDark ? AppColors.textWhite : AppColors.black,
+                fontSize: responsive.fromSmallMediumLarge(
+                  small: 12,
+                  medium: 14,
+                  large: 14,
+                ),
+                fontWeight: FontWeight.w500,
               ),
-              fontWeight: FontWeight.w500,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Spacer(),
@@ -106,7 +114,6 @@ class SliceupBalanceCard extends StatelessWidget {
         // First foreground container with border radius
         Center(
           child: Container(
-           
             width: responsive.fromSmallMediumLarge(
               small: MediaQuery.of(context).size.width / 1.1,
               medium: MediaQuery.of(context).size.width / 1.1,
@@ -152,7 +159,6 @@ class SliceupBalanceCard extends StatelessWidget {
 
         // Positioned container on top
         Container(
-        
           width: responsive.fromSmallMediumLarge(
             small: MediaQuery.of(context).size.width / 1.1,
             medium: MediaQuery.of(context).size.width / 1.1,

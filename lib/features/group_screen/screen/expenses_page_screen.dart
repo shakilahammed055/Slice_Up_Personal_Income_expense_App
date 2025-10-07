@@ -4,14 +4,154 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/screen/group_trip_spent_screen.dart';
 import 'package:teddy_5618/features/group_screen/controller/expenses_page_controller.dart';
+import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
+import 'package:teddy_5618/features/group_screen/controller/expense_event_controller.dart';
 
-class ExpensesPageScreen extends StatelessWidget {
-  const ExpensesPageScreen({super.key});
+class ExpensesPageScreen extends StatefulWidget {
+  final Trip? trip; // Add trip parameter
+
+  const ExpensesPageScreen({super.key, this.trip});
+
+  @override
+  State<ExpensesPageScreen> createState() => _ExpensesPageScreenState();
+}
+
+class _ExpensesPageScreenState extends State<ExpensesPageScreen>
+    with WidgetsBindingObserver, RouteAware {
+  late ExpensesPageController controller;
+  late String controllerTag;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Initialize controller
+    controllerTag = widget.trip?.id ?? 'default';
+    controller = Get.put(
+      ExpensesPageController(groupId: widget.trip?.id),
+      tag: controllerTag,
+    );
+
+    // Set up event listener for expense updates
+    if (widget.trip?.id != null) {
+      try {
+        final eventController = Get.put(ExpenseEventController());
+        eventController.listenToExpenseUpdates(widget.trip!.id!, () {
+          debugPrint(
+            "🔔 [EXPENSES_PAGE] Received expense update event, refreshing...",
+          );
+          controller.refreshExpenses();
+        });
+      } catch (e) {
+        debugPrint("⚠️ [EXPENSES_PAGE] Could not set up event listener: $e");
+      }
+    }
+
+    // Debug: Print trip information
+    debugPrint(
+      "🔍 [EXPENSES_PAGE] Trip provided: ${widget.trip?.id} - ${widget.trip?.name}",
+    );
+    debugPrint("🏷️ [EXPENSES_PAGE] Controller tag: $controllerTag");
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to route changes if there's a RouteObserver in the app
+    final ModalRoute<dynamic>? route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      // Note: This would require a RouteObserver to be added to MaterialApp.navigatorObservers
+      // For now, we'll rely on the other refresh mechanisms
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // RouteAware methods
+  @override
+  void didPopNext() {
+    // Called when this page becomes visible again (e.g., returning from another page)
+    debugPrint("🔄 [EXPENSES_PAGE] Returned to page, refreshing expenses...");
+    controller.refreshExpenses();
+  }
+
+  @override
+  void didPush() {
+    // Called when this page is pushed onto the navigation stack
+    debugPrint("📥 [EXPENSES_PAGE] Page pushed");
+  }
+
+  @override
+  void didPop() {
+    // Called when this page is popped from the navigation stack
+    debugPrint("📤 [EXPENSES_PAGE] Page popped");
+  }
+
+  @override
+  void didPushNext() {
+    // Called when a new page is pushed on top of this page
+    debugPrint("⏭️ [EXPENSES_PAGE] New page pushed on top");
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Refresh expenses when app becomes active (foreground)
+    if (state == AppLifecycleState.resumed) {
+      debugPrint("🔄 [EXPENSES_PAGE] App resumed, refreshing expenses...");
+      controller.refreshExpenses();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ExpensesPageController controller = Get.put(ExpensesPageController());
+
+    // If no trip is provided, show a message
+    if (widget.trip == null ||
+        widget.trip!.id == null ||
+        widget.trip!.id!.isEmpty) {
+      return Scaffold(
+        backgroundColor: isDark
+            ? AppColors.backgroundDark
+            : AppColors.backgroundLightGrey,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.info_outline,
+                size: 64,
+                color: isDark ? AppColors.textWhite : AppColors.backgroundDark,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No trip selected',
+                style: getTextStyle2(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: isDark
+                      ? AppColors.textWhite
+                      : AppColors.backgroundDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please select a valid trip to view expenses',
+                style: getTextStyle2(fontSize: 14, color: AppColors.textGrey),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: isDark
@@ -89,16 +229,87 @@ class ExpensesPageScreen extends StatelessWidget {
             }
 
             // Show expenses data
-            return RefreshIndicator(
-              onRefresh: controller.refreshExpenses,
-              color: AppColors.green,
-              child: ListView.builder(
-                itemCount: controller.expenses.length,
-                itemBuilder: (context, index) {
-                  final dayData = controller.expenses[index];
-                  return expensescard(context, dayData);
-                },
-              ),
+            return Column(
+              children: [
+                // Filter indicator
+                Obx(() {
+                  if (controller.hasActiveFilters) {
+                    return Container(
+                      margin: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.deepGrey
+                            : AppColors.lightGreyContainer,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.green.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.filter_list,
+                            size: 16,
+                            color: AppColors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              controller.getActiveFiltersDescription(),
+                              style: getTextStyle2(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppColors.textWhite
+                                    : AppColors.black,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: controller.clearFilters,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: AppColors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Clear',
+                                style: getTextStyle2(
+                                  fontSize: 10,
+                                  color: AppColors.green,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                }),
+
+                // Expenses list
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: controller.refreshExpenses,
+                    color: AppColors.green,
+                    child: ListView.builder(
+                      itemCount: controller.expenses.length,
+                      itemBuilder: (context, index) {
+                        final dayData = controller.expenses[index];
+                        return expensescard(context, dayData);
+                      },
+                    ),
+                  ),
+                ),
+              ],
             );
           }),
         ),
@@ -106,8 +317,21 @@ class ExpensesPageScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.green,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35)),
-        onPressed: () {
-          Get.to(GroupTripSpentScreen());
+        onPressed: () async {
+          // Pass the trip ID to the spent screen
+          final groupId = widget.trip?.id ?? controller.groupId.value;
+          debugPrint(
+            "🚀 [EXPENSES_FAB] Navigating to GroupTripSpentScreen with groupId: $groupId",
+          );
+
+          // Navigate and wait for result
+          await Get.to(() => GroupTripSpentScreen(groupId: groupId));
+
+          // Refresh expenses when returning from GroupTripSpentScreen
+          debugPrint(
+            "🔄 [EXPENSES_FAB] Returned from GroupTripSpentScreen, refreshing expenses...",
+          );
+          controller.refreshExpenses();
         },
         child: Icon(
           Icons.add,
@@ -200,9 +424,8 @@ List<Widget> _buildExpensesList(List<dynamic> expenses, bool isDark) {
     // Add expense item
     expenseWidgets.add(
       Padding(
-        padding: const EdgeInsets.only(left: 8, right: 12),
+        padding: const EdgeInsets.only(left: 16, right: 12),
         child: _buildExpenseItem(
-          icon: expense['categoryIcon'] ?? '💰',
           title: expense['title'] ?? 'Unknown',
           amount: expense['formattedAmount'] ?? 'US\$ 0.00',
           amountColor: isDark ? AppColors.textWhite : AppColors.black,
@@ -231,7 +454,6 @@ List<Widget> _buildExpensesList(List<dynamic> expenses, bool isDark) {
 }
 
 Widget _buildExpenseItem({
-  required String icon,
   required String title,
   required String amount,
   required Color amountColor,
@@ -244,17 +466,6 @@ Widget _buildExpenseItem({
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Icon
-        SizedBox(
-          width: 36,
-          height: 36,
-          child: Center(
-            child: Text(icon, style: const TextStyle(fontSize: 20)),
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
         // Title
         Expanded(
           child: Text(

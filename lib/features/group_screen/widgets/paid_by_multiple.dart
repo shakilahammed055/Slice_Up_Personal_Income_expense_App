@@ -151,8 +151,12 @@ class PaidByMultiple extends StatelessWidget {
                 onTap: () async {
                   // Save the expense with selected members
                   await controller.saveExpenseWithMembers();
-                  // Then navigate to the next screen
-                  Get.to(() => GroupTripSpentScreen());
+                  // Then navigate to the next screen with group ID
+                  Get.to(
+                    () => GroupTripSpentScreen(
+                      groupId: controller.currentGroupId.value,
+                    ),
+                  );
                 },
                 child: Container(
                   height: 52,

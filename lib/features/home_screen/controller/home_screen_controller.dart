@@ -1,3 +1,5 @@
+// // ignore_for_file: unused_local_variable
+
 // import 'package:flutter/material.dart';
 // import 'package:get/get.dart';
 // import 'package:intl/intl.dart';
@@ -17,12 +19,219 @@
 //   var currentMonth = RxString('');
 //   var nextMonth = RxString('');
 //   var isDateRangeSet = RxBool(false);
+
+//   // New API data observables
+//   var remainingBalance = RxDouble(0.0);
+//   var apiStartDate = RxString('');
+//   var apiEndDate = RxString('');
+//   var isApiDataLoaded = RxBool(false);
+
+//   // New observable for grouped API data
+//   var apiGroupedByDate = <Map<String, dynamic>>[].obs;
+
 //   final dio.Dio _dio = dio.Dio();
 
 //   HomeController() {
 //     currentMonth.value = DateFormat('MMMM').format(DateTime.now());
 //     _updateNextMonth();
-//     _loadSavedSettings(); // Load saved settings on initialization
+//     _loadSavedSettings();
+//     _fetchIncomeAndExpenses(); // Fetch API data on initialization
+//   }
+
+//  Future<void> _fetchIncomeAndExpenses() async {
+//   try {
+//     final String? approvalToken = await AuthService.getApprovalToken();
+//     if (approvalToken == null || approvalToken.isEmpty) {
+//       debugPrint('No approval token found');
+//       return;
+//     }
+
+//     final dio.Response response = await _dio.get(
+//       Urls.getincomeandexpence,
+//       options: dio.Options(
+//         headers: {
+//           'Authorization': approvalToken,
+//           'Content-Type': 'application/json',
+//         },
+//       ),
+//     );
+
+//     debugPrint('API response received: statusCode=${response.statusCode}');
+//     debugPrint('Response data: ${response.data}');
+
+//     if (response.statusCode == 200) {
+//       dynamic responseData = response.data;
+//       if (responseData is Map<String, dynamic> && responseData['status'] == 'success') {
+//         final data = responseData['data'];
+
+//         // Update remaining balance
+//         remainingBalance.value = (data['remainingBalance'] ?? 0.0).toDouble();
+
+//         // Update date range from API
+//         if (data['profileDate'] != null) {
+//           final profileDate = data['profileDate'];
+//           if (profileDate['startDate'] != null && profileDate['endDate'] != null) {
+//             apiStartDate.value = profileDate['startDate'];
+//             apiEndDate.value = profileDate['endDate'];
+
+//             // Update local date range settings from API
+//             await _updateLocalDateRangeFromAPI(profileDate['startDate'], profileDate['endDate']);
+//           }
+//         }
+
+//         // Update grouped by date data
+//         final List<dynamic> groupedList = data['groupedByDate'] ?? [];
+//         apiGroupedByDate.value = groupedList.map((e) => Map<String, dynamic>.from(e)).toList();
+
+//         isApiDataLoaded.value = true;
+//         debugPrint('Income and expenses data loaded successfully');
+//       }
+//     }
+//   } on dio.DioException catch (e) {
+//     debugPrint('DioException during fetch: ${e.type}');
+//     debugPrint('Error message: ${e.message}');
+//     isApiDataLoaded.value = true; // Set to true even on error to stop loading
+//   } catch (e) {
+//     debugPrint('Unexpected error during fetch: $e');
+//     isApiDataLoaded.value = true;
+//   } finally {
+//     EasyLoading.dismiss();
+//   }
+// }
+
+
+
+//   // New method to update local date range from API data
+//   Future<void> _updateLocalDateRangeFromAPI(
+//     String startDateStr,
+//     String endDateStr,
+//   ) async {
+//     try {
+//       // Parse start date
+//       final startDate = DateTime.parse(startDateStr);
+//       final currentMonthIndex = startDate.month;
+//       final startDay = startDate.day;
+
+//       // Parse end date
+//       final endDate = DateTime.parse(endDateStr);
+//       final endMonthIndex = endDate.month;
+//       final endDay = endDate.day;
+
+//       // Update local state
+//       currentMonth.value = DateFormat('MMMM').format(startDate);
+//       selectedStartDate.value = startDay;
+//       selectedEndDate.value = endDay;
+
+//       // Update next month based on current month
+//       _updateNextMonth();
+
+//       // Update date range status
+//       isDateRangeSet.value = true;
+
+//       // Save to local storage
+//       await _saveSettings();
+
+//       // Update total amount
+//       _updateTotalAmount();
+
+//       debugPrint('Local date range updated from API: $startDay ~ $endDay');
+//     } catch (e) {
+//       debugPrint('Error parsing API dates: $e');
+//     }
+//   }
+
+//   // New method to delete a transaction via API
+//   Future<bool> deleteTransaction(
+//     String transactionId,
+//     String description,
+//   ) async {
+//     // Show confirmation dialog
+//     final bool? confirm = await Get.dialog<bool>(
+//       AlertDialog(
+//         title: const Text('Confirm Delete'),
+//         content: Text('Are you sure you want to delete "$description"?'),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Get.back(result: false),
+//             child: const Text('Cancel'),
+//           ),
+//           TextButton(
+//             onPressed: () => Get.back(result: true),
+//             child: const Text('Delete'),
+//           ),
+//         ],
+//       ),
+//     );
+
+//     if (confirm != true) return false;
+
+//     EasyLoading.show(status: 'Deleting transaction...');
+//     try {
+//       final String? approvalToken = await AuthService.getApprovalToken();
+//       if (approvalToken == null || approvalToken.isEmpty) {
+//         debugPrint('No approval token found');
+//         EasyLoading.showError('No authentication token found');
+//         return false;
+//       }
+
+//       final dio.Response response = await _dio.delete(
+//         'https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/deleteIncomeOrExpenses/$transactionId',
+//         options: dio.Options(
+//           headers: {
+//             'Authorization': approvalToken,
+//             'Content-Type': 'application/json',
+//           },
+//         ),
+//       );
+
+//       if (response.statusCode == 200 || response.statusCode == 204) {
+//         EasyLoading.showSuccess('Transaction deleted successfully');
+//         await refreshIncomeAndExpenses(); // Refresh data after successful delete
+//         return true;
+//       } else {
+//         EasyLoading.showError(
+//           'Failed to delete transaction: ${response.statusCode}',
+//         );
+//         return false;
+//       }
+//     } on dio.DioException catch (e) {
+//       debugPrint('DioException during delete: ${e.type}');
+//       debugPrint('Error message: ${e.message}');
+//       String errorMessage = 'Failed to delete transaction';
+//       if (e.type == dio.DioExceptionType.connectionTimeout ||
+//           e.type == dio.DioExceptionType.sendTimeout ||
+//           e.type == dio.DioExceptionType.receiveTimeout) {
+//         errorMessage =
+//             'Connection timeout. Please check your internet connection.';
+//       } else if (e.type == dio.DioExceptionType.badResponse) {
+//         errorMessage = 'Server error: ${e.response?.statusCode}';
+//         if (e.response?.statusCode == 401) {
+//           errorMessage = 'Authentication failed. Please login again.';
+//         } else if (e.response?.statusCode == 404) {
+//           errorMessage = 'Transaction not found.';
+//         }
+//       } else if (e.message != null) {
+//         errorMessage = e.message!;
+//       }
+//       EasyLoading.showError(errorMessage);
+//       return false;
+//     } catch (e) {
+//       debugPrint('Unexpected error during delete: $e');
+//       EasyLoading.showError('Unexpected error occurred');
+//       return false;
+//     } finally {
+//       EasyLoading.dismiss();
+//     }
+//   }
+
+//   // Refresh method to call when needed (e.g., after updating date range)
+//   Future<void> refreshIncomeAndExpenses() async {
+//     remainingBalance.value = 0.0;
+//     apiStartDate.value = '';
+//     apiEndDate.value = '';
+//     apiGroupedByDate.clear();
+//     isApiDataLoaded.value = false;
+//     await _fetchIncomeAndExpenses();
 //   }
 
 //   Future<void> _loadSavedSettings() async {
@@ -49,18 +258,17 @@
 
 //   void setAssistant(String assistant) async {
 //     selectedAssistant.value = assistant;
-//     await _saveSettings(); // Save to local storage first
-//     await updateAssistantTypeViaAPI(assistant); // Then sync with API
+//     await _saveSettings();
+//     await updateAssistantTypeViaAPI(assistant);
 //   }
 
 //   String _displayToApiAssistantType(String displayAssistantType) {
-//     // Map display values to API-compatible values
 //     if (displayAssistantType == 'supportive'.tr) {
 //       return 'supportive';
 //     } else if (displayAssistantType == 'sarcastic'.tr) {
 //       return 'sarcastic';
 //     }
-//     return displayAssistantType; // Fallback to input value if no mapping
+//     return displayAssistantType;
 //   }
 
 //   Future<bool> updateAssistantTypeViaAPI(String newAssistantType) async {
@@ -175,7 +383,7 @@
 //     currentMonth.value = DateFormat('MMMM').format(DateTime.now());
 //     _updateNextMonth();
 //     _updateTotalAmount();
-//     _saveSettings(); // Save cleared settings
+//     _saveSettings();
 //   }
 
 //   void setMonth(String month) {
@@ -290,8 +498,11 @@
 //           '$endYear-${endMonth.toString().padLeft(2, '0')}-${end.toString().padLeft(2, '0')}';
 
 //       isDateRangeSet.value = true;
-//       await _saveSettings(); // Save settings locally first
-//       await _updateDateRangeAPI(startDateStr, endDateStr); // Then call API
+//       await _saveSettings();
+//       bool success = await _updateDateRangeAPI(startDateStr, endDateStr);
+//       if (success) {
+//         await refreshIncomeAndExpenses(); // Refresh data after successful update
+//       }
 //     } else {
 //       EasyLoading.showError('Please select both Start and End dates');
 //     }
@@ -372,9 +583,6 @@
 
 
 
-
-
-
 // ignore_for_file: unused_local_variable
 
 import 'package:flutter/material.dart';
@@ -396,13 +604,18 @@ class HomeController extends GetxController {
   var currentMonth = RxString('');
   var nextMonth = RxString('');
   var isDateRangeSet = RxBool(false);
-  
+
   // New API data observables
   var remainingBalance = RxDouble(0.0);
+  var totalIncome = RxDouble(0.0);
+  var totalExpense = RxDouble(0.0);
   var apiStartDate = RxString('');
   var apiEndDate = RxString('');
   var isApiDataLoaded = RxBool(false);
-  
+
+  // New observable for grouped API data
+  var apiGroupedByDate = <Map<String, dynamic>>[].obs;
+
   final dio.Dio _dio = dio.Dio();
 
   HomeController() {
@@ -412,18 +625,162 @@ class HomeController extends GetxController {
     _fetchIncomeAndExpenses(); // Fetch API data on initialization
   }
 
-  // New method to fetch income and expenses from API
-  Future<void> _fetchIncomeAndExpenses() async {
+ Future<void> _fetchIncomeAndExpenses() async {
+  try {
+    final String? approvalToken = await AuthService.getApprovalToken();
+    if (approvalToken == null || approvalToken.isEmpty) {
+      debugPrint('No approval token found');
+      return;
+    }
+
+    final dio.Response response = await _dio.get(
+      Urls.getincomeandexpence,
+      options: dio.Options(
+        headers: {
+          'Authorization': approvalToken,
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+
+    debugPrint('API response received: statusCode=${response.statusCode}');
+    debugPrint('Response data: ${response.data}');
+
+    if (response.statusCode == 200) {
+      dynamic responseData = response.data;
+      if (responseData is Map<String, dynamic> && responseData['status'] == 'success') {
+        final data = responseData['data'];
+
+        // Update remaining balance
+        remainingBalance.value = (data['remainingBalance'] ?? 0.0).toDouble();
+
+        // Compute totals from transactions
+        double computedIncome = 0.0;
+        double computedExpense = 0.0;
+        final List<dynamic> groupedList = data['groupedByDate'] ?? [];
+        for (var groupItem in groupedList) {
+          final List<dynamic> transactions = (groupItem['transactions'] ?? []) as List;
+          for (var trans in transactions) {
+            final Map<String, dynamic> transaction = Map<String, dynamic>.from(trans);
+            final double amount = (transaction['amount'] as num).toDouble();
+            if (transaction['transactionType'] == 'income') {
+              computedIncome += amount;
+            } else {
+              computedExpense += amount;
+            }
+          }
+        }
+        totalIncome.value = computedIncome;
+        totalExpense.value = computedExpense;
+
+        // Update date range from API
+        if (data['profileDate'] != null) {
+          final profileDate = data['profileDate'];
+          if (profileDate['startDate'] != null && profileDate['endDate'] != null) {
+            apiStartDate.value = profileDate['startDate'];
+            apiEndDate.value = profileDate['endDate'];
+
+            // Update local date range settings from API
+            await _updateLocalDateRangeFromAPI(profileDate['startDate'], profileDate['endDate']);
+          }
+        }
+
+        // Update grouped by date data
+        apiGroupedByDate.value = groupedList.map((e) => Map<String, dynamic>.from(e)).toList();
+
+        isApiDataLoaded.value = true;
+        debugPrint('Income and expenses data loaded successfully');
+      }
+    }
+  } on dio.DioException catch (e) {
+    debugPrint('DioException during fetch: ${e.type}');
+    debugPrint('Error message: ${e.message}');
+    isApiDataLoaded.value = true; // Set to true even on error to stop loading
+  } catch (e) {
+    debugPrint('Unexpected error during fetch: $e');
+    isApiDataLoaded.value = true;
+  } finally {
+    EasyLoading.dismiss();
+  }
+}
+
+
+
+  // New method to update local date range from API data
+  Future<void> _updateLocalDateRangeFromAPI(
+    String startDateStr,
+    String endDateStr,
+  ) async {
     try {
-      // EasyLoading.show(status: 'Loading data...');
+      // Parse start date
+      final startDate = DateTime.parse(startDateStr);
+      final currentMonthIndex = startDate.month;
+      final startDay = startDate.day;
+
+      // Parse end date
+      final endDate = DateTime.parse(endDateStr);
+      final endMonthIndex = endDate.month;
+      final endDay = endDate.day;
+
+      // Update local state
+      currentMonth.value = DateFormat('MMMM').format(startDate);
+      selectedStartDate.value = startDay;
+      selectedEndDate.value = endDay;
+
+      // Update next month based on current month
+      _updateNextMonth();
+
+      // Update date range status
+      isDateRangeSet.value = true;
+
+      // Save to local storage
+      await _saveSettings();
+
+      // Update total amount
+      _updateTotalAmount();
+
+      debugPrint('Local date range updated from API: $startDay ~ $endDay');
+    } catch (e) {
+      debugPrint('Error parsing API dates: $e');
+    }
+  }
+
+  // New method to delete a transaction via API
+  Future<bool> deleteTransaction(
+    String transactionId,
+    String description,
+  ) async {
+    // Show confirmation dialog
+    final bool? confirm = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Confirm Delete'),
+        content: Text('Are you sure you want to delete "$description"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return false;
+
+    EasyLoading.show(status: 'Deleting transaction...');
+    try {
       final String? approvalToken = await AuthService.getApprovalToken();
       if (approvalToken == null || approvalToken.isEmpty) {
         debugPrint('No approval token found');
-        return;
+        EasyLoading.showError('No authentication token found');
+        return false;
       }
 
-      final dio.Response response = await _dio.get(
-        Urls.getincomeandexpence, // Make sure this URL is defined in your endpoint
+      final dio.Response response = await _dio.delete(
+        'https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/deleteIncomeOrExpenses/$transactionId',
         options: dio.Options(
           headers: {
             'Authorization': approvalToken,
@@ -432,86 +789,54 @@ class HomeController extends GetxController {
         ),
       );
 
-      debugPrint('API response received: statusCode=${response.statusCode}');
-      debugPrint('Response data: ${response.data}');
-
-      if (response.statusCode == 200) {
-        dynamic responseData = response.data;
-        if (responseData is Map<String, dynamic> && responseData['status'] == 'success') {
-          final data = responseData['data'];
-          
-          // Update remaining balance
-          remainingBalance.value = (data['remainingBalance'] ?? 0.0).toDouble();
-          
-          // Update date range from API
-          if (data['profileDate'] != null) {
-            final profileDate = data['profileDate'];
-            if (profileDate['startDate'] != null && profileDate['endDate'] != null) {
-              apiStartDate.value = profileDate['startDate'];
-              apiEndDate.value = profileDate['endDate'];
-              
-              // Update local date range settings from API
-              await _updateLocalDateRangeFromAPI(profileDate['startDate'], profileDate['endDate']);
-            }
-          }
-          
-          isApiDataLoaded.value = true;
-          debugPrint('Income and expenses data loaded successfully');
-        }
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        EasyLoading.showSuccess('Transaction deleted successfully');
+        await refreshIncomeAndExpenses(); // Refresh data after successful delete
+        return true;
+      } else {
+        EasyLoading.showError(
+          'Failed to delete transaction: ${response.statusCode}',
+        );
+        return false;
       }
     } on dio.DioException catch (e) {
-      debugPrint('DioException during fetch: ${e.type}');
+      debugPrint('DioException during delete: ${e.type}');
       debugPrint('Error message: ${e.message}');
-      isApiDataLoaded.value = true; // Set to true even on error to stop loading
+      String errorMessage = 'Failed to delete transaction';
+      if (e.type == dio.DioExceptionType.connectionTimeout ||
+          e.type == dio.DioExceptionType.sendTimeout ||
+          e.type == dio.DioExceptionType.receiveTimeout) {
+        errorMessage =
+            'Connection timeout. Please check your internet connection.';
+      } else if (e.type == dio.DioExceptionType.badResponse) {
+        errorMessage = 'Server error: ${e.response?.statusCode}';
+        if (e.response?.statusCode == 401) {
+          errorMessage = 'Authentication failed. Please login again.';
+        } else if (e.response?.statusCode == 404) {
+          errorMessage = 'Transaction not found.';
+        }
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+      EasyLoading.showError(errorMessage);
+      return false;
     } catch (e) {
-      debugPrint('Unexpected error during fetch: $e');
-      isApiDataLoaded.value = true;
+      debugPrint('Unexpected error during delete: $e');
+      EasyLoading.showError('Unexpected error occurred');
+      return false;
     } finally {
       EasyLoading.dismiss();
-    }
-  }
-
-  // New method to update local date range from API data
-  Future<void> _updateLocalDateRangeFromAPI(String startDateStr, String endDateStr) async {
-    try {
-      // Parse start date
-      final startDate = DateTime.parse(startDateStr);
-      final currentMonthIndex = startDate.month;
-      final startDay = startDate.day;
-      
-      // Parse end date
-      final endDate = DateTime.parse(endDateStr);
-      final endMonthIndex = endDate.month;
-      final endDay = endDate.day;
-      
-      // Update local state
-      currentMonth.value = DateFormat('MMMM').format(startDate);
-      selectedStartDate.value = startDay;
-      selectedEndDate.value = endDay;
-      
-      // Update next month based on current month
-      _updateNextMonth();
-      
-      // Update date range status
-      isDateRangeSet.value = true;
-      
-      // Save to local storage
-      await _saveSettings();
-      
-      // Update total amount
-      _updateTotalAmount();
-      
-      debugPrint('Local date range updated from API: $startDay ~ $endDay');
-    } catch (e) {
-      debugPrint('Error parsing API dates: $e');
     }
   }
 
   // Refresh method to call when needed (e.g., after updating date range)
   Future<void> refreshIncomeAndExpenses() async {
     remainingBalance.value = 0.0;
+    totalIncome.value = 0.0;
+    totalExpense.value = 0.0;
     apiStartDate.value = '';
     apiEndDate.value = '';
+    apiGroupedByDate.clear();
     isApiDataLoaded.value = false;
     await _fetchIncomeAndExpenses();
   }

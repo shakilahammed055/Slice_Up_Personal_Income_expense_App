@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
+import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 import 'package:teddy_5618/features/group_screen/controller/settlement_bottom_controller.dart';
+// ...existing imports...
 
 class SettlementBottom extends StatelessWidget {
-  const SettlementBottom({super.key});
+  final String? groupId;
+
+  const SettlementBottom({super.key, this.groupId});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SettlementBottomController());
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final controller = Get.put(SettlementBottomController());
+
+    // controller.sliceUpController is prepared before opening this widget
 
     return SafeArea(
       top: false,
@@ -45,67 +51,174 @@ class SettlementBottom extends StatelessWidget {
             const SizedBox(height: 10),
             _sectionHeader('To pay'.tr, context),
 
-            // Row 1
-            Obx(
-              () => GestureDetector(
-                onTap: () => controller.toggleGroupOne(0),
-                child: _buildSingleRow(
-                  context: context,
-                  title: 'Ted (Me) to Alice US\$ 40',
-                  showCheck: controller.groupOneSelected[0],
-                ),
-              ),
-            ),
-            // Row 2
-            Obx(
-              () => GestureDetector(
-                onTap: () => controller.toggleGroupOne(1),
-                child: _buildSingleRow(
-                  context: context,
-                  title: 'Ted (Me) to Eric US\$ 40',
-                  showCheck: controller.groupOneSelected[1],
-                ),
-              ),
-            ),
+            // Dynamic To Pay list (from settlements)
+            Obx(() {
+              final settlements =
+                  controller.sliceUpController
+                      ?.getSettlementsForCurrentUser() ??
+                  [];
+              if (settlements.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text(
+                    'No items to pay'.tr,
+                    style: getTextStyle2(fontSize: 14, color: Colors.grey),
+                  ),
+                );
+              }
+
+              return Column(
+                children: List.generate(settlements.length, (index) {
+                  final item = settlements[index];
+                  final from = item['from'] ?? '';
+                  final to = item['to'] ?? '';
+                  final amount = item['amount'] ?? 0;
+                  String _shortEmail(String email, [int len = 10]) {
+                    if (email.isEmpty) return '';
+                    final local = email.split('@').first;
+                    if (local.length <= len) return local;
+                    return '${local.substring(0, len)}...';
+                  }
+
+                  final title =
+                      '${_shortEmail(from)} to ${_shortEmail(to)} ${_formatAmount(amount)}';
+
+                  return Obx(
+                    () => GestureDetector(
+                      onTap: () => controller.toggleGroupOne(index),
+                      child: _buildSingleRow(
+                        context: context,
+                        title: title,
+                        showCheck: controller.groupOneSelected.length > index
+                            ? controller.groupOneSelected[index]
+                            : false,
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }),
 
             _sectionHeader('To Collect'.tr, context),
 
-            // Row 1 in "To Collect"
-            Obx(
-              () => GestureDetector(
-                onTap: () => controller.toggleGroupTwo(0),
-                child: _buildSingleRow(
-                  context: context,
-                  title: 'Eric to Ted (Me) US\$ 40',
-                  showCheck: controller.groupTwoSelected[0],
-                ),
-              ),
-            ),
+            // Dynamic To Collect list (based on positive balances)
+            Obx(() {
+              final balances =
+                  controller.sliceUpController?.getBalanceEntries() ?? [];
+              final toCollect = balances
+                  .where((b) => b.amount.startsWith('+'))
+                  .toList();
+              if (toCollect.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Text(
+                    'No items to collect'.tr,
+                    style: getTextStyle2(fontSize: 14, color: Colors.grey),
+                  ),
+                );
+              }
+
+              return Column(
+                children: List.generate(toCollect.length, (index) {
+                  final entry = toCollect[index];
+                  final title = '${entry.name} ${entry.amount}';
+                  return Obx(
+                    () => GestureDetector(
+                      onTap: () => controller.toggleGroupTwo(index),
+                      child: _buildSingleRow(
+                        context: context,
+                        title: title,
+                        showCheck: controller.groupTwoSelected.length > index
+                            ? controller.groupTwoSelected[index]
+                            : false,
+                      ),
+                    ),
+                  );
+                }),
+              );
+            }),
 
             const SizedBox(height: 40),
             const Spacer(),
             const Divider(),
 
-            GestureDetector(
-              onTap: () => Get.back(),
-              child: Container(
-                width: MediaQuery.of(context).size.width / 1.1,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.green,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Select'.tr,
-                  style: getTextStyle2(
-                    color: AppColors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+            Obx(() {
+              final isProcessing = controller.isProcessing.value;
+              return GestureDetector(
+                onTap: isProcessing
+                    ? null
+                    : () async {
+                        // Build settlements payload from selected items in groupOne
+                        final settlements = <Map<String, dynamic>>[];
+                        final rawSettlements =
+                            controller.sliceUpController
+                                ?.getSettlementsForCurrentUser() ??
+                            [];
+                        for (
+                          var i = 0;
+                          i < controller.groupOneSelected.length;
+                          i++
+                        ) {
+                          if (controller.groupOneSelected[i] &&
+                              i < rawSettlements.length) {
+                            final s = rawSettlements[i];
+                            settlements.add({
+                              'fromEmail': s['from'] ?? '',
+                              'toEmail': s['to'] ?? '',
+                              'amount': s['amount'] ?? 0,
+                            });
+                          }
+                        }
+
+                        final success = await controller.submitSettlements(
+                          groupId ?? '',
+                          settlements,
+                        );
+                        if (success) {
+                          // After a successful settlement, update the UI on the parent
+                          // Sliceup page by setting the GroupTripSpentController flag
+                          try {
+                            if (groupId != null && groupId!.isNotEmpty) {
+                              final tripCtrl =
+                                  Get.find<GroupTripSpentController>(
+                                    tag: groupId,
+                                  );
+                              tripCtrl.isIndividualSelected.value =
+                                  false; // show 'Settled'
+                            }
+                          } catch (e) {
+                            // ignore if controller not found
+                          }
+
+                          Get.back();
+                        } else {
+                          final msg = controller.apiError.value.isNotEmpty
+                              ? controller.apiError.value
+                              : 'Failed to submit settlements';
+                          Get.snackbar('Error', msg);
+                        }
+                      },
+                child: Container(
+                  width: MediaQuery.of(context).size.width / 1.1,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: isProcessing ? Colors.grey : AppColors.green,
+                    borderRadius: BorderRadius.circular(28),
                   ),
+                  alignment: Alignment.center,
+                  child: isProcessing
+                      ? CircularProgressIndicator()
+                      : Text(
+                          'Select'.tr,
+                          style: getTextStyle2(
+                            color: AppColors.black,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                 ),
-              ),
-            ),
+              );
+            }),
             const SizedBox(height: 20),
           ],
         ),
@@ -127,9 +240,7 @@ class SettlementBottom extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isDark
-                ? AppColors.deepGrey
-                : AppColors.lightGreyContainer,
+            color: isDark ? AppColors.deepGrey : AppColors.lightGreyContainer,
             width: 2,
           ),
         ),
@@ -184,5 +295,17 @@ class SettlementBottom extends StatelessWidget {
         ).marginOnly(left: 15),
       ),
     );
+  }
+
+  String _formatAmount(dynamic amount) {
+    try {
+      double v = 0;
+      if (amount is num) v = amount.toDouble();
+      if (amount is String) v = double.tryParse(amount) ?? 0.0;
+      if ((v % 1) == 0) return 'US\$ ${v.toInt()}';
+      return 'US\$ ${v.toStringAsFixed(2)}';
+    } catch (e) {
+      return 'US\$ 0';
+    }
   }
 }

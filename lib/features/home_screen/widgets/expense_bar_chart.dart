@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart'; // For .marginSymmetric
 
 // Assuming these are defined in your project
@@ -71,7 +72,7 @@ class ExpenseBarChart extends StatelessWidget {
                 ),
               ),
             // Fallback emoji/text
-            SizedBox(width: 2),
+            SizedBox(width: 6.w),
 
             Text(
               icontext ?? '', // fallback to empty string
@@ -101,17 +102,14 @@ class ExpenseBarChart extends StatelessWidget {
               ),
             ),
           ],
-        ).marginSymmetric(horizontal: 24),
-        SizedBox(height: 10),
+        ).marginSymmetric(horizontal: 24.w), // Responsive horizontal margin
+        SizedBox(height: 10.h), // Responsive height
         Container(
-          height:
-              MediaQuery.of(context).size.height /
-              30, // Fixed height for the bar
-          // width:
-          //     MediaQuery.of(context).size.width /
-          //     1.1, 
+          height: MediaQuery.of(context).size.height / 30, // Keep this dynamic
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(
+              14.r,
+            ), // Responsive border radius
             color:
                 // AppColors.lightGreyContainer, // Background color of the bar
                 isDark ? AppColors.deepGrey : AppColors.lightGreyContainer,
@@ -122,7 +120,9 @@ class ExpenseBarChart extends StatelessWidget {
                 widthFactor: 0.9, // Target soft range (e.g., 60%)
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(
+                      14.r,
+                    ), // Responsive border radius
                     color: isDark
                         ? AppColors.greylightbardeepcolor
                         : lightbarColor ?? AppColors.lightorange,
@@ -138,7 +138,9 @@ class ExpenseBarChart extends StatelessWidget {
                     milliseconds: 300,
                   ), // Smooth animation for progress changes
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(
+                      14.r,
+                    ), // Responsive border radius
                     color:
                         valueColor ??
                         AppColors.textOrange, // Color of the progress
@@ -163,13 +165,14 @@ class ExpenseBarChart extends StatelessWidget {
                         .centerRight, // Align text itself to the right of its container
                     child: Padding(
                       padding: EdgeInsets.only(
-                        right: 8.0,
+                        right: 8.w, // Responsive padding using ScreenUtil
                       ), // Small padding from the right edge
                       child: Text(
                         '${percentage.toStringAsFixed(0)}%', // Display percentage with no decimal places
                         style: TextStyle(
                           color: Colors.black, // Text color for contrast
-                          fontSize: 11,
+                          fontSize:
+                              11.sp, // Responsive font size using ScreenUtil
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -179,7 +182,7 @@ class ExpenseBarChart extends StatelessWidget {
               ),
             ],
           ),
-        ).marginSymmetric(horizontal: 20),
+        ).marginSymmetric(horizontal: 20.w), // Responsive horizontal margin
       ],
     );
   }

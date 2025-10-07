@@ -1,5 +1,4 @@
 // ignore_for_file: unused_local_variable, deprecated_member_use
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -315,19 +314,15 @@ class ExpenseScreen extends StatelessWidget {
         return ElevatedButton(
           onPressed:
               (expenseController.amount.value.isNotEmpty &&
-                  expenseController.selectedType.value.isNotEmpty)
-              ? () {
+                  expenseController.selectedType.value != null)
+              ? () async {
                   try {
-                    expenseController.saveEntry(
-                      amount: double.parse(expenseController.amount.value),
+                    final amount = double.parse(expenseController.amount.value);
+                    await expenseController.saveEntry(
+                      amount: amount,
                       date: expenseController.dateController.text,
                       note: expenseController.noteController.text,
                     );
-                    Get.snackbar(
-                      'Success'.tr,
-                      '${expenseController.selectedTab.value} saved successfully',
-                    );
-                    expenseController.clearForm();
                   } catch (e) {
                     Get.snackbar('Error'.tr, 'Please enter a valid amount'.tr);
                   }
@@ -344,7 +339,7 @@ class ExpenseScreen extends StatelessWidget {
           ),
           child: Text(
             (expenseController.amount.value.isNotEmpty &&
-                    expenseController.selectedType.value.isNotEmpty)
+                    expenseController.selectedType.value != null)
                 ? 'Save'.tr
                 : 'Next'.tr,
             style: getTextStyle2(

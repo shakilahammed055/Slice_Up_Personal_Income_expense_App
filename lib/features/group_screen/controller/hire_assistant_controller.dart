@@ -1,46 +1,3 @@
-// import 'package:get/get.dart';
-// import 'package:flutter/material.dart';
-
-// class HireAssistantController extends GetxController {
-//   final selectedPlan = 'ai_assistant'.obs;
-//   final selectedPricing = 'free'.obs;
-//   final isProcessing = false.obs;
-
-//   void selectPlan(String plan) {
-//     selectedPlan.value = plan;
-//   }
-
-//   void selectPricing(String pricing) {
-//     selectedPricing.value = pricing;
-//   }
-
-//   void hireAssistant() async {
-//     if (isProcessing.value) return;
-
-//     isProcessing.value = true;
-//     // Simulate API call or processing
-//     await Future.delayed(const Duration(seconds: 2));
-
-//     // Here you would typically:
-//     // 1. Make API call to process the hiring
-//     // 2. Handle payment if needed
-//     // 3. Update user subscription status
-//     // For demo purposes, we'll show a success message
-//     Get.snackbar(
-//       'Success',
-//       'Assistant hired successfully!\nPlan: ${selectedPlan.value}\nPricing: ${selectedPricing.value}',
-//       snackPosition: SnackPosition.TOP,
-//       backgroundColor: Colors.green,
-//       colorText: Colors.white,
-//       duration: const Duration(seconds: 3),
-//     );
-
-//     isProcessing.value = false;
-//     Get.back();
-//   }
-// }
-
-
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
@@ -49,6 +6,10 @@ class HireAssistantController extends GetxController {
   final selectedPricing = 'free'.obs;
   final isProcessing = false.obs;
   final canHire = true.obs;
+
+  // Getter to check if premium features should be enabled
+  bool get isPremiumPlan =>
+      selectedPricing.value == 'monthly' || selectedPricing.value == 'yearly';
 
   @override
   void onInit() {
@@ -81,7 +42,8 @@ class HireAssistantController extends GetxController {
 
   void _updateCanHire() {
     // Disable hire button if no valid plan or pricing is selected
-    canHire.value = selectedPlan.value.isNotEmpty &&
+    canHire.value =
+        selectedPlan.value.isNotEmpty &&
         selectedPricing.value.isNotEmpty &&
         !isProcessing.value;
   }

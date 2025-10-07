@@ -119,7 +119,7 @@ class ShareWithCustom extends StatelessWidget {
                                 fieldMap: controller.customFriendControllers,
                               ),
                             );
-                          // ignore: unnecessary_to_list_in_spreads
+                            // ignore: unnecessary_to_list_in_spreads
                           }).toList(),
                           const SizedBox(height: 24),
                         ],
@@ -130,7 +130,12 @@ class ShareWithCustom extends StatelessWidget {
 
                 GestureDetector(
                   onTap: () {
-                    Get.to(() => GroupTripSpentScreen());
+                    // Pass the current group ID from the controller
+                    Get.to(
+                      () => GroupTripSpentScreen(
+                        groupId: controller.currentGroupId.value,
+                      ),
+                    );
                   },
                   child: Container(
                     height: 52,

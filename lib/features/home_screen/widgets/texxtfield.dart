@@ -5,7 +5,10 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 
 class TexxtField extends StatelessWidget {
-  const TexxtField({super.key});
+  final TextEditingController? controller;
+  final VoidCallback? onClear;
+
+  const TexxtField({super.key, this.controller, this.onClear});
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +43,7 @@ class TexxtField extends StatelessWidget {
             ),
             child: Center(
               child: TextField(
+                controller: controller,
                 style: getTextStyle2(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -69,12 +73,15 @@ class TexxtField extends StatelessWidget {
           ),
           // 🔹 Changed: use SizedBox instead of marginOnly
           const SizedBox(width: 16),
-          Text(
-            'Delete'.tr,
-            style: getTextStyle2(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor,
+          GestureDetector(
+            onTap: onClear,
+            child: Text(
+              'Delete'.tr,
+              style: getTextStyle2(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: textColor,
+              ),
             ),
           ),
         ],
