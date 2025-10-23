@@ -114,7 +114,7 @@ class GroupTripAddNewFriendBottom extends StatelessWidget {
                   if (controller.friends.isEmpty) {
                     return Center(
                       child: Text(
-                        'No friends available.\nTap + to add friends from your list.',
+                        'No friends available.\nTap + to add friends from your list.'.tr,
                         textAlign: TextAlign.center,
                         style: getTextStyle2(
                           fontSize: 16,

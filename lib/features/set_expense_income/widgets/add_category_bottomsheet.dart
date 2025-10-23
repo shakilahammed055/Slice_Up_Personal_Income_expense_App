@@ -6,7 +6,6 @@ import 'package:teddy_5618/core/common/widgets/common_button.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
 import 'package:teddy_5618/features/set_expense_income/controller/expense_controller.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 class AddCategoryBottomSheet extends StatelessWidget {
   final bool isIncome;
@@ -187,7 +186,8 @@ class AddCategoryBottomSheet extends StatelessWidget {
                               : value.trim();
                           final success = await expenseController.createCategory(isIncome, newCategory);
                           if (success) {
-                            EasyLoading.showSuccess('Category "$newCategory" added');
+                            await expenseController.fetchExpenseTypes();
+                            await expenseController.fetchIncomeTypes();
                             onCategoryAdded(newCategory);
                           }
                         },
@@ -203,7 +203,8 @@ class AddCategoryBottomSheet extends StatelessWidget {
                           : categoryController.text.trim();
                       final success = await expenseController.createCategory(isIncome, newCategory);
                       if (success) {
-                        EasyLoading.showSuccess('Category "$newCategory" added');
+                        await expenseController.fetchExpenseTypes();
+                        await expenseController.fetchIncomeTypes();
                         onCategoryAdded(newCategory);
                       }
                     },

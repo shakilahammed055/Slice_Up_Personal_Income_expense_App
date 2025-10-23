@@ -71,6 +71,23 @@ class TripController extends GetxController {
           "📦 [FETCH] Found ${tripListFromApi.length} groups in API response.",
         );
 
+        // Parse aiData to create a map of groupId -> aiSummary for quick lookup
+        final Map<String, String> aiSummaryMap = {};
+        if (responseData['data']['aiData'] != null &&
+            responseData['data']['aiData'] is List) {
+          final List<dynamic> aiDataList = responseData['data']['aiData'];
+          for (var aiData in aiDataList) {
+            if (aiData['groupId'] != null && aiData['summary'] != null) {
+              String fullSummary = aiData['summary'];
+              // Extract only the relevant part after the group name prefix
+              // Look for pattern like "💸 GroupName: " and extract what comes after
+              String cleanSummary = _extractCleanSummary(fullSummary);
+              aiSummaryMap[aiData['groupId'].toString()] = cleanSummary;
+            }
+          }
+          debugPrint("🤖 [FETCH] Found ${aiSummaryMap.length} AI summaries");
+        }
+
         // Log the first trip's structure for debugging
         if (tripListFromApi.isNotEmpty) {
           debugPrint(
@@ -107,7 +124,13 @@ class TripController extends GetxController {
           final tripName =
               tripData['groupName'] ?? tripData['name'] ?? 'Unnamed Trip';
 
+          // Get AI summary for this trip
+          final aiSummary =
+              aiSummaryMap[tripId?.toString()] ??
+              'Ready to track your group expenses!';
+
           debugPrint("🆔 [FETCH] Trip: '$tripName' with ID: '$tripId'");
+          debugPrint("🤖 [FETCH] AI Summary: '$aiSummary'");
           debugPrint(
             "🔍 [FETCH] ID fields check: groupId=${tripData['groupId']}, group_id=${tripData['group_id']}, id=${tripData['id']}, _id=${tripData['_id']}",
           );
@@ -125,6 +148,7 @@ class TripController extends GetxController {
             id: tripId?.toString(), // Ensure it's a string and handle null
             name: tripName,
             date: DateFormat('MMM yyyy').format(parsedDate),
+            aiSummary: aiSummary,
           );
         }).toList();
 
@@ -212,6 +236,8 @@ class TripController extends GetxController {
           id: tripId?.toString(), // Ensure it's a string and handle null
           name: tripName,
           date: currentDate,
+          aiSummary:
+              'Ready to track your group expenses!'.tr, // Default for new trips
         );
         trips.insert(0, newTrip);
         tripNameController.clear();
@@ -299,6 +325,8 @@ class TripController extends GetxController {
               id: trips[tripIndex].id,
               name: newGroupName,
               date: trips[tripIndex].date,
+              aiSummary:
+                  trips[tripIndex].aiSummary, // Preserve existing AI summary
             );
           }
 
@@ -344,6 +372,38 @@ class TripController extends GetxController {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       editTripFocusNode.requestFocus();
     });
+  }
+
+  // Method to extract clean summary text (removes group name prefix)
+  String _extractCleanSummary(String fullSummary) {
+    // Look for patterns like "💸 GroupName: " and extract what comes after
+    // First, try to find colon after emoji and group name
+    final colonIndex = fullSummary.indexOf(': ');
+    if (colonIndex != -1) {
+      // Extract text after ": "
+      return fullSummary.substring(colonIndex + 2).trim();
+    }
+
+    // If no colon pattern found, try to remove emoji and group name at start
+    // Look for common patterns like "💸 Text: " or "🏝️ Text: "
+    final RegExp pattern = RegExp(
+      r'^[🎉💸🏝️✈️🍽️💰🎯🏆📊🎊🌟⭐🔥💯🚀🎈]+ .+?: ',
+    );
+    final match = pattern.firstMatch(fullSummary);
+    if (match != null) {
+      return fullSummary.substring(match.end).trim();
+    }
+
+    // If no pattern matches, return the full summary as fallback
+    return fullSummary.trim();
+  }
+
+  // Method to get AI summary for display (returns summary from first trip if available)
+  String get currentAiSummary {
+    if (trips.isNotEmpty && trips.first.aiSummary != null) {
+      return trips.first.aiSummary!;
+    }
+    return 'Ready to track your group expenses!'.tr;
   }
 
   @override

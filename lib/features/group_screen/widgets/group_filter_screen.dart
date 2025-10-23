@@ -13,7 +13,9 @@ class GroupFilterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(GroupFilterScreenController());
+    final controller = Get.isRegistered<GroupFilterScreenController>()
+        ? Get.find<GroupFilterScreenController>()
+        : Get.put(GroupFilterScreenController());
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SafeArea(
@@ -111,19 +113,29 @@ class GroupFilterScreen extends StatelessWidget {
             GestureDetector(
               onTap: () async {
                 // Apply filters before closing
-                print('🎯 [FILTER_UI] Confirm button pressed');
-                print(
+
+                debugPrint('🎯 [FILTER_UI] Confirm button pressed');
+                debugPrint(
                   '🎯 [FILTER_UI] Selected filters - View: ${controller.groupOneSelected.value}, Type: ${controller.groupTwoSelected.value}',
                 );
 
+
+                // Ensure the showIndividual flag reflects the expense view selection so StatusPage can switch
+                controller.showIndividual.value =
+                    controller.groupOneSelected.value == 1;
+
                 try {
                   await controller.applyFilters(groupId);
-                  print('🎯 [FILTER_UI] Filters applied, closing modal');
-                } catch (e) {
-                  print('❌ [FILTER_UI] Error applying filters: $e');
-                }
 
-                Get.back();
+                  debugPrint('🎯 [FILTER_UI] Filters applied, closing modal');
+
+                  Get.back();
+                // ignore: empty_catches
+                } catch (e) {
+
+                  debugPrint('❌ [FILTER_UI] Error applying filters: $e');
+
+                }
               },
               child: Container(
                 width: MediaQuery.of(context).size.width / 1.1,

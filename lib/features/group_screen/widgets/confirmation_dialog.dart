@@ -6,12 +6,12 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 
 class ConfirmationDialog extends StatelessWidget {
-  
   final VoidCallback onConfirm;
   final String title;
   final String content;
   final String? button1;
   final String? button2;
+  final bool singleButton; // when true, only show button1
 
   const ConfirmationDialog({
     super.key,
@@ -20,11 +20,11 @@ class ConfirmationDialog extends StatelessWidget {
     required this.content,
     this.button1,
     this.button2,
+    this.singleButton = false,
   });
 
   @override
   Widget build(BuildContext context) {
-   
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(24),
@@ -51,8 +51,8 @@ class ConfirmationDialog extends StatelessWidget {
   }
 
   Widget _buildDialogContent(BuildContext context) {
-     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // This part remains the same as it correctly builds the text and buttons
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Build dialog text and buttons. Supports single-button mode.
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -85,13 +85,11 @@ class ConfirmationDialog extends StatelessWidget {
         const Divider(height: 1, color: CupertinoColors.separator),
         SizedBox(
           height: 50,
-       
-         child: Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Expanded(
                 child: Padding(
-                  // Apply padding inside the Expanded
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 11,
@@ -102,9 +100,9 @@ class ConfirmationDialog extends StatelessWidget {
                       button1 ?? 'Cancel'.tr,
                       style: getTextStyle3(
                         fontWeight: FontWeight.w400,
-                        color: 
-                         isDark ? AppColors.blueButton : CupertinoColors.activeBlue,
-                        
+                        color: isDark
+                            ? AppColors.blueButton
+                            : CupertinoColors.activeBlue,
                         fontSize: 17,
                       ),
                     ),
@@ -112,35 +110,40 @@ class ConfirmationDialog extends StatelessWidget {
                   ),
                 ),
               ),
-              const VerticalDivider(width: 1, color: CupertinoColors.separator),
-              Expanded(
-                child: Padding(
-                  // Apply padding inside the Expanded
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 11,
-                  ),
-                  child: CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Text(
-                      button2 ?? 'Leave'.tr,
-                      style: getTextStyle3(
-                        fontWeight: FontWeight.w400,
-                        color: 
-                        isDark ? AppColors.blueButton : CupertinoColors.activeBlue,
-                        fontSize: 17,
-                      ),
+
+              if (!singleButton) ...[
+                const VerticalDivider(
+                  width: 1,
+                  color: CupertinoColors.separator,
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 11,
                     ),
-                    onPressed: () {
-                      onConfirm();
-                      Navigator.of(context).pop();
-                    },
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      child: Text(
+                        button2 ?? 'Leave'.tr,
+                        style: getTextStyle3(
+                          fontWeight: FontWeight.w400,
+                          color: isDark
+                              ? AppColors.blueButton
+                              : CupertinoColors.activeBlue,
+                          fontSize: 17,
+                        ),
+                      ),
+                      onPressed: () {
+                        onConfirm();
+                        Navigator.of(context).pop();
+                      },
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
-
         ),
       ],
     );

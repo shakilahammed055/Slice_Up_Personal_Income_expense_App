@@ -1,3 +1,5 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
@@ -53,10 +55,9 @@ class SettlementBottom extends StatelessWidget {
 
             // Dynamic To Pay list (from settlements)
             Obx(() {
+              // Use only active (non-historical) settlements for the To pay list
               final settlements =
-                  controller.sliceUpController
-                      ?.getSettlementsForCurrentUser() ??
-                  [];
+                  controller.sliceUpController?.getActiveSettlements() ?? [];
               if (settlements.isEmpty) {
                 return Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -73,6 +74,7 @@ class SettlementBottom extends StatelessWidget {
                   final from = item['from'] ?? '';
                   final to = item['to'] ?? '';
                   final amount = item['amount'] ?? 0;
+
                   String _shortEmail(String email, [int len = 10]) {
                     if (email.isEmpty) return '';
                     final local = email.split('@').first;

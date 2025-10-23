@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/features/home_screen/controller/home_screen_controller.dart';
 import 'package:uuid/uuid.dart'; // Add uuid package for unique IDs
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -62,6 +63,11 @@ class ExpenseController extends GetxController {
   var amount = ''.obs;
   var selectedType = Rxn<ExpenseType>();
   var selectedDate = DateTime.now().obs;
+  var isEditing = false.obs;
+  var editingId = ''.obs;
+  var repeatEvery = RxnInt();
+  var repeatUnit = RxString('');
+  var repeatStartDate = DateTime.now().obs;
   final amountController = TextEditingController();
   final noteController = TextEditingController();
   final dateController = TextEditingController();
@@ -80,35 +86,87 @@ class ExpenseController extends GetxController {
     fetchIncomeTypes();
   }
 
+  ExpenseType? findTypeById(String id) {
+    return [...expenseTypes, ...incomeTypes].firstWhereOrNull((t) => t.id == id);
+  }
+
+  String getRepeatDisplay(int every, String unit) {
+    if (unit == 'week') {
+      final days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      return 'Every ${days[every]}'.tr;
+    } else if (unit == 'month') {
+      String suffix = every == 1 ? '1st' : '${every}nd';
+      return 'Every $suffix of Month'.tr;
+    }
+    return '';
+  }
+
+  void setRepeatConfig(int every, String unit, DateTime startDate) {
+    repeatEvery.value = every;
+    repeatUnit.value = unit;
+    repeatStartDate.value = startDate;
+    dateController.text = getRepeatDisplay(every, unit);
+  }
+
+  void loadForEdit(Map<String, dynamic> trans) {
+    final bool isInc = trans['transactionType'] == 'income';
+    selectedTab.value = isInc ? 'Income'.tr : 'Expense'.tr;
+    amountController.text = (trans['amount'] as num).toString();
+    amount.value = amountController.text;
+    final String typeId = trans['type_id'] as String;
+    selectedType.value = findTypeById(typeId);
+    noteController.text = trans['description'] ?? '';
+    isEditing.value = true;
+    editingId.value = trans['_id'] as String;
+
+    if (trans['repeat'] != null) {
+      final rep = trans['repeat'];
+      repeatEvery.value = rep['every'];
+      repeatUnit.value = rep['unit'];
+      repeatStartDate.value = DateTime.parse(trans['date']);
+      dateController.text = getRepeatDisplay(repeatEvery.value!, repeatUnit.value);
+    } else {
+      repeatEvery.value = null;
+      repeatUnit.value = '';
+      final DateTime date = DateTime.parse(trans['date']);
+      updateDateText(date);
+    }
+  }
+
   Future<void> fetchExpenseTypes() async {
-  try {
-    final token = await AuthService.getApprovalToken();
-    final response = await http.get(
-      Uri.parse(
-        "https://teddybackend-mivk.onrender.com/api/v1/users/categories",
-      ),
-      headers: {'Authorization': token ?? ''},
-    );
-    if (response.statusCode == 200) {
-      final jsonData = jsonDecode(response.body);
-      if (jsonData['success'] == true) {
-        final dataList = jsonData['data'] as List;
-        final filteredDataList = dataList.where((item) => item['type'] == 'personal').toList();
-        expenseTypes.value = filteredDataList
-            .map(
-              (item) => ExpenseType(
-                id: item['_id'] as String,
-                name: item['name'] as String,
-              ),
+    try {
+      final token = await AuthService.getApprovalToken();
+      final response = await http.get(
+        Uri.parse(
+          Urls.getallcategory,
+        ),
+        headers: {'Authorization': token ?? ''},
+      );
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(response.body);
+        if (jsonData['success'] == true) {
+          final dataList = jsonData['data'] as List;
+          final filteredDataList = dataList
+            .where((item) => 
+                item['type'] == 'personal' && 
+                item['transactionType'] == 'expense'
             )
             .toList();
+          expenseTypes.value = filteredDataList
+              .map(
+                (item) => ExpenseType(
+                  id: item['_id'] as String,
+                  name: item['name'] as String,
+                ),
+              )
+              .toList();
+        }
       }
+    } catch (e) {
+      // Handle error silently or show snackbar if needed
+      debugPrint('Error fetching expense types: $e');
     }
-  } catch (e) {
-    // Handle error silently or show snackbar if needed
-    debugPrint('Error fetching expense types: $e');
   }
-}
 
   Future<void> fetchIncomeTypes() async {
   debugPrint('Entering fetchIncomeTypes function');
@@ -116,50 +174,54 @@ class ExpenseController extends GetxController {
     debugPrint('Calling AuthService.getApprovalToken()');
     final token = await AuthService.getApprovalToken();
     debugPrint('Token retrieved: $token');
-    debugPrint('Constructing Uri.parse with Urls.getallcategory');
-    debugPrint('Urls.getallcategory value: ${Urls.getallcategory}');
-    final uri = Uri.parse("https://teddybackend-mivk.onrender.com/api/v1/users/categories");
+    
+    final uri = Uri.parse(
+      Urls.getallcategory,
+    );
     debugPrint('URI parsed: $uri');
-    debugPrint('Preparing headers: {"Authorization": "${token ?? ""}"}');
+    
     final headers = {'Authorization': token ?? ''};
-    debugPrint('Calling http.get with URI: $uri and headers: $headers');
+    debugPrint('Calling http.get with URI: $uri');
+    
     final response = await http.get(uri, headers: headers);
-    debugPrint('HTTP response received - statusCode: ${response.statusCode}');
+    debugPrint('HTTP response statusCode: ${response.statusCode}');
     debugPrint('HTTP response body: ${response.body}');
-    debugPrint('Checking if response.statusCode == 200');
+    
     if (response.statusCode == 200) {
       debugPrint('Status is 200, proceeding to jsonDecode');
       final jsonData = jsonDecode(response.body);
       debugPrint('JSON decoded: $jsonData');
-      debugPrint('Checking jsonData["success"] == true');
+      
       if (jsonData['success'] == true) {
         debugPrint('Status is success, casting jsonData["data"] to List');
         final dataList = jsonData['data'] as List;
         debugPrint('Data list casted: $dataList');
-        debugPrint('Filtering dataList for type "personal"');
-        final filteredDataList = dataList.where((item) => item['type'] == 'personal').toList();
-        debugPrint('Filtered data list: $filteredDataList');
-        debugPrint('Mapping filteredDataList to ExpenseType objects');
-        final mappedList = filteredDataList
-            .map(
-              (item) {
-                debugPrint('Processing item: $item');
-                debugPrint('Extracting item["_id"] as String: ${item['_id']}');
-                final id = item['_id'] as String;
-                debugPrint('Extracting item["name"] as String: ${item['name']}');
-                final name = item['name'] as String;
-                debugPrint('Creating ExpenseType(id: $id, name: $name)');
-                return ExpenseType(
-                  id: id,
-                  name: name,
-                );
-              },
+        
+        // ✅ UPDATED FILTER: Personal + Income types only
+        debugPrint('Filtering dataList for type "personal" AND transactionType "income"');
+        final filteredDataList = dataList
+            .where((item) => 
+                item['type'] == 'personal' && 
+                item['transactionType'] == 'income'
             )
             .toList();
+        debugPrint('Filtered data list (Personal Income): $filteredDataList');
+        
+        // Map to ExpenseType objects (keeping your existing mapping)
+        debugPrint('Mapping filteredDataList to ExpenseType objects');
+        final mappedList = filteredDataList.map((item) {
+          debugPrint('Processing item: $item');
+          final id = item['_id'] as String;
+          final name = item['name'] as String;
+          debugPrint('Creating ExpenseType(id: $id, name: $name)');
+          return ExpenseType(id: id, name: name);
+        }).toList();
+        
         debugPrint('Mapped list: $mappedList');
         debugPrint('Assigning to incomeTypes.value');
         incomeTypes.value = mappedList;
         debugPrint('incomeTypes.value updated successfully');
+        
       } else {
         debugPrint('jsonData["success"] is not true: ${jsonData['success']}');
       }
@@ -168,7 +230,6 @@ class ExpenseController extends GetxController {
     }
   } catch (e) {
     debugPrint('Exception caught in fetchIncomeTypes: $e');
-    // Handle error silently or show snackbar if needed
     debugPrint('Error fetching income types: $e');
   }
   debugPrint('Exiting fetchIncomeTypes function');
@@ -191,17 +252,17 @@ class ExpenseController extends GetxController {
       final token = await AuthService.getApprovalToken();
       debugPrint('Token fetched: ${token ?? 'null'}');
       final url = isIncome
-          ? 'https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/createIncomeType'
-          : 'https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/createExpensesType';
+          ? Urls.incomepersonal
+          : Urls.addpersonalcategory;
       debugPrint('Selected URL: $url');
-
       debugPrint('Creating MultipartRequest...');
-      var request = http.MultipartRequest('POST', Uri.parse(url));
+      var request = http.Request('POST', Uri.parse(url));
       request.headers['Authorization'] = token ?? '';
-      request.fields['data'] = jsonEncode({'name': categoryName});
-      debugPrint('Request fields set: ${request.fields}');
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode({'name': categoryName});
+      debugPrint('Request body set: ${request.body}');
 
-      debugPrint('Sending HTTP POST request with form-data...');
+      debugPrint('Sending HTTP POST request with JSON body...');
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
       debugPrint('HTTP response status code: ${response.statusCode}');
@@ -211,30 +272,8 @@ class ExpenseController extends GetxController {
         debugPrint('Status code is 200 or 201, parsing JSON...');
         final jsonData = jsonDecode(response.body);
         debugPrint('Parsed JSON: $jsonData');
-        if (jsonData['status'] == 'success') {
-          debugPrint('API status is success, adding to local list');
-          // Add to local list if successful
-          final newType = ExpenseType(
-            id: jsonData['data']['_id'] as String,
-            name: categoryName,
-          );
-          if (isIncome) {
-            debugPrint('Adding to incomeTypes...');
-            if (!incomeTypes.any((t) => t.name == categoryName)) {
-              incomeTypes.add(newType);
-              debugPrint('Added $categoryName to incomeTypes');
-            } else {
-              debugPrint('$categoryName already exists in incomeTypes');
-            }
-          } else {
-            debugPrint('Adding to expenseTypes...');
-            if (!expenseTypes.any((t) => t.name == categoryName)) {
-              expenseTypes.add(newType);
-              debugPrint('Added $categoryName to expenseTypes');
-            } else {
-              debugPrint('$categoryName already exists in expenseTypes');
-            }
-          }
+        if (jsonData['success'] == true) {
+          debugPrint('API status is success');
           debugPrint('Returning true');
           return true;
         } else {
@@ -264,7 +303,9 @@ class ExpenseController extends GetxController {
 
   void switchTab(String tab) {
     selectedTab.value = tab;
-    clearForm();
+    if (!isEditing.value) {
+      clearForm();
+    }
   }
 
   void setType(ExpenseType type) {
@@ -284,48 +325,131 @@ class ExpenseController extends GetxController {
     }
   }
 
-  void editCategory(String oldCategory, String newCategory, bool isIncome) {
+  Future<void> editCategory(String oldCategory, String newCategory, bool isIncome) async {
     final types = isIncome ? incomeTypes : expenseTypes;
     final index = types.indexWhere((t) => t.name == oldCategory);
-    if (index != -1 &&
-        newCategory.isNotEmpty &&
-        !types.any((t) => t.name == newCategory)) {
-      types[index] = ExpenseType(id: types[index].id, name: newCategory);
-      if (selectedType.value != null &&
-          selectedType.value!.name == oldCategory) {
-        selectedType.value = types[index];
-      }
-      // Update existing entries with the new category name
-      for (var i = 0; i < entries.length; i++) {
-        if (entries[i].type == oldCategory && entries[i].isIncome == isIncome) {
-          entries[i] = ExpenseEntry(
-            id: entries[i].id, // Preserve the ID
-            amount: entries[i].amount,
-            date: entries[i].date,
-            type: newCategory,
-            note: entries[i].note,
-            isIncome: entries[i].isIncome,
-          );
+    if (index == -1 ||
+        newCategory.isEmpty ||
+        types.any((t) => t.name == newCategory && t.id != types[index].id)) {
+      throw Exception('Invalid category update');
+    }
+
+    try {
+      final token = await AuthService.getApprovalToken();
+      final url = '${Urls.updatecategory}${types[index].id}';
+      var request = http.Request('PATCH', Uri.parse(url));
+      request.headers['Authorization'] = token ?? '';
+      request.headers['Content-Type'] = 'application/json';
+      request.body = jsonEncode({
+        'name': newCategory,
+        'type': 'personal',
+      });
+      debugPrint('PATCH request to: $url');
+      debugPrint('Request body: ${request.body}');
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint('HTTP response status code: ${response.statusCode}');
+      debugPrint('HTTP response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonData = jsonDecode(response.body);
+        debugPrint('Parsed JSON: $jsonData');
+        if (jsonData['success'] == true || jsonData['status'] == 'success') {
+          // Update local type
+          types[index] = ExpenseType(id: types[index].id, name: newCategory);
+          // Update selectedType if matching
+          if (selectedType.value != null &&
+              selectedType.value!.name == oldCategory) {
+            selectedType.value = types[index];
+          }
+          // Update existing entries with the new category name
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].type == oldCategory && entries[i].isIncome == isIncome) {
+              entries[i] = ExpenseEntry(
+                id: entries[i].id,
+                amount: entries[i].amount,
+                date: entries[i].date,
+                type: newCategory,
+                note: entries[i].note,
+                isIncome: entries[i].isIncome,
+              );
+            }
+          }
+          entries.refresh();
+          debugPrint('Category updated successfully locally');
+          return;
+        } else {
+          final errorMsg = jsonData['message'] ?? 'Failed to update category';
+          throw Exception(errorMsg);
         }
+      } else {
+        throw Exception('Failed to update category: ${response.statusCode}');
       }
-      entries.refresh();
+    } catch (e) {
+      debugPrint('Error editing category: $e');
+      // Revert local changes if any (but since we update after success, no need)
+      throw Exception('Error updating category: $e');
     }
   }
 
-  void deleteCategory(String category, bool isIncome) {
+  Future<void> deleteCategory(String category, bool isIncome) async {
     final types = isIncome ? incomeTypes : expenseTypes;
-    types.removeWhere((t) => t.name == category);
-    if (selectedType.value != null && selectedType.value!.name == category) {
-      selectedType.value = null;
+    final typeToDelete = types.firstWhereOrNull((t) => t.name == category);
+    if (typeToDelete == null) {
+      throw Exception('Category not found');
     }
-    entries.removeWhere(
-      (entry) => entry.type == category && entry.isIncome == isIncome,
-    );
+
+    try {
+      final token = await AuthService.getApprovalToken();
+      final url = '${Urls.deleteCategory}${typeToDelete.id}';
+      debugPrint('DELETE request to: $url');
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Authorization': token ?? '',
+        },
+      );
+      debugPrint('HTTP response status code: ${response.statusCode}');
+      debugPrint('HTTP response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        final jsonData = jsonDecode(response.body);
+        debugPrint('Parsed JSON: $jsonData');
+        if (jsonData['success'] == true || jsonData['status'] == 'success') {
+          // Refetch both lists to sync with backend
+          await fetchExpenseTypes();
+          await fetchIncomeTypes();
+          // Update selectedType if matching
+          if (selectedType.value != null && selectedType.value!.name == category) {
+            selectedType.value = null;
+          }
+          // Remove existing entries with the deleted category
+          entries.removeWhere(
+            (entry) => entry.type == category && entry.isIncome == isIncome,
+          );
+          entries.refresh();
+          debugPrint('Category deleted successfully');
+          return;
+        } else {
+          final errorMsg = jsonData['message'] ?? 'Failed to delete category';
+          throw Exception(errorMsg);
+        }
+      } else {
+        throw Exception('Failed to delete category: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error deleting category: $e');
+      throw Exception('Error deleting category: $e');
+    }
   }
 
   void updateDateText(DateTime date) {
     dateController.text = DateFormat('dd/MM/yyyy').format(date);
     selectedDate.value = date;
+    repeatEvery.value = null;
+    repeatUnit.value = '';
   }
 
   Future<void> _saveToBackend({
@@ -345,17 +469,22 @@ class ExpenseController extends GetxController {
       final transactionType = isIncome ? 'income' : 'expense';
       debugPrint('transactionType: $transactionType');
 
-      // Parse and format date (assumes one-time date format; repeat options will fail parsing)
-      debugPrint('Parsing date: $dateStr');
-      DateTime parsedDate;
-      try {
-        parsedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
-        debugPrint('Parsed date: $parsedDate');
-      } catch (e) {
-        debugPrint('Date parsing error: $e');
-        throw Exception('Invalid date format. Please select a one-time date.');
+      String apiDate;
+      if (repeatEvery.value != null) {
+        apiDate = DateFormat('yyyy-MM-dd').format(repeatStartDate.value);
+      } else {
+        // Parse and format date (assumes one-time date format; repeat options will fail parsing)
+        debugPrint('Parsing date: $dateStr');
+        DateTime parsedDate;
+        try {
+          parsedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+          debugPrint('Parsed date: $parsedDate');
+        } catch (e) {
+          debugPrint('Date parsing error: $e');
+          throw Exception('Invalid date format. Please select a one-time date.');
+        }
+        apiDate = DateFormat('yyyy-MM-dd').format(parsedDate);
       }
-      final apiDate = DateFormat('yyyy-MM-dd').format(parsedDate);
       debugPrint('Formatted API date: $apiDate');
 
       final typeId = selectedType.value!.id;
@@ -369,16 +498,21 @@ class ExpenseController extends GetxController {
         "amount": amount,
         "description": description,
         "type_id": typeId,
-        // "type_id": "68ddf75611a3de7d7203e6c7",
       };
+
+      if (repeatEvery.value != null) {
+        body['repeat'] = {
+          "every": repeatEvery.value,
+          "unit": repeatUnit.value,
+        };
+      }
+
       debugPrint('Request body: ${jsonEncode(body)}');
 
-      debugPrint(
-        'Sending POST request to: https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/addIncomeOrExpenses',
-      );
+      
       final response = await http.post(
         Uri.parse(
-          'https://teddybackend-mivk.onrender.com/api/v1/incomeAndExpences/addIncomeOrExpenses',
+          Urls.addincomeexpence,
         ),
         headers: {
           'Authorization': token ?? '',
@@ -405,6 +539,8 @@ class ExpenseController extends GetxController {
               isIncome: isIncome,
             ),
           );
+          Get.find<HomeController>().refreshIncomeAndExpenses();
+          Get.back();
           debugPrint('Entry added to local list');
           return;
         } else {
@@ -418,6 +554,118 @@ class ExpenseController extends GetxController {
     } catch (e) {
       debugPrint('Exception in _saveToBackend: $e');
       throw Exception('Error saving entry: $e');
+    }
+  }
+
+  Future<void> updateEntry({
+    required double amount,
+    required String dateStr,
+    required String note,
+  }) async {
+    try {
+      debugPrint('Fetching token...');
+      final token = await AuthService.getApprovalToken();
+      debugPrint('Token fetched: ${token ?? 'null'}');
+
+      String apiDate;
+      if (repeatEvery.value != null) {
+        apiDate = DateFormat('yyyy-MM-dd').format(repeatStartDate.value);
+      } else {
+        // Parse and format date (assumes one-time date format; repeat options will fail parsing)
+        debugPrint('Parsing date: $dateStr');
+        DateTime parsedDate;
+        try {
+          parsedDate = DateFormat('dd/MM/yyyy').parse(dateStr);
+          debugPrint('Parsed date: $parsedDate');
+        } catch (e) {
+          debugPrint('Date parsing error: $e');
+          throw Exception('Invalid date format. Please select a one-time date.');
+        }
+        apiDate = DateFormat('yyyy-MM-dd').format(parsedDate);
+      }
+      debugPrint('Formatted API date: $apiDate');
+
+      final typeId = selectedType.value!.id;
+      debugPrint('typeId: $typeId');
+      final description = note;
+      debugPrint('description: $description');
+
+      final body = <String, dynamic>{};
+      body['amount'] = amount;
+      body['date'] = apiDate;
+      body['description'] = description;
+      body['type_id'] = typeId;
+
+      if (repeatEvery.value != null) {
+        body['repeat'] = {
+          "every": repeatEvery.value,
+          "unit": repeatUnit.value,
+        };
+      }
+
+      debugPrint('Request body: ${jsonEncode(body)}');
+
+      
+      final response = await http.put(
+        Uri.parse(
+          '${Urls.updateincomeexpence}$editingId',
+        ),
+        headers: {
+          'Authorization': token ?? '',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+      debugPrint('Response status code: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('Response code is 200 or 201, parsing JSON...');
+        final jsonData = jsonDecode(response.body);
+        debugPrint('Parsed JSON: $jsonData');
+        if (jsonData['status'] == 'success') {
+          debugPrint('API status is success');
+          Get.find<HomeController>().refreshIncomeAndExpenses();
+          Get.back();
+          return;
+        } else {
+          debugPrint('API status is not success: ${jsonData['status']}');
+          throw Exception(jsonData['message'] ?? 'Failed to update entry');
+        }
+      } else {
+        debugPrint('Status code not 200 or 201: ${response.statusCode}');
+        throw Exception('Failed to update entry: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Exception in updateEntry: $e');
+      throw Exception('Error updating entry: $e');
+    }
+  }
+
+  Future<void> deleteCurrentEntry() async {
+    final description = noteController.text;
+    EasyLoading.show(status: 'Deleting...');
+    try {
+      final token = await AuthService.getApprovalToken();
+      final response = await http.delete(
+        Uri.parse(
+          '${Urls.deleteincomeexpense}$editingId',
+        ),
+        headers: {
+          'Authorization': token ?? '',
+        },
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        Get.find<HomeController>().refreshIncomeAndExpenses();
+        Get.back();
+        EasyLoading.showSuccess('Entry deleted successfully');
+      } else {
+        throw Exception('Failed to delete entry: ${response.statusCode}');
+      }
+    } catch (e) {
+      EasyLoading.showError('Error deleting entry: $e');
+    } finally {
+      EasyLoading.dismiss();
     }
   }
 
@@ -435,8 +683,13 @@ class ExpenseController extends GetxController {
       return;
     }
     try {
-      await _saveToBackend(amount: amount, dateStr: date, note: note);
-      EasyLoading.showSuccess('${selectedTab.value} saved successfully');
+      if (isEditing.value) {
+        await updateEntry(amount: amount, dateStr: date, note: note);
+        EasyLoading.showSuccess('Entry updated successfully');
+      } else {
+        await _saveToBackend(amount: amount, dateStr: date, note: note);
+        EasyLoading.showSuccess('${selectedTab.value} saved successfully');
+      }
       clearForm();
     } catch (e) {
       EasyLoading.showError(e.toString());
@@ -492,9 +745,9 @@ class ExpenseController extends GetxController {
         try {
           final dateA = DateFormat('dd/MM/yyyy').parse(a.key);
           final dateB = DateFormat('dd/MM/yyyy').parse(b.key);
-          return dateB.compareTo(dateA); // Newest first
+          return dateB.compareTo(dateA);
         } catch (e) {
-          return a.key.compareTo(b.key); // Fallback to string comparison
+          return a.key.compareTo(b.key);
         }
       }),
     );
@@ -517,5 +770,9 @@ class ExpenseController extends GetxController {
     amount.value = '';
     selectedDate.value = DateTime.now();
     updateDateText(DateTime.now());
+    isEditing.value = false;
+    editingId.value = '';
+    repeatEvery.value = null;
+    repeatUnit.value = '';
   }
 }

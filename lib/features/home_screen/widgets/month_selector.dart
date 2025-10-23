@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 // Assuming these are defined in your project
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
+import 'package:teddy_5618/features/home_screen/controller/bar_chart_controller.dart';
 
 class MonthSelectorController extends GetxController {
   final Rx<DateTime> selectedDate = DateTime(
@@ -51,6 +52,19 @@ class MonthSelectorController extends GetxController {
     debugPrint(
       'Selected date updated to: ${DateFormat('MMM yyyy').format(selectedDate.value)}',
     );
+
+    // Update BarChartController with new month/year
+    try {
+      final barController = Get.find<BarChartController>();
+      final monthName = DateFormat('MMM').format(selectedDate.value);
+      barController.setYearAndMonth(selectedDate.value.year, monthName);
+      debugPrint(
+        'Updated BarChartController with year: ${selectedDate.value.year}, month: $monthName',
+      );
+    } catch (e) {
+      debugPrint('BarChartController not found: $e');
+    }
+
     _scrollToSelectedMonth(animate: true);
   }
 
@@ -101,10 +115,9 @@ class MonthSelector extends StatelessWidget {
     );
 
     return Container(
-       color: isDark ? Color(0xFF262626) : AppColors.textWhite,
+      color: isDark ? Color(0xFF262626) : AppColors.textWhite,
       child: Column(
         children: [
-          
           SizedBox(
             height: 30,
             child: Obx(() {
@@ -121,22 +134,22 @@ class MonthSelector extends StatelessWidget {
                   final String formattedMonth = DateFormat(
                     'MMM yyyy',
                   ).format(month);
-      
+
                   final bool isSelected =
                       controller.selectedDate.value.year == month.year &&
                       controller.selectedDate.value.month == month.month;
-      
+
                   debugPrint(
                     'Index: $index, Month: $formattedMonth, isSelected: $isSelected',
                   );
-      
+
                   return GestureDetector(
                     onTap: () {
                       controller.setSelectedDate(month);
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10.0),
-      
+
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [

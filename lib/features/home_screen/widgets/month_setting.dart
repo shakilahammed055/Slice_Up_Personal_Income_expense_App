@@ -170,11 +170,13 @@ class Showmonthsetting extends StatelessWidget {
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 1),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(1),
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 0),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(0),
                                             ],
                                           ),
                                         ),
@@ -192,11 +194,13 @@ class Showmonthsetting extends StatelessWidget {
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 1),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(1),
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 0),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(0),
                                             ],
                                           ),
                                         ),
@@ -312,11 +316,13 @@ class Showmonthsetting extends StatelessWidget {
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 1),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(1),
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 0),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(0),
                                             ],
                                           ),
                                         ),
@@ -334,11 +340,13 @@ class Showmonthsetting extends StatelessWidget {
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 1),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(1),
                                               (isDark
                                                       ? AppColors.backgroundDark
                                                       : Colors.white)
-                                                  .withValues(alpha: 0),
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(0),
                                             ],
                                           ),
                                         ),

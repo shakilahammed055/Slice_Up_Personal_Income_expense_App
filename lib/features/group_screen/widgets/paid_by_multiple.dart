@@ -34,6 +34,10 @@ class PaidByMultiple extends StatelessWidget {
               .getGroupMembers(); // This uses the getGroupMembers endpoint
         }
       }
+
+      // Initialize calculations when screen loads
+      controller.updateMainTotal();
+      controller.updateMultipleFriendTotal();
     });
 
     return SafeArea(
@@ -50,21 +54,27 @@ class PaidByMultiple extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(height: 16),
-              Text(
-                'Total  90 / 120',
-                style: getTextStyle2(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: isDark ? AppColors.textWhite : AppColors.black,
+              Obx(
+                () => Text(
+                  'Total ${controller.totalComparisonText.value}'.tr,
+                  style: getTextStyle2(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: isDark ? AppColors.textWhite : AppColors.black,
+                  ),
                 ),
               ),
-              Text(
-                'Total amounts don\'t match',
-                style: getTextStyle2(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.red,
-                ),
+              Obx(
+                () => controller.doAmountsMatch.value
+                    ? SizedBox.shrink() // Hide the error message if amounts match
+                    : Text(
+                        'Total amounts don\'t match'.tr,
+                        style: getTextStyle2(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.red,
+                        ),
+                      ),
               ),
               Container(
                 constraints: BoxConstraints(
@@ -89,7 +99,7 @@ class PaidByMultiple extends StatelessWidget {
                         height: 100,
                         child: Center(
                           child: Text(
-                            'Failed to load members',
+                            'Failed to load members'.tr,
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -102,7 +112,7 @@ class PaidByMultiple extends StatelessWidget {
                         height: 100,
                         child: Center(
                           child: Text(
-                            'No members available',
+                            'No members available'.tr,
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -125,6 +135,12 @@ class PaidByMultiple extends StatelessWidget {
                           final avatarColor = _getAvatarColor(
                             friendName,
                             index,
+                          );
+
+                          // Ensure the controller is initialized for this friend
+                          controller.initializeFriendControllerIfAbsent(
+                            displayName,
+                            controller.multipleFriendControllers,
                           );
 
                           return Padding(

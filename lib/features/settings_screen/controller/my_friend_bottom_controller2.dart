@@ -4,7 +4,21 @@ import 'package:dio/dio.dart' as dio;
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
-import 'package:teddy_5618/features/settings_screen/controller/setting_screen_controller.dart';
+import 'package:teddy_5618/features/settings_screen/controller/setting_screen_controller.dart'
+    as setting_ctrl;
+
+/// Simple Friend model used by the settings controller (keeps name and email)
+class Friend {
+  final String name;
+  final String email;
+
+  Friend({required this.name, required this.email});
+
+  factory Friend.fromJson(Map<String, dynamic> json) => Friend(
+    name: (json['name'] ?? '').toString(),
+    email: (json['email'] ?? '').toString(),
+  );
+}
 
 class MyFriendBottomController2 extends GetxController {
   final RxList<Friend> myFriends = <Friend>[].obs; // Explicitly initialized
@@ -34,14 +48,16 @@ class MyFriendBottomController2 extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         dynamic responseData = response.data;
         debugPrint('Fetch Friends API Response: $responseData');
-        if (responseData is Map<String, dynamic> && responseData['data'] != null) {
+        if (responseData is Map<String, dynamic> &&
+            responseData['data'] != null) {
           dynamic data = responseData['data'];
           List<dynamic> friendsList = [];
           if (data is List<dynamic>) {
             friendsList = data;
           } else if (data is Map<String, dynamic> && data['details'] != null) {
             dynamic details = data['details'];
-            if (details is Map<String, dynamic> && details['success'] is List<dynamic>) {
+            if (details is Map<String, dynamic> &&
+                details['success'] is List<dynamic>) {
               friendsList = details['success'];
             }
           }
@@ -50,15 +66,23 @@ class MyFriendBottomController2 extends GetxController {
             if (friend is Map<String, dynamic>) {
               myFriends.add(
                 Friend(
-                  name: friend['name'] ?? friend['email'].split('@')[0].capitalizeFirst ?? 'Friend',
+                  name:
+                      friend['name'] ??
+                      friend['email'].split('@')[0].capitalizeFirst ??
+                      'Friend',
                   email: friend['email'] ?? '',
                 ),
               );
             }
           }
           // Update friend count in SettingController
-          final SettingController settingController = Get.find<SettingController>();
-          settingController.friends.assignAll(myFriends);
+          final setting_ctrl.SettingController settingController =
+              Get.find<setting_ctrl.SettingController>();
+          settingController.friends.assignAll(
+            myFriends
+                .map((f) => setting_ctrl.Friend(name: f.name, email: f.email))
+                .toList(),
+          );
           settingController.friendCount.value = myFriends.length;
           EasyLoading.showSuccess('Friends loaded');
         } else {
@@ -74,7 +98,8 @@ class MyFriendBottomController2 extends GetxController {
       if (e.type == dio.DioExceptionType.connectionTimeout ||
           e.type == dio.DioExceptionType.sendTimeout ||
           e.type == dio.DioExceptionType.receiveTimeout) {
-        errorMessage = 'Connection timeout. Please check your internet connection.';
+        errorMessage =
+            'Connection timeout. Please check your internet connection.';
       } else if (e.type == dio.DioExceptionType.badResponse) {
         errorMessage = 'Server error: ${e.response?.statusCode}';
         if (e.response?.statusCode == 401) {
@@ -107,7 +132,7 @@ class MyFriendBottomController2 extends GetxController {
       final List<Map<String, String>> requestBody = emails
           .map((email) => {'email': email})
           .toList();
-      
+
       final dio.Response response = await dioInstance.post(
         Urls.addfriends,
         data: requestBody,
@@ -122,30 +147,46 @@ class MyFriendBottomController2 extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 201) {
         dynamic responseData = response.data;
         debugPrint('API Response: $responseData'); // Debug the response
-        if (responseData is Map<String, dynamic> && responseData['data'] != null) {
+        if (responseData is Map<String, dynamic> &&
+            responseData['data'] != null) {
           dynamic data = responseData['data'];
           if (data is Map<String, dynamic> && data['details'] != null) {
             dynamic details = data['details'];
-            if (details is Map<String, dynamic> && details['success'] is List<dynamic>) {
+            if (details is Map<String, dynamic> &&
+                details['success'] is List<dynamic>) {
               List<dynamic> newFriendsList = details['success'];
               for (var friend in newFriendsList) {
                 if (friend is Map<String, dynamic>) {
                   Friend newFriend = Friend(
-                    name: friend['name'] ?? friend['email'].split('@')[0].capitalizeFirst ?? 'Friend',
+                    name:
+                        friend['name'] ??
+                        friend['email'].split('@')[0].capitalizeFirst ??
+                        'Friend',
                     email: friend['email'] ?? '',
                   );
-                  if (!myFriends.any((existingFriend) => existingFriend.email == newFriend.email)) {
+                  if (!myFriends.any(
+                    (existingFriend) => existingFriend.email == newFriend.email,
+                  )) {
                     myFriends.add(newFriend);
                   }
                 }
               }
               // Update friend count in SettingController
-              final SettingController settingController = Get.find<SettingController>();
-              settingController.friends.assignAll(myFriends);
+              final setting_ctrl.SettingController settingController =
+                  Get.find<setting_ctrl.SettingController>();
+              settingController.friends.assignAll(
+                myFriends
+                    .map(
+                      (f) => setting_ctrl.Friend(name: f.name, email: f.email),
+                    )
+                    .toList(),
+              );
               settingController.friendCount.value = myFriends.length;
               EasyLoading.showSuccess('Friends added successfully');
             } else {
-              EasyLoading.showError('No success list found in response details');
+              EasyLoading.showError(
+                'No success list found in response details',
+              );
             }
           } else {
             EasyLoading.showError('Unexpected data format in response');
@@ -161,7 +202,8 @@ class MyFriendBottomController2 extends GetxController {
       if (e.type == dio.DioExceptionType.connectionTimeout ||
           e.type == dio.DioExceptionType.sendTimeout ||
           e.type == dio.DioExceptionType.receiveTimeout) {
-        errorMessage = 'Connection timeout. Please check your internet connection.';
+        errorMessage =
+            'Connection timeout. Please check your internet connection.';
       } else if (e.type == dio.DioExceptionType.badResponse) {
         errorMessage = 'Server error: ${e.response?.statusCode}';
         if (e.response?.statusCode == 401) {
@@ -199,19 +241,27 @@ class MyFriendBottomController2 extends GetxController {
       if (response.statusCode == 200 || response.statusCode == 204) {
         myFriends.removeWhere((friend) => friend.email == email);
         // Update friend count in SettingController
-        final SettingController settingController = Get.find<SettingController>();
-        settingController.friends.assignAll(myFriends);
+        final setting_ctrl.SettingController settingController =
+            Get.find<setting_ctrl.SettingController>();
+        settingController.friends.assignAll(
+          myFriends
+              .map((f) => setting_ctrl.Friend(name: f.name, email: f.email))
+              .toList(),
+        );
         settingController.friendCount.value = myFriends.length;
         EasyLoading.showSuccess('$email has been removed from your list.');
       } else {
-        EasyLoading.showError('Failed to remove friend: ${response.statusCode}');
+        EasyLoading.showError(
+          'Failed to remove friend: ${response.statusCode}',
+        );
       }
     } on dio.DioException catch (e) {
       String errorMessage = 'Failed to remove friend';
       if (e.type == dio.DioExceptionType.connectionTimeout ||
           e.type == dio.DioExceptionType.sendTimeout ||
           e.type == dio.DioExceptionType.receiveTimeout) {
-        errorMessage = 'Connection timeout. Please check your internet connection.';
+        errorMessage =
+            'Connection timeout. Please check your internet connection.';
       } else if (e.type == dio.DioExceptionType.badResponse) {
         errorMessage = 'Server error: ${e.response?.statusCode}';
         if (e.response?.statusCode == 401) {

@@ -1,8 +1,9 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
-
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 import 'package:teddy_5618/features/group_screen/controller/sliceup_controller.dart';
@@ -142,49 +143,51 @@ class SliceupPageScreen extends StatelessWidget {
             // SlidingButtonIndivMin(controller: controller),
             Obx(() {
               final isIndividual = controller.isIndividualSelected.value;
+              final isAllSettled = sliceUpController.isAllSettled.value;
 
               return GestureDetector(
-                onTap: () async {
-                  // Prepare the settlement controller outside of widget build
-                  final settCtrl = Get.put(SettlementBottomController());
-                  if (trip?.id != null && trip!.id!.isNotEmpty) {
-                    await settCtrl.prepareForGroup(trip!.id!);
-                  }
+                onTap: isAllSettled
+                    ? null
+                    : () async {
+                        // Prepare the settlement controller outside of widget build
+                        final settCtrl = Get.put(SettlementBottomController());
+                        if (trip?.id != null && trip!.id!.isNotEmpty) {
+                          await settCtrl.prepareForGroup(trip!.id!);
+                        }
 
-                  showMaterialModalBottomSheet(
-                    context: context,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(34),
-                      ),
-                    ),
-                    builder: (context) => SettlementBottom(groupId: trip?.id),
-                  );
-                },
+                        showMaterialModalBottomSheet(
+                          context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(34),
+                            ),
+                          ),
+                          builder: (context) =>
+                              SettlementBottom(groupId: trip?.id),
+                        );
+                      },
                 child: Container(
                   width: MediaQuery.of(context).size.width / 1.1,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: isIndividual
-                        ? isDark
+                    color: isAllSettled
+                        ? AppColors.borderGrey
+                        : (isIndividual
                               ? AppColors.green
-                              : AppColors.green
-                        //  AppColors.black
-                        : AppColors.borderGrey, // Change color based on view
+                              : AppColors.borderGrey),
                     borderRadius: BorderRadius.circular(28),
                   ),
                   alignment: Alignment.center,
                   child: Text(
-                    isIndividual
-                        ? 'Settle up'.tr
-                        : 'Settled'.tr, // Change text dynamically
+                    isAllSettled
+                        ? 'Settled'.tr
+                        : (isIndividual ? 'Settle up'.tr : 'Settled'.tr),
                     style: getTextStyle2(
-                      color: isIndividual
-                          ? isDark
+                      color: isAllSettled
+                          ? AppColors.textGrey
+                          : (isIndividual
                                 ? AppColors.black
-                                : AppColors.black
-                          // AppColors.textWhite
-                          : AppColors.textGrey, // Change color based on view
+                                : AppColors.textGrey),
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),

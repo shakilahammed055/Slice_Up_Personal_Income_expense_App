@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/app_texts.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
-import 'package:teddy_5618/core/utils/constants/icon_path.dart';
 import 'package:teddy_5618/core/utils/constants/responsive_helper.dart';
 import 'package:teddy_5618/features/home_screen/widgets/expense_bar_chart.dart';
 import 'package:teddy_5618/features/group_screen/controller/status_screen_controller.dart';
@@ -31,64 +30,63 @@ class GroupStatusScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 24),
             // Top container
-            Center(
-              child: Container(
-                width: r.size.width / 1.1,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadiusDirectional.only(
-                    topStart: Radius.circular(10),
-                    topEnd: Radius.circular(10),
-                  ),
-                  color: isDark
-                      ? AppColors.deepGrey
-                      : AppColors.lightGreyContainer,
+            // Center(
+            //   child: Container(
+            //     width: r.size.width / 1.1,
+            //     decoration: BoxDecoration(
+            //       borderRadius: const BorderRadiusDirectional.only(
+            //         topStart: Radius.circular(10),
+            //         topEnd: Radius.circular(10),
+            //       ),
+            //       color: isDark
+            //           ? AppColors.deepGrey
+            //           : AppColors.lightGreyContainer,
 
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      spreadRadius: 1,
-                      blurRadius: 1,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          AppText.groupstatustitle,
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: isDark
-                                ? AppColors.textWhite
-                                : AppColors.backgroundDark,
-                            // color: AppColors.backgroundDark,
-                            lineHeight: 18,
-                          ),
-                        ),
-                        Spacer(),
-                        Image.asset(
-                          IconPath.rabbit1,
-                          width: 72.549.w,
-                          height: 92.647.h,
-                        ),
-                      ],
-                    ).marginOnly(left: 16, right: 10),
-                  ],
-                ),
-              ),
-            ),
+            //       boxShadow: const [
+            //         BoxShadow(
+            //           color: Color(0x1A000000),
+            //           spreadRadius: 1,
+            //           blurRadius: 1,
+            //           offset: Offset(0, 1),
+            //         ),
+            //       ],
+            //     ),
+            //     child: Column(
+            //       children: [
+            //         Row(
+            //           children: [
+            //             Text(
+            //               AppText.groupstatustitle,
+            //               style: getTextStyle2(
+            //                 fontSize: 16,
+            //                 fontWeight: FontWeight.w600,
+            //                 color: isDark
+            //                     ? AppColors.textWhite
+            //                     : AppColors.backgroundDark,
+            //                 // color: AppColors.backgroundDark,
+            //                 lineHeight: 18,
+            //               ),
+            //             ),
+            //             Spacer(),
+            //             Image.asset(
+            //               IconPath.rabbit1,
+            //               width: 72.549.w,
+            //               height: 92.647.h,
+            //             ),
+            //           ],
+            //         ).marginOnly(left: 16, right: 10),
+            //       ],
+            //     ),
+            //   ),
+            // ),
 
             // Bottom container (was Positioned)
             // const SizedBox(height: 16),
             Container(
               width: r.size.width / 1.1,
               decoration: BoxDecoration(
-                borderRadius: const BorderRadiusDirectional.only(
-                  bottomEnd: Radius.circular(10),
-                  bottomStart: Radius.circular(10),
+                borderRadius: const BorderRadius.all(
+                Radius.circular(10)
                 ),
                 color: isDark ? Color(0xFF262626) : AppColors.textWhite,
 
@@ -350,7 +348,7 @@ class GroupStatusScreen extends StatelessWidget {
                             icontext: displayName,
                             valueText: statusController.getFormattedAmount(
                               person.involved.amount,
-                              person.involved.currency,
+                              statusController.involvedCurrency.value,
                             ),
                             valueText2:
                                 "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
@@ -412,7 +410,7 @@ class GroupStatusScreen extends StatelessWidget {
                                 icontext: categoryDisplayName,
                                 valueText: statusController.getFormattedAmount(
                                   category.involved.amount,
-                                  category.involved.currency,
+                                  statusController.involvedCurrency.value,
                                 ),
                                 valueText2:
                                     "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",

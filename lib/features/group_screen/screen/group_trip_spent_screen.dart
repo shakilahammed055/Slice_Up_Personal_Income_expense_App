@@ -23,8 +23,9 @@ import 'package:teddy_5618/features/settings_screen/widget/currency_bottomsheet.
 
 class GroupTripSpentScreen extends StatelessWidget {
   final String? groupId; // Add groupId parameter
+  final Map<String, dynamic>? transactionToEdit;
 
-  GroupTripSpentScreen({super.key, this.groupId});
+  GroupTripSpentScreen({super.key, this.groupId, this.transactionToEdit});
 
   final GroupTripSpentController controller = Get.put(
     GroupTripSpentController(),
@@ -43,6 +44,13 @@ class GroupTripSpentScreen extends StatelessWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         debugPrint("🎯 Setting group ID to: $groupId");
         controller.setGroupId(groupId!);
+      });
+    }
+
+    // If a transaction is provided for editing, load it into the controller
+    if (transactionToEdit != null && transactionToEdit!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await controller.loadExpenseForEditing(transactionToEdit!);
       });
     }
 
@@ -174,7 +182,7 @@ class GroupTripSpentScreen extends StatelessWidget {
                                 ],
                                 decoration: InputDecoration(
                                   isDense: true,
-                                  hintText: 'Enter Amount',
+                                  hintText: 'Enter Amount'.tr,
                                   hintStyle: const TextStyle(
                                     color: Colors.grey,
                                   ),
@@ -436,8 +444,16 @@ class GroupTripSpentScreen extends StatelessWidget {
                                             .selectedCategoryName
                                             .value
                                             .isNotEmpty
-                                        ? controller.selectedCategoryName.value
-                                        : 'Select Category',
+                                        ? (controller
+                                                      .selectedCategoryName
+                                                      .value
+                                                      .length >
+                                                  12
+                                              ? '${controller.selectedCategoryName.value.substring(0, 12)}...'
+                                              : controller
+                                                    .selectedCategoryName
+                                                    .value)
+                                        : 'Select Category'.tr,
                                     style: getTextStyle2(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -505,9 +521,9 @@ class GroupTripSpentScreen extends StatelessWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                   ),
-                                  decoration: const InputDecoration(
+                                  decoration:  InputDecoration(
                                     isDense: true,
-                                    hintText: 'Add Notes',
+                                    hintText: 'Add Notes'.tr,
                                     hintStyle: TextStyle(
                                       color: Color(0xFF828282),
                                     ),
@@ -579,12 +595,14 @@ class GroupTripSpentScreen extends StatelessWidget {
                             color: Colors.white,
                             strokeWidth: 2,
                           )
-                        : Text(
-                            'Save',
-                            style: getTextStyle3(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white,
+                        : Obx(
+                            () => Text(
+                              controller.buttonText.value,
+                              style: getTextStyle3(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                   ),

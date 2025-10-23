@@ -11,28 +11,120 @@ class TripText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use Get.find() if the controller already exists, otherwise Get.put()
-    final controller = Get.isRegistered<TripTextController>()
-        ? Get.find<TripTextController>()
-        : Get.put(TripTextController());
+    // ✅ Use unique tag per group to avoid data mixing between trips
+    final String tag = groupId ?? 'default';
 
-    // Set the type when widget is built
-    if (type != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        controller.setTripTextType(type!);
-      });
-    }
+    // Use Get.find() if the controller already exists for this group, otherwise Get.put()
+    final controller = Get.isRegistered<TripTextController>(tag: tag)
+        ? Get.find<TripTextController>(tag: tag)
+        : Get.put(TripTextController(), tag: tag);
 
-    // ✅ Set group ID if provided
-    if (groupId != null && groupId!.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        debugPrint('🎯 [TRIP_TEXT] Setting group ID from widget: $groupId');
-        controller.setGroupId(groupId!);
-      });
-    }
+    // Defer any controller state changes to after the current frame so we
+    // don't mutate reactive state during the widget build phase. Mutating
+    // Rx values while building causes the Flutter error seen in logs.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        if (type != null && controller.currentType.value != type) {
+          controller.setTripTextType(type!);
+        }
 
-    return Obx(
-      () => Column(
+        if (groupId != null &&
+            groupId!.isNotEmpty &&
+            controller.currentGroupId.value != groupId) {
+          // debugPrint(
+          //   '🎯 [TRIP_TEXT] Setting group ID from widget (deferred): $groupId',
+          // );
+          controller.setGroupId(groupId!);
+          // Refresh after setting group id (deferred)
+          controller.refreshCurrentData();
+        }
+      } catch (e) {
+        // debugPrint('⚠️ [TRIP_TEXT] Deferred state update failed: $e');
+      }
+    });
+
+    return Obx(() {
+      // ✅ Add loading state indicator
+      if (controller.isLoading.value) {
+        return SizedBox(
+          height: 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 16,
+                width: 120,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const SizedBox(height: 4),
+              if (controller.shouldShowSecondaryText)
+                Container(
+                  height: 16,
+                  width: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }
+
+      // Determine numeric values for youllPay and youllCollect. If both are
+      // zero, hide the TripText entirely (return an empty widget).
+      double parseAmountString(String s) {
+        try {
+          // remove non-numeric characters except dot and minus
+          final cleaned = s.replaceAll(RegExp(r"[^0-9.\-]"), '');
+          return double.tryParse(cleaned) ?? 0.0;
+        } catch (_) {
+          return 0.0;
+        }
+      }
+
+      double youllPayVal = 0.0;
+      double youllCollectVal = 0.0;
+
+      // Prefer structured summary data when available
+      try {
+        final sd = controller.summaryData;
+        if (sd.containsKey('youllPay')) {
+          final yp = sd['youllPay'];
+          if (yp is Map && yp['amount'] != null) {
+            youllPayVal = (yp['amount'] is num)
+                ? yp['amount'].toDouble()
+                : double.tryParse(yp['amount'].toString()) ?? 0.0;
+          }
+        }
+        if (sd.containsKey('youllCollect')) {
+          final yc = sd['youllCollect'];
+          if (yc is Map && yc['amount'] != null) {
+            youllCollectVal = (yc['amount'] is num)
+                ? yc['amount'].toDouble()
+                : double.tryParse(yc['amount'].toString()) ?? 0.0;
+          }
+        }
+      } catch (_) {}
+
+      // Fallback to parsing formatted strings
+      if (youllPayVal == 0.0) {
+        youllPayVal = parseAmountString(controller.primaryAmount);
+      }
+      if (youllCollectVal == 0.0) {
+        youllCollectVal = parseAmountString(controller.secondaryAmount);
+      }
+
+      // If both values are 0, don't show TripText
+      if ((youllPayVal == 0.0 || youllPayVal.isNaN) &&
+          (youllCollectVal == 0.0 || youllCollectVal.isNaN)) {
+        return const SizedBox.shrink();
+      }
+
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text.rich(
@@ -89,8 +181,8 @@ class TripText extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
+      );
+    });
   }
 
   Color _getPrimaryAmountColor(TripTextType type) {

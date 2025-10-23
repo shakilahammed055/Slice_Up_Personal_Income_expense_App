@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
@@ -112,6 +113,8 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // make controller available for inner closures
+    final expensesController = controller;
 
     // If no trip is provided, show a message
     if (widget.trip == null ||
@@ -231,84 +234,26 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
             // Show expenses data
             return Column(
               children: [
-                // Filter indicator
-                Obx(() {
-                  if (controller.hasActiveFilters) {
-                    return Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? AppColors.deepGrey
-                            : AppColors.lightGreyContainer,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.green.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.filter_list,
-                            size: 16,
-                            color: AppColors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              controller.getActiveFiltersDescription(),
-                              style: getTextStyle2(
-                                fontSize: 12,
-                                color: isDark
-                                    ? AppColors.textWhite
-                                    : AppColors.black,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: controller.clearFilters,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.green.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Clear',
-                                style: getTextStyle2(
-                                  fontSize: 10,
-                                  color: AppColors.green,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                }),
-
                 // Expenses list
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: controller.refreshExpenses,
+                    onRefresh: expensesController.refreshExpenses,
                     color: AppColors.green,
                     child: ListView.builder(
-                      itemCount: controller.expenses.length,
+                      itemCount: expensesController.expenses.length,
                       itemBuilder: (context, index) {
-                        final dayData = controller.expenses[index];
-                        return expensescard(context, dayData);
+                        final dayData = expensesController.expenses[index];
+                        return expensescard(
+                          context,
+                          dayData,
+                          expensesController,
+                          widget.trip?.id,
+                        );
                       },
                     ),
                   ),
                 ),
+                SizedBox(height: 50),
               ],
             );
           }),
@@ -344,7 +289,12 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
   }
 }
 
-Widget expensescard(BuildContext context, Map<String, dynamic> dayData) {
+Widget expensescard(
+  BuildContext context,
+  Map<String, dynamic> dayData,
+  ExpensesPageController controller,
+  String? groupId,
+) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final String date = dayData['date'] ?? 'Unknown Date';
   final List<dynamic> expenses = dayData['expenses'] ?? [];
@@ -407,7 +357,9 @@ Widget expensescard(BuildContext context, Map<String, dynamic> dayData) {
             ),
           ),
 
-          Column(children: _buildExpensesList(expenses, isDark)),
+          Column(
+            children: _buildExpensesList(expenses, isDark, controller, groupId),
+          ),
         ],
       ),
     ),
@@ -415,23 +367,52 @@ Widget expensescard(BuildContext context, Map<String, dynamic> dayData) {
 }
 
 // Helper function to build expenses list from API data
-List<Widget> _buildExpensesList(List<dynamic> expenses, bool isDark) {
+List<Widget> _buildExpensesList(
+  List<dynamic> expenses,
+  bool isDark,
+  ExpensesPageController controller,
+  String? groupId,
+) {
   List<Widget> expenseWidgets = [];
 
   for (int i = 0; i < expenses.length; i++) {
     final expense = expenses[i] as Map<String, dynamic>;
 
     // Add expense item
+    // Make each expense item tappable so the user can edit it
     expenseWidgets.add(
       Padding(
         padding: const EdgeInsets.only(left: 16, right: 12),
-        child: _buildExpenseItem(
-          title: expense['title'] ?? 'Unknown',
-          amount: expense['formattedAmount'] ?? 'US\$ 0.00',
-          amountColor: isDark ? AppColors.textWhite : AppColors.black,
-          statusText: expense['status'] ?? 'Unknown',
-          statusColor: (expense['statusColor'] as Color?) ?? Colors.grey,
-          isDark: isDark,
+        child: GestureDetector(
+          onTap: () async {
+            // determine group id to pass
+            final gid = (groupId != null && groupId.isNotEmpty)
+                ? groupId
+                : controller.groupId.value;
+
+            debugPrint(
+              '✏️ [EXPENSES_PAGE] Tapped expense, navigating to edit screen for group: $gid',
+            );
+
+            await Get.to(
+              () => GroupTripSpentScreen(
+                groupId: gid,
+                transactionToEdit: expense,
+              ),
+            );
+
+            // refresh after returning
+            controller.refreshExpenses();
+          },
+          child: _buildExpenseItem(
+            title: expense['title'] ?? 'Unknown',
+            note: expense['notes'] ?? '',
+            amount: expense['formattedAmount'] ?? 'US\$ 0.00',
+            amountColor: isDark ? AppColors.textWhite : AppColors.black,
+            statusText: expense['status'] ?? 'Unknown',
+            statusColor: (expense['statusColor'] as Color?) ?? Colors.grey,
+            isDark: isDark,
+          ),
         ),
       ),
     );
@@ -455,6 +436,7 @@ List<Widget> _buildExpensesList(List<dynamic> expenses, bool isDark) {
 
 Widget _buildExpenseItem({
   required String title,
+  String? note,
   required String amount,
   required Color amountColor,
   required String statusText,
@@ -468,14 +450,32 @@ Widget _buildExpenseItem({
       children: [
         // Title
         Expanded(
-          child: Text(
-            title,
-            style: getTextStyle2(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: isDark ? AppColors.textWhite : AppColors.black,
-            ),
-            overflow: TextOverflow.ellipsis,
+          child: Row(
+            children: [
+              Text(
+                title,
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? AppColors.textWhite : AppColors.black,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(width: 10.w),
+              if (note != null && note.isNotEmpty) ...[
+                Flexible(
+                  child: Text(
+                    note,
+                    style: getTextStyle2(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: isDark ? AppColors.textGrey : AppColors.black,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
 

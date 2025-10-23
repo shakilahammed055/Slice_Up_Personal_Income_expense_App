@@ -21,12 +21,31 @@ class PaidByIndividual extends StatelessWidget {
         () => ListView.separated(
           shrinkWrap: true, // lets it size by content
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          itemCount: controller.friendNames.length,
-          separatorBuilder: (_, __) => Divider(
-            color: isDark ? AppColors.deepGrey : AppColors.borderGrey,
-          ),
+          padding: const EdgeInsets.fromLTRB(
+            0,
+            16,
+            0,
+            52,
+          ), // Added 36 to bottom padding (16 + 36 = 52)
+          itemCount:
+              controller.friendNames.length + 1, // +1 for the final divider
+          separatorBuilder: (_, index) {
+            // Don't show separator after the last member, since we'll add a divider as a separate item
+            if (index == controller.friendNames.length - 1) {
+              return const SizedBox.shrink();
+            }
+            return Divider(
+              color: isDark ? AppColors.deepGrey : AppColors.borderGrey,
+            );
+          },
           itemBuilder: (context, index) {
+            // If this is the last item, show just a divider
+            if (index == controller.friendNames.length) {
+              return Divider(
+                color: isDark ? AppColors.deepGrey : AppColors.borderGrey,
+              );
+            }
+
             final friend = controller.friendNames[index];
 
             // Find the corresponding member data to get member info
@@ -115,11 +134,19 @@ class PaidByIndividual extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Obx(
-                          () => controller.selectedPaidByFriend.value == friend
+                        Obx(() {
+                          final selected =
+                              controller.selectedPaidByFriend.value;
+
+                          // If nothing has been selected yet, default to current user
+                          final shouldShowCheck = selected.isNotEmpty
+                              ? selected == friend
+                              : isCurrentUser;
+
+                          return shouldShowCheck
                               ? const Icon(Icons.check)
-                              : const SizedBox.shrink(),
-                        ),
+                              : const SizedBox.shrink();
+                        }),
                       ],
                     ),
                   ),

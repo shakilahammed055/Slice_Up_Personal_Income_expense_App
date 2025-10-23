@@ -331,9 +331,43 @@ final Map<String, String> malay = {
   // ignore: equal_keys_in_map
   'Category': 'Kategori',
 
- 
+   'You\'ll collect': 'Anda akan mengutip',
+  'You\'ll pay': 'Anda akan membayar',
+  'All sliced up and settled!': 'Semuanya telah dibahagi dan diselesaikan!',
+  'My expenses': 'Perbelanjaan saya',
+  'Involved': 'Terlibat',
+  'Total amounts don\'t match': 'Jumlah keseluruhan tidak sepadan',
+  'Total': 'Jumlah keseluruhan',
+  'Are you sure you want to delete this?':
+      'Adakah anda pasti mahu memadam ini?',
+  'Once deleted, your information won’t be saved.':
+      'Setelah dipadam, maklumat anda tidak akan disimpan.',
+  'Stay': 'Kekal',
+  'Leave': 'Keluar',
+  'Enter Amount': 'Masukkan Amaun',
+  'Failed to load members': 'Gagal memuat ahli',
+  'No members available': 'Tiada ahli tersedia',
+  'Share with': 'Kongsi dengan',
+  'Select Category': 'Pilih Kategori',
+  'Add Notes': 'Tambah Nota',
+  'To delete them, they must be removed from your group, or you can delete the entire group':
+      'Untuk memadam mereka, mereka mesti dikeluarkan daripada kumpulan anda, atau anda boleh memadam keseluruhan kumpulan',
+  'Okay': 'Baik' ,
 
+  "You won’t be able to undo this.":
+      "Anda tidak akan dapat membatalkan tindakan ini.",
+  "You can’t delete them yet": "Anda belum boleh memadam mereka",
+  "No friends available.\nTap + to add friends from your list.":
+      "Tiada rakan tersedia.\nKetik + untuk menambah rakan daripada senarai anda.",
+  "You can’t remove them or leave this group just yet":
+      "Anda belum boleh mengeluarkan mereka atau meninggalkan kumpulan ini",
+  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses":
+      "Anda hanya boleh mengeluarkan mereka atau meninggalkan kumpulan selepas semua hutang diselesaikan atau mereka (atau anda) tidak lagi terlibat dalam perbelanjaan bersama",
+  "Are you sure you want to remove them or leave the group yourself?":
+      "Adakah anda pasti mahu mengeluarkan mereka atau meninggalkan kumpulan sendiri?",
 
+    "Ready to track your group expenses!":
+      "Sedia untuk menjejak perbelanjaan kumpulan anda!"
   
 
 

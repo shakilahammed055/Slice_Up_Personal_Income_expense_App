@@ -1,3 +1,5 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
@@ -58,12 +60,14 @@ class IndividualCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Widget buildIndividualRowContent(IndividualTransactionEntry entry) {
+      
       String _shorten(String s, [int len = 10]) {
         if (s.length <= len) return s;
         return '${s.substring(0, len)}...';
       }
 
       return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           // FROM
           CircleAvatar(

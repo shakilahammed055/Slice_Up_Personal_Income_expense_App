@@ -194,7 +194,7 @@ class SettingController extends GetxController {
         return false;
       }
       final response = await dio.Dio().delete(
-        'https://teddybackend-mivk.onrender.com/api/v1/users/categories/$categoryId',
+        '$Urls/users/categories/$categoryId',
         options: dio.Options(
           headers: {
             'Authorization': approvalToken,

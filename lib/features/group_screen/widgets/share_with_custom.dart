@@ -11,8 +11,38 @@ class ShareWithCustom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(GroupTripSpentController());
+    final controller =
+        Get.find<
+          GroupTripSpentController
+        >(); // Use existing controller instead of creating new one
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Load group members when the widget is built (same as PaidByMultiple)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint(
+        '🔍 Custom widget callback - groupMembers.length: ${controller.groupMembers.length}, isLoading: ${controller.isLoadingMembers.value}, currentGroupId: "${controller.currentGroupId.value}"',
+      );
+
+      if (controller.groupMembers.isEmpty &&
+          !controller.isLoadingMembers.value) {
+        if (controller.currentGroupId.value.isEmpty) {
+          debugPrint(
+            '🚀 No group ID, getting user groups first to set group ID...',
+          );
+          controller
+              .getUserGroupsAndSetFirst(); // This will get groups and then call getGroupMembers
+        } else {
+          debugPrint('🚀 Have group ID, fetching members directly...');
+          controller
+              .getGroupMembers(); // This uses the getGroupMembers endpoint
+        }
+      }
+
+      // Initialize calculations when screen loads (custom version)
+      controller.updateMainTotalForCustom();
+      controller.updateCustomFriendTotal();
+    });
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -28,22 +58,28 @@ class ShareWithCustom extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: 20),
-                Text(
-                  'Total  90 / 120',
-                  style: getTextStyle2(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: isDark ? AppColors.textWhite : AppColors.black,
+                Obx(
+                  () => Text(
+                    'Total ${controller.customComparisonText.value}'.tr,
+                    style: getTextStyle2(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: isDark ? AppColors.textWhite : AppColors.black,
+                    ),
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(
-                  'Total amounts don\'t match',
-                  style: getTextStyle2(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.red,
-                  ),
+                Obx(
+                  () => controller.doCustomAmountsMatch.value
+                      ? SizedBox.shrink() // Hide the error message if amounts match
+                      : Text(
+                          'Total amounts don\'t match'.tr,
+                          style: getTextStyle2(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.red,
+                          ),
+                        ),
                 ),
                 Container(
                   constraints: BoxConstraints(
@@ -96,9 +132,9 @@ class ShareWithCustom extends StatelessWidget {
                           ) {
                             final index = entry.key;
                             final friendName = entry.value;
-                            // Limit name to 10 characters like in Individual
+                            // Limit name to 10 characters like in Individual (same as PaidByMultiple)
                             final displayName = friendName.length > 10
-                                ? '${friendName.substring(0, 8)}..'
+                                ? friendName.substring(0, 10)
                                 : friendName;
                             final initials = friendName.isNotEmpty
                                 ? friendName[0].toUpperCase()
@@ -117,6 +153,8 @@ class ShareWithCustom extends StatelessWidget {
                                 color: avatarColor,
                                 showCheckbox: false,
                                 fieldMap: controller.customFriendControllers,
+                                initializeController: controller
+                                    .initializeCustomFriendControllerIfAbsent, // Use custom initialization
                               ),
                             );
                             // ignore: unnecessary_to_list_in_spreads

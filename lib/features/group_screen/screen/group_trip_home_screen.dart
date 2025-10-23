@@ -6,9 +6,11 @@ import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/icon_path.dart';
+import 'package:teddy_5618/features/bottom_navaigationbar/screen/bottom_navigationbar.dart';
 import 'package:teddy_5618/features/group_screen/controller/create_trip_bottomsheet_controller.dart';
 import 'package:teddy_5618/features/group_screen/controller/trip_text_controller.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
+
 import 'package:teddy_5618/features/group_screen/widgets/group_edit_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_filter_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_search_screen.dart';
@@ -27,18 +29,22 @@ class GroupTripHomeScreen extends StatelessWidget {
     // Use Get.put to ensure TripController is available, or make it optional
     final tripController = Get.put(TripController());
 
-    // ✅ Get TripTextController and set the group ID from the trip
-    final tripTextController = Get.isRegistered<TripTextController>()
-        ? Get.find<TripTextController>()
-        : Get.put(TripTextController());
+    // ✅ Get TripTextController with unique tag per group ID to avoid data mixing
+    final String controllerTag = trip.id ?? 'default';
+    final tripTextController =
+        Get.isRegistered<TripTextController>(tag: controllerTag)
+        ? Get.find<TripTextController>(tag: controllerTag)
+        : Get.put(TripTextController(), tag: controllerTag);
 
     // ✅ Set the group ID immediately when the screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (trip.id != null && trip.id!.isNotEmpty) {
-        debugPrint(
-          '🎯 [GROUP_TRIP_HOME] Setting TripTextController group ID: ${trip.id}',
-        );
+        // debugPrint(
+        //   '🎯 [GROUP_TRIP_HOME] Setting TripTextController group ID: ${trip.id}',
+        // );
         tripTextController.setGroupId(trip.id!);
+        // ✅ Refresh data to ensure real-time updates
+        tripTextController.refreshCurrentData();
       }
     });
 
@@ -50,7 +56,7 @@ class GroupTripHomeScreen extends StatelessWidget {
           backgroundColor: isDark ? Color(0xFF262626) : AppColors.textWhite,
           automaticallyImplyLeading: false,
           leading: GestureDetector(
-            onTap: () => Get.back(),
+            onTap: () => Get.to(BottomNavbarView()),
             child: Icon(
               CupertinoIcons.back,
               size: MediaQuery.of(context).size.height / 25,

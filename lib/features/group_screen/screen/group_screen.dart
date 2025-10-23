@@ -92,6 +92,7 @@ class GroupScreen extends StatelessWidget {
                 return groupScreenController.selectedAssistant.value.isNotEmpty
                     ? Container(
                         width: MediaQuery.of(context).size.width,
+                        // height: 88.h,
                         decoration: ShapeDecoration(
                           color: isDark
                               ? AppColors.deepGrey
@@ -101,75 +102,52 @@ class GroupScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: Stack(
+                        child: Row(
+                          // center children vertically
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
+                            // Text area (allow wrapping)
+                            Expanded(
+                              child: Obx(
+                                () => Text(
+                                  tripController.currentAiSummary,
+                                  softWrap: true,
+                                  overflow: TextOverflow.visible,
+                                  style: getTextStyle2(
+                                    color: isDark
+                                        ? AppColors.textWhite
+                                        : AppColors.black,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ).marginOnly(bottom: 10),
+                              ),
+                            ),
+
+                            // const SizedBox(width: 8),
+
+                            // const SizedBox(width: 8),
+
+                            // Assistant image with overlayed share icon
+                          
                             Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox(
-                                    height: 60.h,
-                                    child: Text(
-                                      'Oh great, group money drama — let’s \ntrack that chaos ',
-                                      style: getTextStyle2(
-                                        color: isDark
-                                            ? AppColors.textWhite
-                                            : AppColors.black,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              top: 15,
-                              child: Container(
-                                width: 60,
-                                height: 70,
-                                decoration: BoxDecoration(
-                                  image: DecorationImage(
-                                    image: Image.asset(
-                                      groupScreenController
-                                                  .selectedAssistant
-                                                  .value ==
-                                              'supportive'.tr
-                                          ? IconPath.chiwawa1
-                                          : IconPath.rabbit1,
-                                    ).image,
-                                    fit: BoxFit.fill,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              top: 7,
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: ShapeDecoration(
-                                  color: isDark
-                                      ? AppColors.backgroundDark
-                                      : AppColors.textWhite,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.share,
-                                  color: isDark
-                                      ? AppColors.textWhite
-                                      : AppColors.black,
-                                  size: 15,
-                                ),
-                              ),
-                            ),
+                               width: 60,
+                               height: 60,
+                               decoration: BoxDecoration(
+                                 borderRadius: BorderRadius.circular(8),
+                               ),
+                               child: Image.asset(
+                                 groupScreenController
+                                             .selectedAssistant
+                                             .value ==
+                                         'supportive'.tr
+                                     ? IconPath.chiwawa1
+                                     : IconPath.rabbit1,
+                                 fit: BoxFit.contain,
+                               ),
+                             )
                           ],
-                        ).marginSymmetric(horizontal: 16),
+                        ).marginOnly(left: 16, right: 16, top: 10),
                       )
                     : GestureDetector(
                         onTap: () {

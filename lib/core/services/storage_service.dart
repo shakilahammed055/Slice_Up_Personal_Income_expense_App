@@ -4,6 +4,7 @@ class StorageService {
   // Constants for preference keys
   static const String _tokenKey = 'token';
   static const String _idKey = 'userId';
+  static const String _selectedAssistantKey = 'selectedAssistant';
 
   // Singleton instance for SharedPreferences
   static SharedPreferences? _preferences;
@@ -29,6 +30,7 @@ class StorageService {
   static Future<void> logoutUser() async {
     await _preferences?.remove(_tokenKey);
     await _preferences?.remove(_idKey);
+    await _preferences?.remove(_selectedAssistantKey);
     // Navigate to the login screen
     // Get.offAllNamed('/login');
   }
@@ -38,6 +40,19 @@ class StorageService {
 
   // Getter for token
   static String? get token => _preferences?.getString(_tokenKey);
+
+  // Save the selected assistant to local storage
+  static Future<void> saveSelectedAssistant(String assistant) async {
+    await _preferences?.setString(_selectedAssistantKey, assistant);
+  }
+
+  // Get the selected assistant from local storage
+  static String? getSelectedAssistant() {
+    return _preferences?.getString(_selectedAssistantKey);
+  }
+
+  // Remove the selected assistant from local storage
+  static Future<void> clearSelectedAssistant() async {
+    await _preferences?.remove(_selectedAssistantKey);
+  }
 }
-
-

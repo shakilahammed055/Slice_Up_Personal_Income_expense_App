@@ -6,6 +6,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/features/settings_screen/controller/setting_screen_controller.dart';
 
 class StatusScreenController extends GetxController {
   // Observable variables for API data
@@ -134,43 +135,94 @@ class StatusScreenController extends GetxController {
   void _parseApiResponse(Map<String, dynamic> data) {
     try {
       // Group data
-      final groupData = data['group'];
+      final groupData = data['group'] as Map<String, dynamic>? ?? {};
       groupName.value = groupData['groupName'] ?? '';
       totalMembers.value = groupData['totalMembers'] ?? 0;
       totalExpenses.value = (groupData['totalExpenses'] ?? 0).toDouble();
-      ownerEmail.value = groupData['ownerEmail'] ?? ''; // Store owner email
+      ownerEmail.value = groupData['ownerEmail'] ?? '';
 
       // Summary data
-      final summaryData = data['summary'];
-      involvedCurrency.value = summaryData['involvedCurrency'] ?? 'SGD';
+      final summaryData = data['summary'] as Map<String, dynamic>? ?? {};
+
+      // Prefer the user's selected currency from SettingController if available,
+      // otherwise fall back to the API-provided currency or sensible default.
+      String preferredCurrency = 'SGD';
+      try {
+        final setting = Get.find<SettingController>();
+        final sel = setting.currency.value; // e.g. 'S\$' or 'US\$'
+        if (sel.isNotEmpty) {
+          preferredCurrency = sel;
+        } else if ((summaryData['involvedCurrency'] ?? '')
+            .toString()
+            .isNotEmpty) {
+          preferredCurrency = summaryData['involvedCurrency'].toString();
+        }
+      } catch (e) {
+        // No SettingController available; use API or default
+        preferredCurrency = (summaryData['involvedCurrency'] ?? 'SGD')
+            .toString();
+      }
+
+      involvedCurrency.value = preferredCurrency;
       involvedAmount.value = (summaryData['involvedAmount'] ?? 0).toDouble();
       myExpensesPercentage.value = (summaryData['myExpensesPercentage'] ?? 0)
           .toDouble();
-      myExpensesCurrency.value = summaryData['myExpensesCurrency'] ?? 'SGD';
+
+      myExpensesCurrency.value = preferredCurrency;
       myExpensesAmount.value = (summaryData['myExpensesAmount'] ?? 0)
           .toDouble();
 
       // Net balance
       final netBalance = summaryData['netBalance'];
-      if (netBalance != null) {
+      if (netBalance != null && netBalance is Map) {
         netBalanceAmount.value = (netBalance['amount'] ?? 0).toDouble();
         netBalanceStatus.value = netBalance['status'] ?? '';
-        netBalanceCurrency.value = netBalance['currency'] ?? 'SGD';
+        netBalanceCurrency.value = preferredCurrency;
       }
 
-      // Category wise data
+      // Category wise data: parse then ensure displayed currency matches preferredCurrency
       final categoryWiseList = data['categoryWise'] as List? ?? [];
-      categoryWiseData.assignAll(
-        categoryWiseList
-            .map((item) => CategoryWiseStatus.fromJson(item))
-            .toList(),
-      );
+      final parsedCategories = categoryWiseList
+          .map((item) => CategoryWiseStatus.fromJson(item))
+          .map(
+            (c) => CategoryWiseStatus(
+              categoryName: c.categoryName,
+              involved: AmountInfo(
+                currency: preferredCurrency,
+                amount: c.involved.amount,
+                percentage: c.involved.percentage,
+              ),
+              myExpense: AmountInfo(
+                currency: preferredCurrency,
+                amount: c.myExpense.amount,
+                percentage: c.myExpense.percentage,
+              ),
+            ),
+          )
+          .toList();
+      categoryWiseData.assignAll(parsedCategories);
 
-      // Person wise data
+      // Person wise data: parse then override currency to preferredCurrency
       final personWiseList = data['personWise'] as List? ?? [];
-      personWiseData.assignAll(
-        personWiseList.map((item) => PersonWiseStatus.fromJson(item)).toList(),
-      );
+      final parsedPersons = personWiseList
+          .map((item) => PersonWiseStatus.fromJson(item))
+          .map(
+            (p) => PersonWiseStatus(
+              memberEmail: p.memberEmail,
+              involved: AmountInfo(
+                currency: preferredCurrency,
+                amount: p.involved.amount,
+                percentage: p.involved.percentage,
+              ),
+              myExpense: AmountInfo(
+                currency: preferredCurrency,
+                amount: p.myExpense.amount,
+                percentage: p.myExpense.percentage,
+              ),
+            ),
+          )
+          .toList();
+      personWiseData.assignAll(parsedPersons);
 
       // Currencies
       final currencyList = data['currencies'] as List? ?? [];
@@ -190,28 +242,6 @@ class StatusScreenController extends GetxController {
       debugPrint("   - Categories: ${categoryWiseData.length}");
       debugPrint("   - Members: ${personWiseData.length}");
       debugPrint("   - Owner Email: ${ownerEmail.value}");
-
-      // Debug category data
-      for (var category in categoryWiseData) {
-        debugPrint("   📂 Category: ${category.categoryName}");
-        debugPrint(
-          "      - My Expense: ${category.myExpense.amount} ${category.myExpense.currency} (${category.myExpense.percentage}%)",
-        );
-        debugPrint(
-          "      - Involved: ${category.involved.amount} ${category.involved.currency} (${category.involved.percentage}%)",
-        );
-      }
-
-      // Debug person data
-      for (var person in personWiseData) {
-        debugPrint("   👤 Person: ${person.memberEmail}");
-        debugPrint(
-          "      - My Expense: ${person.myExpense.amount} ${person.myExpense.currency} (${person.myExpense.percentage}%)",
-        );
-        debugPrint(
-          "      - Involved: ${person.involved.amount} ${person.involved.currency} (${person.involved.percentage}%)",
-        );
-      }
     } catch (e) {
       debugPrint("❌ [STATUS] Error parsing API response: $e");
       throw Exception('Failed to parse status data');
@@ -267,17 +297,26 @@ class StatusScreenController extends GetxController {
 
   // Helper method to get relative progress for group view (based on involved amounts)
   double getRelativeProgressForGroup(double amount) {
-    if (categoryWiseData.isEmpty) return 0.0;
+    // Prefer category-wise involved amounts if present; otherwise use person-wise involved
+    if (categoryWiseData.isNotEmpty) {
+      final maxAmount = categoryWiseData
+          .map((category) => category.involved.amount)
+          .fold<double>(0.0, (prev, curr) => curr > prev ? curr : prev);
+      if (maxAmount == 0) return 0.0;
+      return amount / maxAmount;
+    }
 
-    final maxAmount = categoryWiseData
-        .map((category) => category.involved.amount)
-        .reduce((max, current) => current > max ? current : max);
+    if (personWiseData.isNotEmpty) {
+      final maxAmount = personWiseData
+          .map((p) => p.involved.amount)
+          .fold<double>(0.0, (prev, curr) => curr > prev ? curr : prev);
+      if (maxAmount == 0) return 0.0;
+      return amount / maxAmount;
+    }
 
-    if (maxAmount == 0) return 0.0;
-    return amount / maxAmount;
+    return 0.0;
   }
 
-  // Helper method to check if a member is the current user
   bool isCurrentUser(String memberEmail) {
     final isOwner = memberEmail == ownerEmail.value;
     debugPrint("🔍 [USER_CHECK] Checking if $memberEmail is current user");

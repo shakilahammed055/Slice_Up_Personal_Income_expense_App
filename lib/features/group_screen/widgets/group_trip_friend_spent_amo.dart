@@ -16,6 +16,7 @@ class GroupTripFriendSpentAmount extends StatelessWidget {
     required this.color,
     required this.fieldMap, // 👈 NEW: which map to use (equal/custom/multiple)
     this.showCheckbox = true,
+    this.initializeController, // 👈 NEW: callback for custom initialization
   });
 
   final GroupTripSpentController controller;
@@ -24,13 +25,19 @@ class GroupTripFriendSpentAmount extends StatelessWidget {
   final Color color;
   final bool showCheckbox;
   final Map<String, TextEditingController> fieldMap; // 👈 NEW
+  final Function(String, Map<String, TextEditingController>)?
+  initializeController; // 👈 NEW callback
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // ✅ initialize using the provided map
-    controller.initializeFriendControllerIfAbsent(name, fieldMap);
+    // ✅ initialize using the provided callback or default method
+    if (initializeController != null) {
+      initializeController!(name, fieldMap);
+    } else {
+      controller.initializeFriendControllerIfAbsent(name, fieldMap);
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
