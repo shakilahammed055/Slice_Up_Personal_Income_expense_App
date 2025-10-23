@@ -4,6 +4,10 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/screen/group_trip_home_screen.dart';
+import 'package:teddy_5618/features/group_screen/controller/group_trip_add_new_friend_controller.dart';
+import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
+import 'package:teddy_5618/features/group_screen/widgets/trip_text.dart';
+import 'package:teddy_5618/features/group_screen/controller/trip_text_controller.dart';
 
 // Import your Trip model
 
@@ -28,7 +32,7 @@ class TripBox extends StatelessWidget {
         );
       },
       child: Container(
-        height: MediaQuery.of(context).size.height / 7.8,
+        // height: MediaQuery.of(context).size.height / 7.8,
         // width: MediaQuery.of(context).size.width / 1.2,
         decoration: BoxDecoration(
           borderRadius: BorderRadiusDirectional.all(Radius.circular(14)),
@@ -63,24 +67,117 @@ class TripBox extends StatelessWidget {
                 // This SizedBox width might need adjustment based on the trip name length
                 // SizedBox(width: MediaQuery.of(context).size.width / 2.7),
                 Spacer(),
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: AppColors.green,
-                  child: Center(
-                    child: Text(
-                      trip.name.isNotEmpty
-                          ? trip.name[0].toUpperCase()
-                          : '', // First letter of trip name
-                      style: getTextStyle2(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textWhite,
+                // Render stacked avatars (owner initial + friend avatars) without the add '+' avatar
+                Obx(() {
+                  final String tag = trip.id ?? 'default';
+                  final friendSelectionController =
+                      Get.isRegistered<GroupTripAddNewFriendController>(
+                        tag: tag,
+                      )
+                      ? Get.find<GroupTripAddNewFriendController>(tag: tag)
+                      : Get.put(GroupTripAddNewFriendController(), tag: tag);
+
+                  // Ensure controller knows current trip so it can fetch members
+                  friendSelectionController.setCurrentTrip(
+                    trip.name,
+                    tripId: trip.id,
+                  );
+
+                  String ownerInitial = '';
+                  Color ownerBgColor = friendSelectionController.getAvatarColor(
+                    0,
+                  );
+                  try {
+                    if (Get.isRegistered<GroupTripSpentController>()) {
+                      final spentCtrl = Get.find<GroupTripSpentController>();
+                      final ownerEmail = spentCtrl.groupOwnerEmail.value;
+                      if (ownerEmail.isNotEmpty) {
+                        final localPart = ownerEmail.split('@')[0];
+                        if (localPart.isNotEmpty) {
+                          ownerInitial = localPart[0].toUpperCase();
+                        }
+                      }
+                    }
+                  } catch (_) {}
+
+                  // pick deterministic color index based on trip id when available
+                  try {
+                    if (trip.id != null && trip.id!.isNotEmpty) {
+                      final idx =
+                          trip.id!.hashCode.abs() %
+                          friendSelectionController.avatarColors.length;
+                      ownerBgColor = friendSelectionController.getAvatarColor(
+                        idx,
+                      );
+                    }
+                  } catch (_) {}
+
+                  final selectedFriends =
+                      friendSelectionController.selectedFriendNames;
+
+                  // Build combined list: owner (if exists) + friends
+                  final List<String> members = [];
+                  if (ownerInitial.isNotEmpty) members.add(ownerInitial);
+                  for (var f in selectedFriends) {
+                    if (f.isNotEmpty) members.add(f);
+                  }
+
+                  List<Widget> avatars = [];
+                  double left = 0.0;
+                  const double radius = 12.0;
+                  const double step = 20.0;
+
+                  for (int i = 0; i < members.length && i < 5; i++) {
+                    final member = members[i];
+                    final String initial = member.isNotEmpty
+                        ? member[0].toUpperCase()
+                        : '?';
+                    final Color bg = (i == 0 && ownerInitial.isNotEmpty)
+                        ? ownerBgColor
+                        : friendSelectionController.getAvatarColor(i + 1);
+
+                    avatars.add(
+                      Positioned(
+                        left: left,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.backgroundDark
+                                  : AppColors.textWhite,
+                              width: 2.0,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: radius,
+                            backgroundColor: bg,
+                            child: Center(
+                              child: Text(
+                                initial,
+                                style: getTextStyle2(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textWhite,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ).marginOnly(top: 16),
+                    );
+                    left += step;
+                  }
+
+                  final double stackWidth = left + radius; // approximate
+                  return SizedBox(
+                    width: stackWidth,
+                    height: radius * 2,
+                    child: Stack(clipBehavior: Clip.none, children: avatars),
+                  ).marginOnly(top: 16);
+                }),
               ],
-            ).marginOnly(left: 20, right: 20),
+            ).marginOnly(left: 20, right: 10),
             Text(
               trip.date, // Use the trip's date
               style: getTextStyle2(
@@ -89,9 +186,17 @@ class TripBox extends StatelessWidget {
                 color: AppColors.textGrey,
               ),
             ).marginOnly(left: 20, top: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TripText(
+                type: TripTextType.expenses,
+                groupId: trip.id,
+              ).marginOnly(right: 20),
+            ),
+            SizedBox(height: 15),
           ],
         ),
-      )
+      ),
     );
   }
 }

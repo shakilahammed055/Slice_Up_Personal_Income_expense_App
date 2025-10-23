@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 // Assuming these are defined in your project
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
+import 'package:teddy_5618/features/home_screen/controller/bar_chart_controller.dart';
 
 // GetX Controller to manage the state and logic for year selection
 class YearlySelectorController extends GetxController {
@@ -58,6 +59,18 @@ class YearlySelectorController extends GetxController {
     selectedYear.value = date;
     final String debugFormattedDate = DateFormat('yyyy').format(date);
     debugPrint('Selected year updated to: $debugFormattedDate');
+
+    // Update BarChartController with new year for yearly view
+    try {
+      final barController = Get.find<BarChartController>();
+      barController.setYearAndMonth(selectedYear.value.year);
+      debugPrint(
+        'Updated BarChartController with year: ${selectedYear.value.year}',
+      );
+    } catch (e) {
+      debugPrint('BarChartController not found: $e');
+    }
+
     _scrollToSelectedYear(animate: true);
   }
 

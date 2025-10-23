@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/core/services/storage_service.dart';
 import 'package:intl/intl.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/screen/group_trip_home_screen.dart';
@@ -30,6 +31,8 @@ class GroupTripSpentController extends GetxController {
   final RxString groupOwnerEmail = ''.obs;
   final RxString currentGroupId = ''.obs;
   final RxBool isInitialized = false.obs; // Add initialization flag
+  // For editing existing expense
+  final RxString editingExpenseId = ''.obs;
 
   // Constructor to accept group ID
   GroupTripSpentController({String? groupId}) {
@@ -88,6 +91,31 @@ class GroupTripSpentController extends GetxController {
     // Clear friend selections
     clearFriendSelections();
 
+    // Dispose and clear all per-friend amount controllers/maps to avoid
+    // carrying values across different groups/trips
+    try {
+      disposeFriendControllers();
+    } catch (_) {}
+    equalFriendControllers.clear();
+    customFriendControllers.clear();
+    multipleFriendControllers.clear();
+
+    // Clear totals controllers and reset reactive totals/comparison state
+    try {
+      equalTotalController.clear();
+      customTotalController.clear();
+      multipleTotalController.clear();
+    } catch (_) {}
+    _multipleFriendTotal.value = 0.0;
+    _mainTotal.value = 0.0;
+    _comparisonText.value = '0 / 0';
+    _amountsMatch.value = false;
+    _customFriendTotal.value = 0.0;
+    _customMainTotal.value = 0.0;
+    _customComparisonText.value = '0 / 0';
+    _customAmountsMatch.value = false;
+    _equalTotalText.value = 'Total 0 / Per person 0';
+
     // Clear loading states
     isLoading.value = false;
     isLoadingMembers.value = false;
@@ -127,6 +155,415 @@ class GroupTripSpentController extends GetxController {
     debugPrint("✅ User input cleared successfully");
   }
 
+  // Load an existing transaction into the form for editing
+  Future<void> loadExpenseForEditing(Map<String, dynamic> transaction) async {
+    try {
+      debugPrint('🔄 loadExpenseForEditing called');
+      if (transaction.isEmpty) return;
+
+      final expenseId =
+          transaction['_id'] ??
+          transaction['expenseId'] ??
+          transaction['id'] ??
+          '';
+      editingExpenseId.value = expenseId.toString();
+
+      // Populate amount
+      final rawTotal =
+          transaction['totalExpenseAmount'] ?? transaction['amount'] ?? 0;
+
+      // Normalize amount to a plain numeric string (no currency symbols)
+      String normalized = rawTotal?.toString() ?? '';
+      // Remove any non-digit, non-dot, non-minus characters (strip currency symbols and commas)
+      normalized = normalized.replaceAll(',', '');
+      normalized = normalized.replaceAll(RegExp(r'[^0-9.\-]'), '');
+      double parsed = double.tryParse(normalized) ?? 0.0;
+      // Show integer without decimal when possible, otherwise keep up to 2 decimals
+      if (parsed % 1 == 0) {
+        totalAmountController.text = parsed.toInt().toString();
+      } else {
+        // Keep up to 2 decimal places to preserve cents
+        totalAmountController.text = parsed.toStringAsFixed(2);
+      }
+
+      // Switch the button label to Update while editing
+      buttonText.value = 'Update'.tr;
+
+      // Note
+      noteController.text = transaction['note']?.toString() ?? '';
+
+      // Category - API may provide category object
+      final category = transaction['category'];
+      if (category is Map && category['name'] != null) {
+        selectedCategoryName.value = category['name'].toString();
+        // try to map to id if available
+        final catId = category['_id'] ?? category['id'];
+        if (catId != null) {
+          categoryIdMap[selectedCategoryName.value] = catId.toString();
+        }
+      } else if (transaction['categoryName'] != null) {
+        selectedCategoryName.value = transaction['categoryName'].toString();
+      }
+
+      // Date
+      final expenseDate =
+          transaction['expenseDate'] ??
+          transaction['createdAt'] ??
+          transaction['date'];
+      if (expenseDate != null && expenseDate.toString().isNotEmpty) {
+        try {
+          selectedDate.value = DateTime.parse(expenseDate.toString());
+        } catch (_) {}
+      }
+
+      // Paid by & shared with - try to populate names where possible
+      // This part is best-effort; UI will still allow manual edits.
+      try {
+        final paidBy = transaction['paidBy'] ?? transaction['paid_by'];
+        if (paidBy is Map && paidBy['memberEmail'] != null) {
+          final email = paidBy['memberEmail'].toString();
+          final name = _extractNameFromEmail(email);
+          selectedPaidByFriend.value = name;
+        }
+
+        final shareWith = transaction['shareWith'] ?? transaction['share_with'];
+        if (shareWith is Map && shareWith['members'] is List) {
+          selectedSharedWithFriends.clear();
+          for (var m in shareWith['members']) {
+            if (m is String) {
+              selectedSharedWithFriends.add(_extractNameFromEmail(m));
+            }
+          }
+        }
+      } catch (_) {}
+
+      debugPrint('✅ Loaded expense for editing: ${editingExpenseId.value}');
+    } catch (e) {
+      debugPrint('❌ Error in loadExpenseForEditing: $e');
+    }
+  }
+
+  // Update an existing group expense using Urls.updateGroupExpense
+  Future<bool> updateGroupExpense(String expenseId) async {
+    try {
+      if (expenseId.isEmpty) {
+        Get.snackbar('Error', 'Expense id missing');
+        return false;
+      }
+
+      // Get approval token
+      final token = await AuthService.getApprovalToken();
+      if (token == null || token.isEmpty) {
+        Get.snackbar('Error', 'Authentication required');
+        return false;
+      }
+
+      // Store token in StorageService for other controllers (best-effort)
+      try {
+        await StorageService.saveToken(token, StorageService.userId ?? '');
+      } catch (_) {}
+
+      // Build request headers
+      var headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      };
+
+      // Build request body from current form state (same shape as add)
+      double totalAmount = double.tryParse(totalAmountController.text) ?? 0.0;
+      if (totalAmount <= 0) {
+        Get.snackbar('Error', 'Please enter a valid amount greater than 0');
+        return false;
+      }
+
+      // Get category id
+      String? categoryId = categoryIdMap[selectedCategoryName.value];
+      if (categoryId == null || categoryId.isEmpty) categoryId = '';
+
+      String currentUserEmail = groupOwnerEmail.value.isNotEmpty
+          ? groupOwnerEmail.value
+          : (groupMembers.isNotEmpty ? groupMembers.first['email'] : '');
+
+      String? paidByMemberEmail;
+      if (selectedPaidByFriend.value.isNotEmpty) {
+        for (var member in groupMembers) {
+          if (member['name'] == selectedPaidByFriend.value) {
+            paidByMemberEmail = member['email'];
+            break;
+          }
+        }
+      }
+      if (paidByMemberEmail == null || paidByMemberEmail.isEmpty) {
+        paidByMemberEmail = currentUserEmail;
+      }
+
+      List<String> selectedMemberEmails = [];
+      if (selectedSharedWithFriends.isNotEmpty) {
+        for (String selectedFriendName in selectedSharedWithFriends) {
+          for (var member in groupMembers) {
+            if (member['name'] == selectedFriendName) {
+              selectedMemberEmails.add(member['email']);
+              break;
+            }
+          }
+        }
+      } else {
+        selectedMemberEmails = [currentUserEmail];
+      }
+
+      // De-duplicate selected members by email to avoid API duplicate error
+      selectedMemberEmails = selectedMemberEmails.toSet().toList();
+
+      final requestBody = {
+        "expenseDate":
+            selectedDate.value?.toIso8601String() ??
+            DateTime.now().toIso8601String(),
+        "totalExpenseAmount": totalAmount,
+        "currency": selectedCurrency.value.replaceAll('US\$', 'USD'),
+        "category": categoryId,
+        "note": noteController.text.isEmpty ? '' : noteController.text,
+        "paidBy": {
+          "type": isIndividualSelected.value ? "individual" : "multiple",
+          "memberEmail": paidByMemberEmail,
+        },
+        "shareWith": {
+          "type": isEquallySelected.value ? "equal" : "custom",
+          "members": selectedMemberEmails,
+        },
+      };
+
+      // Make PUT request
+      final groupId = currentGroupId.value;
+      if (groupId.isEmpty) {
+        Get.snackbar('Error', 'No group selected');
+        return false;
+      }
+
+      final url = Urls.updateGroupExpense(groupId, expenseId);
+      var request = http.Request('PUT', Uri.parse(url));
+      request.body = json.encode(requestBody);
+      request.headers.addAll(headers);
+
+      http.StreamedResponse response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final data = json.decode(respStr);
+          Get.snackbar('Success', data['message'] ?? 'Expense updated');
+        } catch (_) {
+          Get.snackbar('Success', 'Expense updated');
+        }
+
+        // Notify other controllers
+        try {
+          final eventController = Get.find<ExpenseEventController>();
+          eventController.notifyExpenseUpdated(groupId);
+        } catch (_) {}
+
+        try {
+          final expensesController = Get.find<ExpensesPageController>(
+            tag: groupId,
+          );
+          expensesController.refreshExpenses();
+        } catch (_) {}
+
+        return true;
+      } else {
+        try {
+          final err = json.decode(respStr);
+          Get.snackbar('Error', err['message'] ?? 'Update failed');
+        } catch (_) {
+          Get.snackbar(
+            'Error',
+            'Failed to update expense. Status: ${response.statusCode}',
+          );
+        }
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'An error occurred: $e');
+      return false;
+    }
+  }
+
+  // Delete a single expense from the group
+  // Returns true on success (any 2xx), false otherwise
+  Future<bool> deleteExpense(String expenseId) async {
+    try {
+      if (expenseId.isEmpty) {
+        debugPrint('❌ deleteExpense called with empty expenseId');
+        error.value = 'Expense id missing';
+        return false;
+      }
+
+      final groupId = currentGroupId.value;
+      if (groupId.isEmpty) {
+        debugPrint('❌ deleteExpense: no group selected');
+        error.value = 'No group selected';
+        return false;
+      }
+
+      // Get approval token (try storage first)
+      String? token = StorageService.token;
+      if (token == null || token.isEmpty) {
+        token = await AuthService.getApprovalToken();
+      }
+      if (token == null || token.isEmpty) {
+        debugPrint('🔐 deleteExpense: no token available');
+        error.value = 'Authentication required';
+        return false;
+      }
+
+      // Best-effort save token
+      try {
+        await StorageService.saveToken(token, StorageService.userId ?? '');
+      } catch (_) {}
+
+      final url = Urls.updateGroupExpense(groupId, expenseId);
+      debugPrint('🌐 deleteExpense -> DELETE $url');
+
+      var request = http.Request('DELETE', Uri.parse(url));
+      request.headers.addAll({
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      });
+
+      // No body required for deletion
+      http.StreamedResponse response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      debugPrint('📥 deleteExpense status: ${response.statusCode}');
+      debugPrint('📋 deleteExpense body: $respStr');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final data = json.decode(respStr);
+          Get.snackbar('Success', data['message'] ?? 'Expense deleted');
+        } catch (_) {
+          Get.snackbar('Success', 'Expense deleted');
+        }
+
+        // Notify other controllers to refresh
+        try {
+          final eventController = Get.find<ExpenseEventController>();
+          eventController.notifyExpenseUpdated(groupId);
+        } catch (_) {}
+
+        try {
+          final expensesController = Get.find<ExpensesPageController>(
+            tag: groupId,
+          );
+          expensesController.refreshExpenses();
+        } catch (_) {}
+
+        return true;
+      } else {
+        try {
+          final err = json.decode(respStr);
+          Get.snackbar('Error', err['message'] ?? 'Failed to delete expense');
+          error.value = err['message'] ?? 'Failed to delete expense';
+        } catch (_) {
+          Get.snackbar('Error', 'Failed to delete expense');
+          error.value = 'Failed to delete expense';
+        }
+        return false;
+      }
+    } catch (e) {
+      debugPrint('💥 deleteExpense exception: $e');
+      Get.snackbar('Error', 'An error occurred: $e');
+      error.value = 'Error deleting expense: $e';
+      return false;
+    }
+  }
+
+  // Delete the entire group (trip) using the backend API
+  // Returns true on success (any 2xx), false otherwise
+  Future<bool> deleteGroup(String groupId) async {
+    try {
+      if (groupId.isEmpty) {
+        debugPrint('❌ deleteGroup called with empty groupId');
+        error.value = 'Group id missing';
+        return false;
+      }
+
+      // Get approval token
+      final token = await AuthService.getApprovalToken();
+      if (token == null || token.isEmpty) {
+        debugPrint('🔐 deleteGroup: no token available');
+        error.value = 'Authentication required';
+        return false;
+      }
+
+      // Best-effort save token
+      try {
+        await StorageService.saveToken(token, StorageService.userId ?? '');
+      } catch (_) {}
+
+      final url = Urls.deleteGroup(groupId);
+      debugPrint('🌐 deleteGroup -> DELETE $url');
+
+      var request = http.Request('DELETE', Uri.parse(url));
+      request.headers.addAll({
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      });
+
+      http.StreamedResponse response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      debugPrint('📥 deleteGroup status: ${response.statusCode}');
+      debugPrint('📋 deleteGroup body: $respStr');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Optionally parse message
+        try {
+          final data = json.decode(respStr) as Map<String, dynamic>;
+          debugPrint('✅ deleteGroup success: ${data['message'] ?? data}');
+        } catch (_) {
+          debugPrint('✅ deleteGroup success (no json message)');
+        }
+
+        // Notify other controllers / UI to refresh or navigate away
+        try {
+          final eventController = Get.find<ExpenseEventController>();
+          eventController.notifyGroupDeleted(groupId);
+        } catch (_) {}
+
+        try {
+          // If an ExpensesPageController exists for this group, clear it
+          if (Get.isRegistered<ExpensesPageController>(tag: groupId)) {
+            final expensesController = Get.find<ExpensesPageController>(
+              tag: groupId,
+            );
+            expensesController.clearTripData();
+          }
+        } catch (_) {}
+
+        // Clear local state if this controller belonged to the deleted group
+        if (currentGroupId.value == groupId) {
+          clearAllTripData();
+        }
+
+        return true;
+      } else {
+        // Non-2xx - set error and log
+        debugPrint('❌ deleteGroup failed: ${response.statusCode} - $respStr');
+        try {
+          final err = json.decode(respStr);
+          error.value = err['message'] ?? 'Failed to delete group';
+        } catch (_) {
+          error.value = 'Failed to delete group';
+        }
+        return false;
+      }
+    } catch (e) {
+      debugPrint('💥 deleteGroup exception: $e');
+      error.value = 'Error deleting group: $e';
+      return false;
+    }
+  }
+
   // ----------------------------
   // ✅ Checkbox logic for Share with (Equally)
   // ----------------------------
@@ -146,6 +583,9 @@ class GroupTripSpentController extends GetxController {
     } else {
       selectedSharedWithFriends.remove(friendName);
     }
+
+    // Update equal share calculation when friend selection changes
+    updateEqualShareCalculation();
   }
 
   bool isFriendChecked(String friendName) {
@@ -260,6 +700,116 @@ class GroupTripSpentController extends GetxController {
   final TextEditingController customTotalController = TextEditingController();
   final TextEditingController multipleTotalController = TextEditingController();
 
+  // Observable variables for live calculations (PaidByMultiple)
+  final RxDouble _multipleFriendTotal = 0.0.obs;
+  final RxDouble _mainTotal = 0.0.obs;
+  final RxString _comparisonText = '0 / 0'.obs;
+  final RxBool _amountsMatch = false.obs;
+
+  // Observable variables for live calculations (ShareWithCustom)
+  final RxDouble _customFriendTotal = 0.0.obs;
+  final RxDouble _customMainTotal = 0.0.obs; // Separate main total for custom
+  final RxString _customComparisonText = '0 / 0'.obs;
+  final RxBool _customAmountsMatch = false.obs;
+
+  // Calculate total of multiple friend amounts
+  void updateMultipleFriendTotal() {
+    double total = 0.0;
+    for (var controller in multipleFriendControllers.values) {
+      final text = controller.text.trim();
+      if (text.isNotEmpty) {
+        total += double.tryParse(text) ?? 0.0;
+      }
+    }
+    _multipleFriendTotal.value = total;
+    _updateComparison();
+  }
+
+  // Update main total amount (original PaidByMultiple functionality)
+  void updateMainTotal() {
+    final text = totalAmountController.text.trim();
+    _mainTotal.value = double.tryParse(text) ?? 0.0;
+    _updateComparison();
+  }
+
+  // Update main total for custom calculations (separate method for ShareWithCustom)
+  void updateMainTotalForCustom() {
+    final text = totalAmountController.text.trim();
+    _customMainTotal.value =
+        double.tryParse(text) ?? 0.0; // Use separate custom main total
+    _updateCustomComparison(); // Only update custom comparison, not the original
+  }
+
+  // Update comparison and match status
+  void _updateComparison() {
+    final friendTotal = _multipleFriendTotal.value;
+    final mainTotal = _mainTotal.value;
+
+    _comparisonText.value =
+        '${friendTotal.toStringAsFixed(0)} / ${mainTotal.toStringAsFixed(0)}';
+    _amountsMatch.value = (friendTotal == mainTotal && mainTotal > 0);
+  }
+
+  // Getters for reactive access (PaidByMultiple)
+  RxDouble get multipleFriendAmountsTotal => _multipleFriendTotal;
+  RxDouble get mainTotalAmount => _mainTotal;
+  RxBool get doAmountsMatch => _amountsMatch;
+  RxString get totalComparisonText => _comparisonText;
+
+  // Calculate total of custom friend amounts
+  void updateCustomFriendTotal() {
+    double total = 0.0;
+    for (var controller in customFriendControllers.values) {
+      final text = controller.text.trim();
+      if (text.isNotEmpty) {
+        total += double.tryParse(text) ?? 0.0;
+      }
+    }
+    _customFriendTotal.value = total;
+    _updateCustomComparison();
+  }
+
+  // Update custom comparison and match status
+  void _updateCustomComparison() {
+    final customTotal = _customFriendTotal.value;
+    final mainTotal =
+        _customMainTotal.value; // Use custom main total instead of shared one
+
+    _customComparisonText.value =
+        '${customTotal.toStringAsFixed(0)} / ${mainTotal.toStringAsFixed(0)}';
+    _customAmountsMatch.value = (customTotal == mainTotal && mainTotal > 0);
+  }
+
+  // Getters for reactive access (ShareWithCustom)
+  RxDouble get customFriendAmountsTotal => _customFriendTotal;
+  RxDouble get customMainTotal => _customMainTotal;
+  RxBool get doCustomAmountsMatch => _customAmountsMatch;
+  RxString get customComparisonText => _customComparisonText;
+
+  // Observable variables for ShareWithEqual live calculations
+  final RxString _equalTotalText = 'Total 0 / Per person 0'.obs;
+
+  // Calculate equal share amounts
+  void updateEqualShareCalculation() {
+    final totalAmount =
+        double.tryParse(totalAmountController.text.trim()) ?? 0.0;
+    final selectedCount = selectedSharedWithFriends.length;
+
+    if (selectedCount > 0 && totalAmount > 0) {
+      final perPersonAmount = totalAmount / selectedCount;
+      _equalTotalText.value =
+          'Total ${totalAmount.toStringAsFixed(0)} / Per person ${perPersonAmount.toStringAsFixed(0)}';
+    } else if (totalAmount > 0) {
+      _equalTotalText.value =
+          'Total ${totalAmount.toStringAsFixed(0)} / Per person 0';
+    } else {
+      _equalTotalText.value = 'Total 0 / Per person 0';
+    }
+  }
+
+  // Getter for reactive access (ShareWithEqual)
+  RxString get equalTotalText => _equalTotalText;
+
   void onTotalAmountFocusChange(bool hasFocus) {
     isTotalAmountFocused.value = hasFocus;
   }
@@ -275,6 +825,13 @@ class GroupTripSpentController extends GetxController {
     // Add focus listener
     totalAmountFocusNode.addListener(() {
       isTotalAmountFocused.value = totalAmountFocusNode.hasFocus;
+    });
+
+    // Add listener to totalAmountController to trigger updates when amount changes
+    totalAmountController.addListener(() {
+      updateMainTotal(); // Update live calculations for PaidByMultiple
+      updateMainTotalForCustom(); // Update live calculations for ShareWithCustom
+      updateEqualShareCalculation(); // Update live calculations for ShareWithEqual
     });
 
     // Auto-focus after a delay
@@ -317,7 +874,27 @@ class GroupTripSpentController extends GetxController {
     Map<String, TextEditingController> map,
   ) {
     if (!map.containsKey(friendName)) {
-      map[friendName] = TextEditingController();
+      final controller = TextEditingController();
+      // Add listener to update calculations when amount changes
+      controller.addListener(() {
+        updateMultipleFriendTotal(); // Update live calculations for PaidByMultiple
+      });
+      map[friendName] = controller;
+    }
+  }
+
+  // Separate method for custom controllers to avoid changing PaidByMultiple functionality
+  void initializeCustomFriendControllerIfAbsent(
+    String friendName,
+    Map<String, TextEditingController> map,
+  ) {
+    if (!map.containsKey(friendName)) {
+      final controller = TextEditingController();
+      // Add listener to update calculations when amount changes
+      controller.addListener(() {
+        updateCustomFriendTotal(); // Update live calculations for ShareWithCustom
+      });
+      map[friendName] = controller;
     }
   }
 
@@ -694,6 +1271,72 @@ class GroupTripSpentController extends GetxController {
 
   Future<void> addGroupExpense() async {
     try {
+      // Helper to map a display name (possibly truncated) back to an email
+      String findEmailByDisplayName(String displayName) {
+        for (var member in groupMembers) {
+          final fullName = (member['name'] ?? '').toString();
+          final candidate = fullName.length > 10
+              ? fullName.substring(0, 10)
+              : fullName;
+          if (candidate == displayName) return member['email'];
+        }
+        // fallback to current user or empty
+        return groupOwnerEmail.value.isNotEmpty
+            ? groupOwnerEmail.value
+            : (groupMembers.isNotEmpty ? groupMembers.first['email'] : '');
+      }
+
+      // Build paidBy structure: supports individual and multiple payments
+      Map<String, dynamic> buildPaidBy(
+        double totalAmount,
+        String paidByMemberEmail,
+      ) {
+        if (isIndividualSelected.value) {
+          return {"type": "individual", "memberEmail": paidByMemberEmail};
+        }
+
+        List<Map<String, dynamic>> payments = [];
+        multipleFriendControllers.forEach((displayName, amtController) {
+          if (amtController.text.isNotEmpty) {
+            final amt = double.tryParse(amtController.text) ?? 0.0;
+            if (amt > 0) {
+              final email = findEmailByDisplayName(displayName);
+              payments.add({"memberEmail": email, "amount": amt});
+            }
+          }
+        });
+
+        if (payments.isEmpty) {
+          payments.add({
+            "memberEmail": paidByMemberEmail,
+            "amount": totalAmount,
+          });
+        }
+
+        return {
+          "type": "multiple",
+          "amount": totalAmount,
+          "payments": payments,
+        };
+      }
+
+      // If we're editing an existing expense, delegate to update endpoint
+      if (editingExpenseId.value.isNotEmpty) {
+        debugPrint(
+          '✏️ Detected edit mode for expense: ${editingExpenseId.value}, calling update',
+        );
+        final updated = await updateGroupExpense(editingExpenseId.value);
+        if (updated) {
+          // clear editing state and form
+          editingExpenseId.value = '';
+          clearForm();
+          // Close the edit screen and return to the previous page (expenses list)
+          try {
+            Get.back();
+          } catch (_) {}
+        }
+        return;
+      }
       isLoading.value = true;
 
       // Enhanced validation
@@ -825,8 +1468,21 @@ class GroupTripSpentController extends GetxController {
                 ? groupMembers.first['email']
                 : "unknown@email.com");
 
-      // Determine paid by member email - for now use current user (can be enhanced later)
-      String paidByMemberEmail = currentUserEmail;
+      // Determine paid by member email - prefer the user selected in Paid-by (if any)
+      String? paidByMemberEmail;
+      if (selectedPaidByFriend.value.isNotEmpty) {
+        for (var member in groupMembers) {
+          if (member['name'] == selectedPaidByFriend.value) {
+            paidByMemberEmail = member['email'];
+            break;
+          }
+        }
+      }
+
+      // Fall back to currentUserEmail (owner or first member) if no selection/found
+      if (paidByMemberEmail == null || paidByMemberEmail.isEmpty) {
+        paidByMemberEmail = currentUserEmail;
+      }
 
       // Prepare request body based on sharing type
       Map<String, dynamic> requestBody;
@@ -859,6 +1515,52 @@ class GroupTripSpentController extends GetxController {
           selectedMemberEmails.insert(0, currentUserEmail);
         }
 
+        // Helper to map a display name (possibly truncated) back to an email
+        String findEmailByDisplayName(String displayName) {
+          for (var member in groupMembers) {
+            final fullName = (member['name'] ?? '').toString();
+            final candidate = fullName.length > 10
+                ? fullName.substring(0, 10)
+                : fullName;
+            if (candidate == displayName) return member['email'];
+          }
+          // fallback to currentUserEmail
+          return currentUserEmail;
+        }
+
+        // Build paidBy for multiple-payments if needed
+        Map<String, dynamic> buildPaidBy(double totalAmount) {
+          if (isIndividualSelected.value) {
+            return {"type": "individual", "memberEmail": paidByMemberEmail};
+          }
+
+          // multiple payments
+          List<Map<String, dynamic>> payments = [];
+          multipleFriendControllers.forEach((displayName, amtController) {
+            if (amtController.text.isNotEmpty) {
+              final amt = double.tryParse(amtController.text) ?? 0.0;
+              if (amt > 0) {
+                final email = findEmailByDisplayName(displayName);
+                payments.add({"memberEmail": email, "amount": amt});
+              }
+            }
+          });
+
+          // If no payments were provided, fallback to single payer
+          if (payments.isEmpty) {
+            payments.add({
+              "memberEmail": paidByMemberEmail,
+              "amount": totalAmount,
+            });
+          }
+
+          return {
+            "type": "multiple",
+            "amount": totalAmount,
+            "payments": payments,
+          };
+        }
+
         requestBody = {
           "expenseDate":
               selectedDate.value?.toIso8601String() ??
@@ -867,11 +1569,10 @@ class GroupTripSpentController extends GetxController {
               double.tryParse(totalAmountController.text) ?? 0.0,
           "currency": currencyCode,
           "category": categoryId,
-          "note": noteController.text.isEmpty ? "No note" : noteController.text,
-          "paidBy": {
-            "type": isIndividualSelected.value ? "individual" : "multiple",
-            "memberEmail": paidByMemberEmail,
-          },
+          "note": noteController.text.isEmpty ? "" : noteController.text,
+          "paidBy": buildPaidBy(
+            double.tryParse(totalAmountController.text) ?? 0.0,
+          ),
           "shareWith": {"type": "equal", "members": selectedMemberEmails},
         };
       } else {
@@ -903,6 +1604,7 @@ class GroupTripSpentController extends GetxController {
           });
         }
 
+        // Build paidBy structure for custom share branch using helper
         requestBody = {
           "expenseDate":
               selectedDate.value?.toIso8601String() ??
@@ -911,30 +1613,47 @@ class GroupTripSpentController extends GetxController {
               double.tryParse(totalAmountController.text) ?? 0.0,
           "currency": currencyCode,
           "category": categoryId,
-          "note": noteController.text.isEmpty ? "No note" : noteController.text,
-          "paidBy": {
-            "type": isIndividualSelected.value ? "individual" : "multiple",
-            "memberEmail": paidByMemberEmail,
-          },
+          "note": noteController.text.isEmpty ? "" : noteController.text,
+          "paidBy": buildPaidBy(
+            double.tryParse(totalAmountController.text) ?? 0.0,
+            paidByMemberEmail,
+          ),
           "shareWith": {"type": "custom", "shares": shares},
         };
       }
 
-      // Debug log the request body
-
-      // Validate that we have valid member emails
+      // Validate that we have valid member emails and de-duplicate share arrays
       if (isEquallySelected.value) {
         final selectedMemberEmails =
             requestBody['shareWith']['members'] as List<String>;
 
         // Ensure all emails are valid (not duplicates or placeholders)
         final uniqueEmails = selectedMemberEmails.toSet().toList();
-        if (uniqueEmails.length != selectedMemberEmails.length) {}
+        // Assign back to remove duplicates (preserves insertion order)
+        requestBody['shareWith']['members'] = uniqueEmails;
       } else {
-        // ignore: unused_local_variable
-        final shares =
-            requestBody['shareWith']['shares'] as List<Map<String, dynamic>>;
+        // De-duplicate shares by memberEmail (sum amounts for duplicates)
+        final List<dynamic> rawShares = List<dynamic>.from(
+          requestBody['shareWith']['shares'] ?? [],
+        );
+        final Map<String, double> byEmail = {};
+        for (final s in rawShares) {
+          if (s is Map && s['memberEmail'] != null) {
+            final email = s['memberEmail'].toString();
+            final amt = (s['amount'] is num)
+                ? (s['amount'] as num).toDouble()
+                : double.tryParse(s['amount'].toString()) ?? 0.0;
+            byEmail[email] = (byEmail[email] ?? 0.0) + amt;
+          }
+        }
+        final deduped = byEmail.entries
+            .map((e) => {'memberEmail': e.key, 'amount': e.value})
+            .toList();
+        requestBody['shareWith']['shares'] = deduped;
       }
+
+      // Optional: log request body for debugging
+      debugPrint('addGroupExpense requestBody: ${json.encode(requestBody)}');
 
       // Make API request
       var request = http.Request(
@@ -949,14 +1668,11 @@ class GroupTripSpentController extends GetxController {
       // Debug response
       String responseString = await response.stream.bytesToString();
 
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         var responseData = json.decode(responseString);
-
-        Get.snackbar(
-          'Success',
-          responseData['message'] ?? 'Group expense added successfully',
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
+        debugPrint(
+          'addGroupExpense success: ${responseData['message']?.toString() ??
+                  'Group expense added successfully'}',
         );
 
         // Clear form after successful submission
@@ -1000,32 +1716,21 @@ class GroupTripSpentController extends GetxController {
           Get.off(() => GroupTripHomeScreen(trip: trip));
         });
       } else {
-        // Show detailed error message
+        // Log detailed error message
         try {
           var errorData = json.decode(responseString);
-          Get.snackbar(
-            'Error',
-            'Failed to add expense: ${errorData['message'] ?? response.reasonPhrase}',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+          debugPrint(
+            'addGroupExpense error: Failed to add expense: ${errorData['message'] ?? response.reasonPhrase}',
           );
         } catch (e) {
-          Get.snackbar(
-            'Error',
-            'Failed to add expense. Status: ${response.statusCode}, Error: $responseString',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+          debugPrint(
+            'addGroupExpense error: Failed to add expense. Status: ${response.statusCode}, Error: $responseString',
           );
         }
       }
     } catch (e) {
       // Debug log
-      Get.snackbar(
-        'Error',
-        'An error occurred: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      debugPrint('addGroupExpense exception: $e');
     } finally {
       isLoading.value = false;
     }
@@ -1314,10 +2019,44 @@ class GroupTripSpentController extends GetxController {
             friendCheckStates[friendName] = false;
           }
 
-          // Start with no selections
-          selectedPaidByFriend.value = '';
-          selectedSharedWithFriend.value = '';
-          debugPrint('🎯 All members initialized as deselected');
+          // If no shared-with selections exist yet, default to selecting all members
+          // This ensures the main screen shows the default "X people" without opening the bottom sheet.
+          if (selectedSharedWithFriends.isEmpty && friendNames.isNotEmpty) {
+            selectedSharedWithFriends.assignAll(friendNames);
+            for (final f in friendNames) {
+              friendCheckStates[f] = true;
+            }
+            debugPrint('🎯 Defaulted selectedSharedWithFriends to all members');
+          }
+
+          // Start with no selections, but default Paid-by to the current user if present
+          final currentUserEmail = await getCurrentUserEmail();
+          String defaultPaidByName = '';
+          if (currentUserEmail != null && currentUserEmail.isNotEmpty) {
+            try {
+              final matched = processedMembers.firstWhere(
+                (m) =>
+                    (m['email']?.toString() ?? '').toLowerCase() ==
+                    currentUserEmail.toLowerCase(),
+              );
+              defaultPaidByName = matched['name'] as String? ?? '';
+            } catch (_) {
+              // no match found
+            }
+          }
+
+          if (defaultPaidByName.isNotEmpty) {
+            selectedPaidByFriend.value = defaultPaidByName;
+            // Keep selectedSharedWithFriend aligned with paid-by for individual flows
+            selectedSharedWithFriend.value = defaultPaidByName;
+            debugPrint(
+              '🎯 Default paid-by set to current user: $defaultPaidByName',
+            );
+          } else {
+            selectedPaidByFriend.value = '';
+            selectedSharedWithFriend.value = '';
+            debugPrint('🎯 All members initialized as deselected');
+          }
 
           // Initialize text controllers for each member
           for (var member in processedMembers) {
@@ -1468,7 +2207,10 @@ class GroupTripSpentController extends GetxController {
         for (String friendName in selectedSharedWithFriends) {
           for (var member in groupMembers) {
             if (member['name'] == friendName) {
-              shareWithEmails.add(member['email']);
+              final email = member['email'];
+              if (!shareWithEmails.contains(email)) {
+                shareWithEmails.add(email);
+              }
               break;
             }
           }
@@ -1477,30 +2219,32 @@ class GroupTripSpentController extends GetxController {
         // Individual selection - use the selected friend
         for (var member in groupMembers) {
           if (member['name'] == selectedSharedWithFriend.value) {
-            shareWithEmails.add(member['email']);
+            final email = member['email'];
+            if (!shareWithEmails.contains(email)) {
+              shareWithEmails.add(email);
+            }
             break;
           }
         }
       }
 
       if (shareWithEmails.isEmpty) {
-        Get.snackbar(
-          'Error',
-          'Please select at least one member to share the expense with',
+        debugPrint(
+          'saveExpenseWithMembers: Please select at least one member to share the expense with',
         );
         return;
       }
+
+      // De-duplicate any duplicates just in case
+      shareWithEmails = shareWithEmails.toSet().toList();
 
       // Get category ID from dynamic mapping
       String? categoryId = categoryIdMap[selectedType.value];
 
       // If category ID not found, show error
       if (categoryId == null || categoryId.isEmpty) {
-        Get.snackbar(
-          'Error',
-          'Category ID not found. Please select a valid category.',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+        debugPrint(
+          'saveExpenseWithMembers: Category ID not found. Please select a valid category.',
         );
         return;
       }
@@ -1539,11 +2283,8 @@ class GroupTripSpentController extends GetxController {
         addGroupExpenseUrl = Urls.addGroupExpense(currentGroupId.value);
       } else {
         // Cannot proceed without a valid group ID
-        Get.snackbar(
-          'Error',
-          'No group selected. Please select a group first.',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+        debugPrint(
+          'saveExpenseWithMembers: No group selected. Please select a group first.',
         );
         return;
       }
@@ -1556,45 +2297,31 @@ class GroupTripSpentController extends GetxController {
       http.StreamedResponse response = await request.send();
       final responseString = await response.stream.bytesToString();
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         final responseData = json.decode(responseString);
 
         if (responseData['success'] == true) {
-          Get.snackbar(
-            'Success',
-            'Expense saved successfully!',
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
+          debugPrint('saveExpenseWithMembers: Expense saved successfully!');
 
           // Clear form after success
           clearForm();
 
           // Close any open bottomsheets
-          Get.back();
+          try {
+            Get.back();
+          } catch (_) {}
         } else {
-          Get.snackbar(
-            'Error',
-            responseData['message'] ?? 'Failed to save expense',
-            backgroundColor: Colors.red,
-            colorText: Colors.white,
+          debugPrint(
+            'saveExpenseWithMembers error: ${responseData['message'] ?? 'Failed to save expense'}',
           );
         }
       } else {
-        Get.snackbar(
-          'Error',
-          'Failed to save expense. Status: ${response.statusCode}',
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+        debugPrint(
+          'saveExpenseWithMembers error: Failed to save expense. Status: ${response.statusCode}',
         );
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'An error occurred: $e',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      debugPrint('saveExpenseWithMembers exception: $e');
     } finally {
       isLoading.value = false;
     }
@@ -1610,6 +2337,35 @@ class GroupTripSpentController extends GetxController {
 
     // Clear friend selection states
     clearFriendSelections();
+
+    // Clear all amount input fields for PaidByMultiple and ShareWithCustom
+    try {
+      multipleFriendControllers.forEach((_, c) => c.clear());
+      customFriendControllers.forEach((_, c) => c.clear());
+      equalFriendControllers.forEach((_, c) => c.clear());
+      multipleTotalController.clear();
+      customTotalController.clear();
+      equalTotalController.clear();
+    } catch (_) {}
+
+    // Reset computed totals/comparison flags so UI starts fresh
+    _multipleFriendTotal.value = 0.0;
+    _mainTotal.value = 0.0;
+    _comparisonText.value = '0 / 0';
+    _amountsMatch.value = false;
+    _customFriendTotal.value = 0.0;
+    _customMainTotal.value = 0.0;
+    _customComparisonText.value = '0 / 0';
+    _customAmountsMatch.value = false;
+    _equalTotalText.value = 'Total 0 / Per person 0';
+
+    // Reset toggles to defaults
+    isEquallySelected.value = true;
+    isIndividualSelected.value = true;
+    isMultipleSelected.value = false;
+
+    // Reset button label to default
+    buttonText.value = 'Save'.tr;
   }
 
   // Separate method to clear only friend selections
@@ -1619,6 +2375,14 @@ class GroupTripSpentController extends GetxController {
     selectedPaidByFriend.value = '';
     selectedSharedWithFriend.value = '';
     debugPrint('🧹 Cleared all friend selection states');
+  }
+
+  // Clear only the "Share with" related selections (leave PaidBy selection intact)
+  void clearSharedWithSelections() {
+    friendCheckStates.clear();
+    selectedSharedWithFriends.clear();
+    selectedSharedWithFriend.value = '';
+    debugPrint('🧹 Cleared shared-with selection states (paid-by preserved)');
   }
 
   @override

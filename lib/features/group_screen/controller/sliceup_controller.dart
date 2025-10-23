@@ -107,7 +107,8 @@ class SliceUpController extends GetxController {
           if (data['group'] != null) {
             groupData.clear();
             groupData.addAll(data['group']);
-            debugPrint('📊 [SLICEUP_CONTROLLER] Group data: ${groupData}');
+
+            debugPrint('📊 [SLICEUP_CONTROLLER] Group data: $groupData');
           }
 
           // Update summary data
@@ -115,7 +116,8 @@ class SliceUpController extends GetxController {
             summaryData.clear();
             summaryData.addAll(data['summary']);
             _formatSummaryAmounts();
-            debugPrint('📊 [SLICEUP_CONTROLLER] Summary data: ${summaryData}');
+
+            debugPrint('📊 [SLICEUP_CONTROLLER] Summary data: $summaryData');
           }
 
           // Update settlements
@@ -169,19 +171,27 @@ class SliceUpController extends GetxController {
   // Helper method to format summary amounts for UI display
   void _formatSummaryAmounts() {
     if (summaryData.isNotEmpty) {
-      // Format you'll pay amount
+      // Prefer normalized 'youllPay'/'youllCollect' map entries.
       if (summaryData['youllPay'] != null) {
         final payData = summaryData['youllPay'] as Map<String, dynamic>;
         final currency = payData['currency'] ?? 'USD';
         final amount = payData['amount'] ?? 0;
         youllPayAmount.value = _formatCurrency(amount, currency);
+      } else if (summaryData['totalUserBorrowed'] != null) {
+        // Some API responses provide totals directly
+        final amount = summaryData['totalUserBorrowed'] ?? 0;
+        final currency = summaryData['currency'] ?? 'USD';
+        youllPayAmount.value = _formatCurrency(amount, currency);
       }
 
-      // Format you'll collect amount
       if (summaryData['youllCollect'] != null) {
         final collectData = summaryData['youllCollect'] as Map<String, dynamic>;
         final currency = collectData['currency'] ?? 'USD';
         final amount = collectData['amount'] ?? 0;
+        youllCollectAmount.value = _formatCurrency(amount, currency);
+      } else if (summaryData['totalUserLent'] != null) {
+        final amount = summaryData['totalUserLent'] ?? 0;
+        final currency = summaryData['currency'] ?? 'USD';
         youllCollectAmount.value = _formatCurrency(amount, currency);
       }
 
@@ -282,6 +292,8 @@ class SliceUpController extends GetxController {
         return [];
       }
 
+      // Map all settlements (including historical) to UI entries so the
+      // SliceUp page shows both active and historical settlements.
       return settlements.map<IndividualTransactionEntry>((settlement) {
         // API returns: {"from": "email", "to": "email", "amount": 300}
         final fromEmail = settlement['from'] ?? '';
@@ -310,6 +322,34 @@ class SliceUpController extends GetxController {
         '❌ [SLICEUP_CONTROLLER] Error getting individual transactions: $e',
       );
       return [];
+    }
+  }
+
+  /// Return settlements that are not historical (i.e., still active / not settled)
+  List<Map<String, dynamic>> getActiveSettlements() {
+    try {
+      return settlements
+          .where(
+            (s) => (s['isHistorical'] == null) || (s['isHistorical'] == false),
+          )
+          .toList();
+    } catch (e) {
+      debugPrint(
+        '❌ [SLICEUP_CONTROLLER] Error filtering active settlements: $e',
+      );
+      return settlements.toList();
+    }
+  }
+
+  /// Return settlements that are historical (i.e., already settled)
+  List<Map<String, dynamic>> getHistoricalSettlements() {
+    try {
+      return settlements.where((s) => s['isHistorical'] == true).toList();
+    } catch (e) {
+      debugPrint(
+        '❌ [SLICEUP_CONTROLLER] Error filtering historical settlements: $e',
+      );
+      return <Map<String, dynamic>>[];
     }
   }
 
@@ -438,8 +478,9 @@ class SliceUpController extends GetxController {
     );
     debugPrint('🔍 [SLICEUP_CONTROLLER] isLoading: ${isLoading.value}');
     debugPrint('🔍 [SLICEUP_CONTROLLER] error: ${error.value}');
-    debugPrint('🔍 [SLICEUP_CONTROLLER] groupData: ${groupData}');
-    debugPrint('🔍 [SLICEUP_CONTROLLER] summaryData: ${summaryData}');
+
+    debugPrint('🔍 [SLICEUP_CONTROLLER] groupData: $groupData');
+    debugPrint('🔍 [SLICEUP_CONTROLLER] summaryData: $summaryData');
     debugPrint(
       '🔍 [SLICEUP_CONTROLLER] settlements count: ${settlements.length}',
     );

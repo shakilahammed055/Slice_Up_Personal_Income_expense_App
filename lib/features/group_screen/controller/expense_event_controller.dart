@@ -41,4 +41,12 @@ class ExpenseEventController extends GetxController {
     expenseUpdateTrigger.clear();
     debugPrint("🧹 [EXPENSE_EVENT] Cleared all expense update triggers");
   }
+
+  /// Notify that an entire group was deleted. Consumers can react to this by
+  /// checking group IDs and cleaning up related controllers/UI.
+  void notifyGroupDeleted(String groupId) {
+    // Use the same map to signal with a special negative value (or simply log)
+    expenseUpdateTrigger[groupId] = (expenseUpdateTrigger[groupId] ?? 0) - 1;
+    debugPrint('📢 [EXPENSE_EVENT] Notified group deleted: $groupId');
+  }
 }

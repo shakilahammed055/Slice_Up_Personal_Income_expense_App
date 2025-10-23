@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:math';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_add_new_friend_controller.dart';
+import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_trip_add_new_friend_bottom.dart';
 
@@ -15,15 +17,17 @@ class GroupTripAddNewFriend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final GroupTripAddNewFriendController friendSelectionController = Get.put(
-      GroupTripAddNewFriendController(),
-    );
+    final String tag = trip.id ?? 'default';
+    final GroupTripAddNewFriendController friendSelectionController =
+        Get.isRegistered<GroupTripAddNewFriendController>(tag: tag)
+        ? Get.find<GroupTripAddNewFriendController>(tag: tag)
+        : Get.put(GroupTripAddNewFriendController(), tag: tag);
 
     // Set the current trip for persistence
     friendSelectionController.setCurrentTrip(trip.name, tripId: trip.id);
 
     // Define the maximum number of friend avatars to display before the '+' icon
-    const int maxVisibleFriendsAvatars = 99; // Adjust this number as needed
+    const int maxVisibleFriendsAvatars = 50; // Adjust this number as needed
 
     return Row(
       children: [
@@ -31,8 +35,39 @@ class GroupTripAddNewFriend extends StatelessWidget {
           final selectedFriends = friendSelectionController.selectedFriendNames;
           List<Widget> avatars = [];
 
-          // 1. Add the Trip's CircleAvatar first
-          if (trip.name.isNotEmpty) {
+          // 1. Add the Trip's CircleAvatar first - use owner email initial and random color if available
+          // Try to get owner email from GroupTripSpentController; fallback to trip.name
+          String ownerInitial = '';
+          Color ownerBgColor = friendSelectionController.getAvatarColor(0);
+          try {
+            if (Get.isRegistered<GroupTripSpentController>()) {
+              final spentCtrl = Get.find<GroupTripSpentController>();
+              final ownerEmail = spentCtrl.groupOwnerEmail.value;
+              if (ownerEmail.isNotEmpty) {
+                final localPart = ownerEmail.split('@')[0];
+                if (localPart.isNotEmpty) {
+                  ownerInitial = localPart[0].toUpperCase();
+                }
+              }
+            }
+          } catch (e) {
+            // ignore - we'll fallback to trip.name
+          }
+
+          // Do not fall back to trip.name - we only show an owner avatar when owner email is available
+
+          // Pick a random color index for the avatar background so it's not always green
+          try {
+            final rand = Random();
+            final colorIndex = rand.nextInt(
+              friendSelectionController.avatarColors.length,
+            );
+            ownerBgColor = friendSelectionController.getAvatarColor(colorIndex);
+          } catch (e) {
+            ownerBgColor = friendSelectionController.getAvatarColor(0);
+          }
+
+          if (ownerInitial.isNotEmpty) {
             avatars.add(
               Positioned(
                 left: 0, // It's the first avatar, so its position is 0
@@ -43,7 +78,6 @@ class GroupTripAddNewFriend extends StatelessWidget {
                       color: isDark
                           ? AppColors.backgroundDark
                           : AppColors.textWhite,
-                      // color: AppColors.textWhite,
                       width: 2.0,
                     ),
                     boxShadow: [
@@ -57,10 +91,10 @@ class GroupTripAddNewFriend extends StatelessWidget {
                   ),
                   child: CircleAvatar(
                     radius: 13,
-                    backgroundColor: AppColors.green,
+                    backgroundColor: ownerBgColor,
                     child: Center(
                       child: Text(
-                        trip.name[0].toUpperCase(),
+                        ownerInitial,
                         style: getTextStyle2(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -80,10 +114,10 @@ class GroupTripAddNewFriend extends StatelessWidget {
               ? maxVisibleFriendsAvatars
               : selectedFriends.length;
 
-          // Offset for friend avatars, starting after the trip avatar
-          // If trip.name is empty, the offset for friends starts from 0 (no trip avatar)
-          // Otherwise, it starts after the trip avatar's width (2*radius + overlap)
-          double currentLeftPosition = (trip.name.isNotEmpty ? 27.0 : 0.0);
+          // Offset for friend avatars, starting after the owner avatar
+          // If ownerInitial is empty, the offset for friends starts from 0 (no owner avatar)
+          // Otherwise, it starts after the owner avatar's width (2*radius + overlap)
+          double currentLeftPosition = (ownerInitial.isNotEmpty ? 27.0 : 0.0);
 
           // 2. Add CircleAvatars for each selected friend up to the determined limit
           for (int i = 0; i < numFriendAvatarsToRender; i++) {

@@ -41,9 +41,7 @@ class BottomNavbarView extends StatelessWidget {
                   width: MediaQuery.of(context).size.width * 0.9,
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
                   decoration: BoxDecoration(
-                    color: isDark
-                        ? Color(0xFF262626)
-                        : AppColors.textWhite,
+                    color: isDark ? Color(0xFF262626) : AppColors.textWhite,
                     borderRadius: BorderRadius.circular(79),
                     boxShadow: [
                       BoxShadow(
@@ -57,8 +55,7 @@ class BottomNavbarView extends StatelessWidget {
                     rippleColor: Color(0xffEDEDF0),
                     hoverColor: Colors.blue[100]!,
                     gap: 5,
-                    activeColor: 
-                     isDark
+                    activeColor: isDark
                         ? AppColors.textWhite
                         : AppColors.backgroundDark,
                     // Colors.black,

@@ -22,8 +22,9 @@ class _GroupTripSharedWithBottomState extends State<GroupTripSharedWithBottom> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = Get.find<GroupTripSpentController>();
 
-      // Clear any previous selections when opening the bottom sheet
-      controller.clearFriendSelections();
+      // Clear any previous Share-with selections when opening the bottom sheet
+      // but preserve the Paid-by selection so users don't lose their choice.
+      controller.clearSharedWithSelections();
 
       if (controller.friendNames.isEmpty) {
         controller.getGroupMembers();

@@ -27,11 +27,15 @@ class ExpenseScreen extends StatelessWidget {
     final FocusNode amountFocusNode = FocusNode();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final expenseController = Get.find<ExpenseController>();
+      if (Get.arguments != null) {
+        expenseController.loadForEdit(Get.arguments as Map<String, dynamic>);
+      }
       amountFocusNode.requestFocus();
     });
 
     return Scaffold(
-      backgroundColor:  isDark ? AppColors.backgroundDark : AppColors.textWhite,
+      backgroundColor: isDark ? AppColors.backgroundDark : AppColors.textWhite,
       appBar: AppBar(
         backgroundColor: isDark
             ? AppColors.backgroundDark
@@ -49,31 +53,42 @@ class ExpenseScreen extends StatelessWidget {
           },
         ),
         actions: [
-          IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/delete.svg',
-              height: 17.h,
-              width: 15.w,
-             color:  isDark ? AppColors.textWhite : AppColors.backgroundDark,
-            ),
-            onPressed: () {
-              showCupertinoDialog(
-                context: context,
-                builder: (BuildContext context) => ConfirmationDialog(
-                  title: 'Are you sure you want to delete?'.tr,
-                  content: 'You won’t be able to undo this.'.tr,
-                  button1: 'No'.tr,
-                  button2: 'Yes'.tr,
-                  onConfirm: () {
-                    // ✅ Custom logic on confirm
-                    Get.find<ExpenseController>().clearForm();
-                    Get.snackbar('Success'.tr, 'Entry deleted successfully'.tr);
-                  },
-                ),
-              );
-            },
-          )
-
+          Obx(() {
+            final expenseController = Get.find<ExpenseController>();
+            final title = expenseController.isEditing.value
+                ? 'Are you sure you want to delete?'.tr
+                : 'Discard changes?'.tr;
+            final content = expenseController.isEditing.value
+                ? 'You won’t be able to undo this.'.tr
+                : 'Changes will be lost.'.tr;
+            return IconButton(
+              icon: SvgPicture.asset(
+                'assets/icons/delete.svg',
+                height: 17.h,
+                width: 15.w,
+                color: isDark ? AppColors.textWhite : AppColors.backgroundDark,
+              ),
+              onPressed: () {
+                showCupertinoDialog(
+                  context: context,
+                  builder: (BuildContext context) => ConfirmationDialog(
+                    title: title,
+                    content: content,
+                    button1: 'No'.tr,
+                    button2: 'Yes'.tr,
+                    onConfirm: () {
+                      if (expenseController.isEditing.value) {
+                        expenseController.deleteCurrentEntry();
+                      } else {
+                        expenseController.clearForm();
+                        Get.back();
+                      }
+                    },
+                  ),
+                );
+              },
+            );
+          })
         ],
         centerTitle: true,
         title: Container(
@@ -116,7 +131,12 @@ class ExpenseScreen extends StatelessWidget {
 
   Widget _buildTabButton(String tab, BuildContext context) {
     return GestureDetector(
-      onTap: () => Get.find<ExpenseController>().switchTab(tab),
+      onTap: () {
+        final expenseController = Get.find<ExpenseController>();
+        if (!expenseController.isEditing.value) {
+          expenseController.switchTab(tab);
+        }
+      },
       child: Obx(() {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final expenseController = Get.find<ExpenseController>();
@@ -125,8 +145,8 @@ class ExpenseScreen extends StatelessWidget {
           decoration: ShapeDecoration(
             color: expenseController.selectedTab.value == tab
                 ? isDark
-                      ? AppColors.backgroundDark
-                      : AppColors.textWhite
+                    ? AppColors.backgroundDark
+                    : AppColors.textWhite
                 : Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
@@ -247,7 +267,6 @@ class ExpenseScreen extends StatelessWidget {
                 backgroundColor: Colors.transparent,
                 builder: (context) {
                   return Container(
-            
                     decoration: ShapeDecoration(
                       color: isDark
                           ? AppColors.deepGrey
@@ -259,8 +278,6 @@ class ExpenseScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // height: MediaQuery.of(context).size.height * 0.85,
-                    
                     child: CalendarDialog(
                       onDateSelected: (date) {
                         expenseController.updateDateText(date);
@@ -311,10 +328,12 @@ class ExpenseScreen extends StatelessWidget {
       child: Obx(() {
         final expenseController = Get.find<ExpenseController>();
 
+        final bool isEnabled = (expenseController.amount.value.isNotEmpty &&
+            expenseController.selectedType.value != null);
+        final String buttonText = expenseController.isEditing.value ? 'Update'.tr : 'Save'.tr;
+
         return ElevatedButton(
-          onPressed:
-              (expenseController.amount.value.isNotEmpty &&
-                  expenseController.selectedType.value != null)
+          onPressed: isEnabled
               ? () async {
                   try {
                     final amount = double.parse(expenseController.amount.value);
@@ -338,10 +357,7 @@ class ExpenseScreen extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 16),
           ),
           child: Text(
-            (expenseController.amount.value.isNotEmpty &&
-                    expenseController.selectedType.value != null)
-                ? 'Save'.tr
-                : 'Next'.tr,
+            buttonText,
             style: getTextStyle2(
               color: Colors.white,
               fontSize: 16,

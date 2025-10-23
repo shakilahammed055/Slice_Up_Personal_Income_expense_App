@@ -1,3 +1,5 @@
+// ignore_for_file: no_leading_underscores_for_local_identifiers
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';

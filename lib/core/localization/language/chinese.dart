@@ -320,4 +320,38 @@ final Map<String, String> chinese = {
   'Category': '类别',
 
   // Add your keys here...
+
+
+   'You\'ll collect': '您将收取',
+  'You\'ll pay': '您将支付',
+  'All sliced up and settled!': '全部分好并结清了！',
+  'My expenses': '我的支出',
+  'Involved': '涉及',
+  'Total amounts don\'t match': '总金额不匹配',
+  'Total': '总计',
+  'Are you sure you want to delete this?': '您确定要删除此项吗？',
+  'Once deleted, your information won’t be saved.': '删除后，您的信息将不会被保存。',
+  'Stay': '留下',
+  'Leave': '离开',
+  'Enter Amount': '输入金额',
+  'Failed to load members': '加载成员失败',
+  'No members available': '没有可用的成员',
+  'Share with': '分享给',
+  'Select Category': '选择类别',
+  'Add Notes': '添加备注',
+  'To delete them, they must be removed from your group, or you can delete the entire group':
+      '要删除他们，必须将他们从您的群组中移除，或者您可以删除整个群组',
+  'Okay': '好的',
+
+  "You won’t be able to undo this.": "此操作无法撤销。",
+  "You can’t delete them yet": "您暂时无法删除他们",
+  "No friends available.\nTap + to add friends from your list.":
+      "没有可用的朋友。\n点击 + 从列表中添加朋友。",
+  "You can’t remove them or leave this group just yet": "您暂时无法移除他们或退出此群组",
+  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses":
+      "只有在所有债务结清或他们（或您）不再参与任何共享支出后，才能移除他们或退出群组",
+  "Are you sure you want to remove them or leave the group yourself?":
+      "您确定要移除他们或自己离开群组吗？",
+    "Ready to track your group expenses!": "准备好追踪您的群组支出！"   
+
 };

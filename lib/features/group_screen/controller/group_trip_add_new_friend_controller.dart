@@ -43,10 +43,16 @@ class GroupTripAddNewFriendController extends GetxController {
 
   // Set the current trip and fetch its members
   void setCurrentTrip(String tripName, {String? tripId}) {
+    // If the same tripId is being set repeatedly, skip redundant work
+    if (tripId != null && tripId.isNotEmpty && tripId == currentTripId) {
+      // already set for this tripId; nothing to do
+      return;
+    }
+
     currentTripName = tripName;
     currentTripId = tripId;
 
-    // Automatically fetch trip members when trip is set
+    // Automatically fetch trip members when trip is set (only for new tripId)
     if (tripId != null && tripId.isNotEmpty) {
       fetchTripMembersFromAPI(tripId);
     }

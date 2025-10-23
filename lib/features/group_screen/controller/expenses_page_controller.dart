@@ -1,9 +1,10 @@
-// ignore_for_file: avoid_function_literals_in_foreach_calls
+// ignore_for_file: avoid_function_literals_in_foreach_calls, curly_braces_in_flow_control_structures
 
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/features/settings_screen/controller/setting_screen_controller.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -194,10 +195,12 @@ class ExpensesPageController extends GetxController {
       currentTransactionType.value = transactionType ?? '';
       currentSearchQuery.value = search ?? '';
 
-      print('💰 [EXPENSES] Filter parameters stored:');
-      print('💰 [EXPENSES] - expenseView: ${currentExpenseView.value}');
-      print('💰 [EXPENSES] - transactionType: ${currentTransactionType.value}');
-      print('💰 [EXPENSES] - search: ${currentSearchQuery.value}');
+      debugPrint('💰 [EXPENSES] Filter parameters stored:');
+      debugPrint('💰 [EXPENSES] - expenseView: ${currentExpenseView.value}');
+      debugPrint(
+        '💰 [EXPENSES] - transactionType: ${currentTransactionType.value}',
+      );
+      debugPrint('💰 [EXPENSES] - search: ${currentSearchQuery.value}');
 
       // Get token from AuthService
       final token = await AuthService.getApprovalToken();
@@ -494,6 +497,43 @@ class ExpensesPageController extends GetxController {
     return 0.0;
   }
 
+  // Helper method to format currency for display
+  String formatCurrency(dynamic amount, String currency) {
+    try {
+      double val = 0.0;
+      if (amount is num) {
+        val = amount.toDouble();
+      } else if (amount is String) {
+        val = double.tryParse(amount) ?? 0.0;
+      }
+      final currencySymbol = getCurrencySymbol(currency);
+      if ((val % 1) == 0) {
+        return '$currencySymbol ${val.toInt()}';
+      }
+      return '$currencySymbol ${val.toStringAsFixed(2)}';
+    } catch (e) {
+      return 'US\$0';
+    }
+  }
+
+  // Helper to return currency symbol
+  String getCurrencySymbol(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return 'US\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'JPY':
+        return '¥';
+      case 'SGD':
+        return 'S\$';
+      default:
+        return currency.toUpperCase();
+    }
+  }
+
   // Calculate totals from transactions if not provided by API
   Future<void> calculateTotalsFromTransactions(
     List<dynamic> transactions,
@@ -533,81 +573,106 @@ class ExpensesPageController extends GetxController {
   // Process expenses and group by date
   Future<void> processExpenses(List<dynamic> transactions) async {
     try {
-      print(
+      debugPrint(
         '💰 [EXPENSES] Processing ${transactions.length} transactions with filters:',
       );
-      print('💰 [EXPENSES] - currentExpenseView: ${currentExpenseView.value}');
-      print(
+      debugPrint(
+        '💰 [EXPENSES] - currentExpenseView: ${currentExpenseView.value}',
+      );
+      debugPrint(
         '💰 [EXPENSES] - currentTransactionType: ${currentTransactionType.value}',
       );
 
-      Map<String, List<Map<String, dynamic>>> groupedExpenses = {};
-      int filteredCount = 0;
-
+      // First, format all transactions
+      List<Map<String, dynamic>> formattedList = [];
       for (var transaction in transactions) {
         final expense = await formatExpenseData(transaction);
+        formattedList.add(expense);
+      }
 
+      // Deduplicate potential duplicates by date + category + total amount
+      final Map<String, Map<String, dynamic>> dedupedMap = {};
+      for (var expense in formattedList) {
+        final date = (expense['date'] ?? '').toString();
+        final categoryName = (expense['categoryName'] ?? '').toString();
+        final rawTotal = expense['rawData'] != null
+            ? (expense['rawData']['totalExpenseAmount'] ??
+                      expense['rawData']['amount'] ??
+                      expense['formattedTotalAmount'])
+                  .toString()
+            : expense['formattedTotalAmount'].toString();
+
+        final key = '${date}_${categoryName}_$rawTotal';
+
+        if (!dedupedMap.containsKey(key)) {
+          dedupedMap[key] = expense;
+        } else {
+          final existing = dedupedMap[key]!;
+          final existingNotes = (existing['notes'] ?? '').toString();
+          final currentNotes = (expense['notes'] ?? '').toString();
+
+          // Prefer the one with user notes
+          if (existingNotes.isEmpty && currentNotes.isNotEmpty) {
+            dedupedMap[key] = expense;
+          } else if (existingNotes.isNotEmpty && currentNotes.isEmpty) {
+            // keep existing
+          } else if (existingNotes.isNotEmpty && currentNotes.isNotEmpty) {
+            if (currentNotes.length > existingNotes.length)
+              dedupedMap[key] = expense;
+          }
+        }
+      }
+
+      // Apply filters and group by date
+      Map<String, List<Map<String, dynamic>>> groupedExpenses = {};
+      int filteredCount = 0;
+      final dedupedList = dedupedMap.values.toList();
+      for (var expense in dedupedList) {
         // Filter out General/uncategorized transactions
         final categoryName = expense['categoryName'] as String? ?? '';
         if (categoryName.toLowerCase() == 'general' ||
             categoryName.toLowerCase() == 'uncategorized' ||
             categoryName.isEmpty) {
-          print(
+          debugPrint(
             '💰 [EXPENSES] Filtering out general/uncategorized transaction: ${expense['title']}',
           );
-          continue; // Skip this transaction
+          continue;
         }
 
-        // Apply transaction type filter
+        // Transaction type filter
         if (currentTransactionType.value.isNotEmpty) {
           final status = expense['status'] as String;
           bool shouldInclude = false;
-
           if (currentTransactionType.value == 'borrowed' &&
-              status == 'You borrowed') {
+              status == 'You borrowed')
             shouldInclude = true;
-          } else if (currentTransactionType.value == 'lent' &&
-              status == 'You lent') {
+          if (currentTransactionType.value == 'lent' && status == 'You lent')
             shouldInclude = true;
-          }
-
           if (!shouldInclude) {
             filteredCount++;
-            print(
-              '💰 [EXPENSES] Filtered out transaction: ${expense['title']} - status: $status',
-            );
-            continue; // Skip this transaction
+            continue;
           }
         }
 
-        // Apply expense view filter (involving me only)
+        // Involving me filter
         if (currentExpenseView.value == 'involving_me') {
-          final userInvolvement = transaction['userInvolvement'] ?? {};
+          final userInvolvement = expense['rawData']?['userInvolvement'] ?? {};
           final netAmount = userInvolvement['net'] ?? 0.0;
-
-          // Only include transactions where user has involvement (net amount != 0)
-          if (netAmount == 0.0) {
-            continue; // Skip this transaction
-          }
+          if (netAmount == 0.0) continue;
         }
 
-        // Apply search filter
+        // Search filter
         if (currentSearchQuery.value.isNotEmpty) {
           final title = expense['title'] as String;
           final notes = expense['notes'] as String;
           final searchLower = currentSearchQuery.value.toLowerCase();
-
           if (!title.toLowerCase().contains(searchLower) &&
-              !notes.toLowerCase().contains(searchLower)) {
-            continue; // Skip this transaction
-          }
+              !notes.toLowerCase().contains(searchLower))
+            continue;
         }
 
         final date = expense['date'] as String;
-
-        if (groupedExpenses[date] == null) {
-          groupedExpenses[date] = [];
-        }
+        if (groupedExpenses[date] == null) groupedExpenses[date] = [];
         groupedExpenses[date]!.add(expense);
       }
 
@@ -629,12 +694,12 @@ class ExpensesPageController extends GetxController {
       });
 
       expenses.value = formattedExpenses;
-      print(
+      debugPrint(
         '💰 [EXPENSES] Final result: ${formattedExpenses.length} day groups, $filteredCount transactions filtered out',
       );
     } catch (e) {
       error.value = 'Error processing expense data';
-      print('❌ [EXPENSES] Error in processExpenses: $e');
+      debugPrint('❌ [EXPENSES] Error in processExpenses: $e');
     }
   }
 
@@ -645,10 +710,31 @@ class ExpensesPageController extends GetxController {
     try {
       // Extract basic info from your API structure
       final amount = transaction['totalExpenseAmount'] ?? 0;
-      final currency = transaction['currency'] ?? 'USD';
+      // Prefer the user's selected currency (if available) for display labels.
+      String currency = transaction['currency'] ?? 'USD';
+      try {
+        final setting = Get.find<SettingController>();
+        final sel = setting.currency.value;
+        if (sel.isNotEmpty) {
+          final mapped = _mapSelectedCurrencyToCode(sel);
+          if (mapped != null && mapped.isNotEmpty) {
+            currency = mapped;
+          }
+        }
+      } catch (e) {
+        // no settings controller available, fall back to transaction currency
+      }
       final category = transaction['category'] ?? {};
       final createdAt = transaction['expenseDate'] ?? '';
-      final notes = transaction['note'] ?? '';
+      var notesRaw = transaction['note'] ?? '';
+      String notes = notesRaw.toString().trim();
+      // Treat common placeholders like 'no note' (case-insensitive) as empty
+      final notesLower = notes.toLowerCase();
+      if (notesLower == 'no note' ||
+          notesLower == 'nonote' ||
+          notesLower == 'expense note') {
+        notes = '';
+      }
       final userInvolvement = transaction['userInvolvement'] ?? {};
 
       // Format date
@@ -661,8 +747,16 @@ class ExpensesPageController extends GetxController {
         } catch (e) {}
       }
 
-      // Format amount
-      final formattedAmount = formatCurrency(amount, currency);
+      // Format total amount and per-user amount
+      final formattedTotalAmount = formatCurrency(amount, currency);
+      // Prefer user-specific amount when available (userInvolvement.amount),
+      // otherwise fall back to net or the total expense amount.
+      final dynamic userAmountRaw =
+          userInvolvement['amount'] ?? userInvolvement['net'] ?? 0;
+      final double userAmount = (userAmountRaw is num)
+          ? userAmountRaw.toDouble()
+          : double.tryParse(userAmountRaw.toString()) ?? 0.0;
+      final formattedUserAmount = formatCurrency(userAmount, currency);
 
       // Get category info from API data
       String categoryName = 'General';
@@ -691,16 +785,29 @@ class ExpensesPageController extends GetxController {
         statusColor = Colors.red;
       }
 
+      final expenseId =
+          transaction['_id'] ??
+          transaction['expenseId'] ??
+          transaction['id'] ??
+          '';
+
       return {
-        'id': transaction['id'] ?? '',
+        // expose the API's primary id under expenseId and keep id for compatibility
+        'expenseId': expenseId,
+        'id': expenseId,
         'title': categoryName.isNotEmpty ? categoryName : 'Transport',
-        'amount': formattedAmount,
+        // 'amount' kept for backward-compat but UI prefers 'formattedAmount' below
+        'amount': formattedTotalAmount,
         'date': formattedDate,
         'status': status,
         'statusColor': statusColor,
         'notes': notes,
         'category': categoryName,
         'categoryName': categoryName, // Add this for filtering
+        // Expose both total and per-user formatted amounts
+        'formattedAmount': formattedUserAmount,
+        'formattedTotalAmount': formattedTotalAmount,
+        'rawUserAmount': userAmount,
         'rawData': transaction,
       };
     } catch (e) {
@@ -719,32 +826,20 @@ class ExpensesPageController extends GetxController {
     }
   }
 
-  // Helper method to format currency
-  String formatCurrency(dynamic amount, String currency) {
-    try {
-      final numAmount = double.tryParse(amount.toString()) ?? 0.0;
-      final currencySymbol = getCurrencySymbol(currency);
-      return '$currencySymbol ${numAmount.toStringAsFixed(2)}';
-    } catch (e) {
-      return 'US\$ 0.00';
-    }
-  }
-
-  // Get currency symbol
-  String getCurrencySymbol(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'USD':
-        return 'US\$';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      case 'JPY':
-        return '¥';
-      default:
-        // ignore: prefer_interpolation_to_compose_strings
-        return currency.toUpperCase() + '\$';
-    }
+  String? _mapSelectedCurrencyToCode(String selected) {
+    final s = selected.toUpperCase();
+    if (s.contains('USD') ||
+        s.contains('US\$') ||
+        s.contains('\$') && !s.contains('SGD') && !s.contains('S\$'))
+      return 'USD';
+    if (s.contains('EUR') || s.contains('€')) return 'EUR';
+    if (s.contains('JPY') || s.contains('¥')) return 'JPY';
+    if (s.contains('KRW') || s.contains('₩')) return 'KRW';
+    if (s.contains('SGD') || s.contains('S\$')) return 'SGD';
+    // fallback: try to extract alphabetic code
+    final letters = RegExp(r'[A-Z]{3}').firstMatch(s);
+    if (letters != null) return letters.group(0);
+    return null;
   }
 
   // Get category icon

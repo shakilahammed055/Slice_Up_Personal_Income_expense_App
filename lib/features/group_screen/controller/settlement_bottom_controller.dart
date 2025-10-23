@@ -93,6 +93,31 @@ class SettlementBottomController extends GetxController {
       return false;
     }
 
+    // Basic validation of settlement entries to avoid malformed requests that
+    // can cause server errors (HTTP 500). Ensure each entry contains required
+    // keys and amount is a positive number.
+    for (var i = 0; i < settlements.length; i++) {
+      final s = settlements[i];
+      if (!s.containsKey('fromEmail') ||
+          !s.containsKey('toEmail') ||
+          !s.containsKey('amount')) {
+        apiError.value =
+            'Settlement item at index $i is missing required fields';
+        return false;
+      }
+      final amount = s['amount'];
+      double? amt;
+      if (amount is num) {
+        amt = amount.toDouble();
+      } else if (amount is String) {
+        amt = double.tryParse(amount);
+      }
+      if (amt == null || amt <= 0) {
+        apiError.value = 'Settlement amount at index $i is invalid';
+        return false;
+      }
+    }
+
     try {
       isProcessing.value = true;
 
@@ -151,21 +176,90 @@ class SettlementBottomController extends GetxController {
           apiError.value = '';
           return true;
         } else {
-          apiError.value =
-              responseData['message']?.toString() ?? 'Unknown error';
+          // Map server message to a user-friendly message when possible
+          final rawMsg = responseData['message']?.toString() ?? '';
+          apiError.value = _friendlyMessageFromServer(rawMsg, responseData);
+          debugPrint(
+            '❌ [SETTLEMENT_BOTTOM] Server returned success=false: $rawMsg',
+          );
           return false;
         }
       } else {
-        apiError.value = 'HTTP Error: ${response.statusCode}';
+        // Non-200: try to parse JSON message and present friendly text
+        String friendly = 'Failed to submit settlements. Please try again.';
+        try {
+          final parsed = json.decode(responseString);
+          if (parsed is Map && parsed['message'] != null) {
+            friendly = _friendlyMessageFromServer(
+              parsed['message'].toString(),
+              parsed,
+            );
+          } else if (parsed is Map && parsed['error'] != null) {
+            friendly = _friendlyMessageFromServer(
+              parsed['error'].toString(),
+              parsed,
+            );
+          } else {
+            friendly = 'Server responded with status ${response.statusCode}';
+          }
+        } catch (e) {
+          // not JSON - show generic message
+          friendly =
+              'Server error ${response.statusCode}. Please try again later.';
+        }
+
+        apiError.value = friendly;
+        debugPrint(
+          '❌ [SETTLEMENT_BOTTOM] Non-200 response: ${response.statusCode}',
+        );
+        debugPrint('❌ [SETTLEMENT_BOTTOM] Body: $responseString');
         return false;
       }
     } catch (e) {
-      apiError.value = 'Exception: $e';
+      apiError.value = 'An unexpected error occurred. Please try again.';
       debugPrint('❌ [SETTLEMENT_BOTTOM] Exception: $e');
       return false;
     } finally {
       isProcessing.value = false;
     }
+  }
+
+  // Map raw server messages and error payloads to concise, user-friendly messages
+  String _friendlyMessageFromServer(String rawMessage, dynamic parsedPayload) {
+    final msg = rawMessage.toLowerCase();
+
+    // Common validation: amount exceeding debt
+    if (msg.contains('amount cannot exceed') ||
+        msg.contains('exceed the debt')) {
+      // Try to extract which settlement index if provided
+      final reg = RegExp(r'Settlement\s*(\d+)', caseSensitive: false);
+      final match = reg.firstMatch(rawMessage);
+      final idx = match != null ? int.tryParse(match.group(1) ?? '') : null;
+      if (idx != null) {
+        return 'One of the selected settlements (item $idx) is higher than the outstanding amount. Reduce the amount to the remaining debt and try again.';
+      }
+      return 'One of the selected settlements is higher than the outstanding debt. Reduce the amount and try again.';
+    }
+
+    // Validation errors container
+    if (msg.contains('validation') || msg.contains('invalid')) {
+      return 'Some settlement entries are invalid. Please check amounts and participants.';
+    }
+
+    // Auth / permission issues
+    if (msg.contains('unauthorized') || msg.contains('authentication')) {
+      return 'You are not authorized. Please log in again.';
+    }
+
+    // Generic server error with message
+    if (rawMessage.isNotEmpty) {
+      // Keep message brief but informative
+      return rawMessage.length > 120
+          ? '${rawMessage.substring(0, 117)}...'
+          : rawMessage;
+    }
+
+    return 'Failed to submit settlements. Please try again later.';
   }
 
   /// Prepare this controller for a specific group id by finding/creating
@@ -183,7 +277,8 @@ class SettlementBottomController extends GetxController {
       }
 
       final settlements =
-          sliceUpController?.getSettlementsForCurrentUser() ?? [];
+          // Use only active (non-historical) settlements for selection/submission
+          sliceUpController?.getActiveSettlements() ?? [];
       initGroupOne(settlements.length);
 
       final balances = sliceUpController?.getBalanceEntries() ?? [];

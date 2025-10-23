@@ -36,7 +36,9 @@ class GroupSearchController extends GetxController {
   // Set the group ID to search within
   void setGroupId(String id) {
     groupId.value = id;
-    print('🔍 [SEARCH] Group ID set to: $id');
+
+    debugPrint('🔍 [SEARCH] Group ID set to: $id');
+
   }
 
   // Perform search through expenses
@@ -47,9 +49,11 @@ class GroupSearchController extends GetxController {
     }
 
     isSearching.value = true;
-    print(
+
+    debugPrint(
       '🔍 [SEARCH] Searching for: "${searchQuery.value}" in group: ${groupId.value}',
     );
+
 
     try {
       // Get the expenses controller for the specific group
@@ -100,17 +104,18 @@ class GroupSearchController extends GetxController {
         }
 
         searchResults.value = filteredDayData;
-        print(
+
+        debugPrint(
           '🔍 [SEARCH] Found ${filteredDayData.length} days with matching expenses',
         );
       } else {
-        print(
+        debugPrint(
           '❌ [SEARCH] ExpensesPageController not found for group: $controllerTag',
         );
         searchResults.clear();
       }
     } catch (e) {
-      print('❌ [SEARCH] Error performing search: $e');
+      debugPrint('❌ [SEARCH] Error performing search: $e');
       searchResults.clear();
     } finally {
       isSearching.value = false;
@@ -121,7 +126,9 @@ class GroupSearchController extends GetxController {
   void clearSearch() {
     searchResults.clear();
     isSearching.value = false;
-    print('🔍 [SEARCH] Search cleared');
+
+    debugPrint('🔍 [SEARCH] Search cleared');
+
   }
 
   // Clear search text and results

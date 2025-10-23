@@ -319,4 +319,43 @@ final Map<String, String> japanese = {
   'Category': 'カテゴリー',
 
   // Add your keys here...
+
+
+  
+  'You\'ll collect': 'あなたが集めます',
+  'You\'ll pay': 'あなたが支払います',
+  'All sliced up and settled!': 'すべて分割されて精算されました！',
+  'My expenses': '私の支出',
+  'Involved': '関与',
+  'Total amounts don\'t match': '合計金額が一致しません',
+  'Total': '合計',
+  'Are you sure you want to delete this?': '本当にこれを削除しますか？',
+  'Once deleted, your information won’t be saved.': '削除すると、情報は保存されません。',
+  'Stay': 'とどまる',
+  'Leave': '離れる',
+  'Enter Amount': '金額を入力',
+  'Failed to load members': 'メンバーの読み込みに失敗しました',
+  'No members available': '利用可能なメンバーがいません',
+  'Share with': '共有相手',
+  'Select Category': 'カテゴリを選択',
+  'Add Notes': 'メモを追加',
+  'To delete them, they must be removed from your group, or you can delete the entire group':
+      '削除するには、グループから削除するか、グループ全体を削除する必要があります',
+  'Okay': 'わかりました',
+
+   "You won’t be able to undo this.": "この操作は元に戻せません。",
+  "You can’t delete them yet": "まだ削除できません",
+  "No friends available.\nTap + to add friends from your list.":
+      "利用可能な友達がいません。\n+ をタップしてリストから友達を追加してください。",
+  "You can’t remove them or leave this group just yet":
+      "まだ彼らを削除したり、このグループを離れたりすることはできません",
+  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses":
+      "すべての借金が清算されるか、彼ら（またはあなた）が共有費用に含まれなくなった後でのみ削除または退出できます",
+  "Are you sure you want to remove them or leave the group yourself?":
+      "本当に彼らを削除するか、自分でグループを離れますか？",
+  "Ready to track your group expenses!": "グループの支出を追跡する準備ができました！"
+
+
+
+
 };

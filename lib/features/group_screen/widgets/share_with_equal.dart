@@ -12,6 +12,25 @@ class ShareWithEqual extends StatelessWidget {
     final controller = Get.find<GroupTripSpentController>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    // Initialize equal share calculation when widget loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // If no shared-with selections exist yet, default to selecting all members
+      if (controller.friendNames.isNotEmpty &&
+          controller.selectedSharedWithFriends.isEmpty) {
+        // Assign all friend names (avoids duplicates) and keep friendCheckStates in sync
+        controller.selectedSharedWithFriends.assignAll(
+          controller.friendNames.cast<String>(),
+        );
+
+        for (final f in controller.friendNames) {
+          controller.friendCheckStates[f] = true;
+        }
+      }
+
+      // Update equal share calculation after selections are set
+      controller.updateEqualShareCalculation();
+    });
+
     return Container(
       decoration: BoxDecoration(
         color: isDark ? Color(0xFF262626) : AppColors.textWhite,
@@ -64,12 +83,14 @@ class ShareWithEqual extends StatelessWidget {
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return Center(
-                    child: Text(
-                      "Total 90 / Per person 30",
-                      style: getTextStyle3(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: isDark ? AppColors.textWhite : AppColors.black,
+                    child: Obx(
+                      () => Text(
+                        controller.equalTotalText.value,
+                        style: getTextStyle3(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: isDark ? AppColors.textWhite : AppColors.black,
+                        ),
                       ),
                     ),
                   );

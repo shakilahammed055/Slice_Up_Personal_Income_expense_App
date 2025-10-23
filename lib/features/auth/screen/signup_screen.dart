@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -5,6 +6,7 @@ import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/auth/controller/sign_up_controller.dart';
 import 'package:teddy_5618/features/auth/screen/login_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SignupScreen extends StatelessWidget {
   const SignupScreen({super.key});
@@ -13,7 +15,10 @@ class SignupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // Use permanent: true to prevent controller disposal
-    final SignUpController signUpController = Get.put(SignUpController(), permanent: true);
+    final SignUpController signUpController = Get.put(
+      SignUpController(),
+      permanent: true,
+    );
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -264,7 +269,8 @@ class SignupScreen extends StatelessWidget {
                                       focusedBorder: InputBorder.none,
                                       errorBorder: InputBorder.none,
                                       disabledBorder: InputBorder.none,
-                                      hintText: 'Password (min 8 characters)'.tr,
+                                      hintText:
+                                          'Password (min 8 characters)'.tr,
                                       hintStyle: getTextStyle2(
                                         color: const Color(0xFFAAAAAA),
                                         fontSize: 16.sp,
@@ -364,7 +370,9 @@ class SignupScreen extends StatelessWidget {
                                     focusedBorder: InputBorder.none,
                                     errorBorder: InputBorder.none,
                                     disabledBorder: InputBorder.none,
-                                    hintText: 'Confirm Password (min 8 characters)'.tr,
+                                    hintText:
+                                        'Confirm Password (min 8 characters)'
+                                            .tr,
                                     hintStyle: getTextStyle2(
                                       color: const Color(0xFFAAAAAA),
                                       fontSize: 16.sp,
@@ -425,6 +433,63 @@ class SignupScreen extends StatelessWidget {
                                   )
                                 : const SizedBox.shrink(),
                           ),
+                          SizedBox(height: 24),
+
+                          SizedBox(
+                            width: 350, // Fixed width or make it responsive
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text:
+                                        'By signing up or logging in, you agree to our ',
+                                    style: getTextStyle2(
+                                      color:  Color(0xFF141414),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: 'Terms of Use',
+                                    style: getTextStyle2(
+                                      color: const Color(0xFF2A31EF),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () {
+                                        _launchUrl(
+                                          'https://helpful-form-053449.framer.app/tnc',
+                                        );
+                                      },
+                                  ),
+                                  TextSpan(
+                                    text: ' and ',
+                                    style: getTextStyle2(
+                                      color: const Color(0xFF141414),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: 'Privacy Policy',
+                                    style: getTextStyle2(
+                                      color: const Color(0xFF2A31EF),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    recognizer: TapGestureRecognizer()
+                                      ..onTap = () {
+                                        _launchUrl(
+                                          'https://helpful-form-053449.framer.app/privacy',
+                                        );
+                                      },
+                                  ),
+                                ],
+                              ),
+                              textAlign: TextAlign.left, // Left alignment
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -479,5 +544,13 @@ class SignupScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Add this function to handle URL launching
+  Future<void> _launchUrl(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw Exception('Could not launch $url');
+    }
   }
 }

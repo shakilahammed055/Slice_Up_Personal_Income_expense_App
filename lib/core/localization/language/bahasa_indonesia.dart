@@ -328,11 +328,38 @@ final Map<String, String> indonesia = {
   // ignore: equal_keys_in_map
   'Category': 'Kategori',
     
-
+    'You\'ll collect': 'Anda akan menerima',
+  'You\'ll pay': 'Anda akan membayar',
+  'All sliced up and settled!': 'Semua sudah dibagi dan diselesaikan!',
+  'My expenses': 'Pengeluaran saya',
+  'Involved': 'Terlibat',
+  'Total amounts don\'t match': 'Jumlah total tidak cocok',
+  'Total': 'Total',
+  'Are you sure you want to delete this?':
+      'Apakah Anda yakin ingin menghapus ini?',
+  'Once deleted, your information won’t be saved.':
+      'Setelah dihapus, informasi Anda tidak akan disimpan.',
+  'Stay': 'Tetap',
+  'Leave': 'Keluar',
+  'Enter Amount': 'Masukkan Jumlah',
+  'Failed to load members': 'Gagal memuat anggota',
+  'No members available': 'Tidak ada anggota tersedia',
+  'Share with': 'Bagikan dengan',
+  'Select Category': 'Pilih Kategori',
+  'Add Notes': 'Tambahkan Catatan',
+  'To delete them, they must be removed from your group, or you can delete the entire group':
+      'Untuk menghapus mereka, mereka harus dikeluarkan dari grup Anda, atau Anda dapat menghapus seluruh grup',
+  'Okay': 'Oke',
  
 
 
-
+ "You won’t be able to undo this.": "Anda tidak akan dapat membatalkan ini.",
+  "You can’t delete them yet": "Anda belum dapat menghapus mereka",
+  "No friends available.\nTap + to add friends from your list.": "Tidak ada teman yang tersedia.\nKetuk + untuk menambahkan teman dari daftar Anda.",
+  "You can’t remove them or leave this group just yet": "Anda belum dapat menghapus mereka atau keluar dari grup ini",
+  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses": "Anda hanya dapat menghapus mereka atau keluar dari grup setelah semua utang diselesaikan atau mereka (atau Anda) tidak lagi menjadi bagian dari pengeluaran bersama",
+  "Are you sure you want to remove them or leave the group yourself?": "Apakah Anda yakin ingin menghapus mereka atau keluar dari grup sendiri?",
+  "Ready to track your group expenses!": "Siap untuk melacak pengeluaran grup Anda!"
   
 
 

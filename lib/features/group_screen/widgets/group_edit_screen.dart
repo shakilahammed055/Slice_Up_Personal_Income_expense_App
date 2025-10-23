@@ -7,6 +7,7 @@ import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/create_trip_bottomsheet_controller.dart';
 import 'package:teddy_5618/features/group_screen/widgets/confirmation_dialog.dart';
 import 'package:teddy_5618/features/set_expense_income/controller/expense_controller.dart'; // Make sure path is correct
+import 'package:teddy_5618/features/group_screen/controller/group_edit_controller.dart';
 
 class GroupEditScreen extends StatelessWidget {
   const GroupEditScreen({super.key});
@@ -102,21 +103,75 @@ class GroupEditScreen extends StatelessWidget {
                   children: [
                     // Delete Group
                     GestureDetector(
-                      onTap: () {
+                      onTap: () async {
+                        final groupId = tripController.currentGroupId.value;
+                        final groupEditCtrl = Get.put(GroupEditController());
+
+                        // If no group id set use the controller's currentGroupId or empty
+                        final gid = groupId;
+
+                        // If empty, simply show the simple dialog
+                        if (gid.isEmpty) {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (BuildContext context) => ConfirmationDialog(
+                              title: 'You can’t delete them yet'.tr,
+                              content:
+                                  'To delete them, they must be removed from your group, or you can delete the entire group'
+                                      .tr,
+                              button1: 'Okay'.tr,
+                              singleButton: true,
+                              onConfirm: () {
+                                Get.find<ExpenseController>().clearForm();
+                              },
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Check if deletable
+                        final canDelete = await groupEditCtrl.canDeleteGroup(
+                          gid,
+                        );
+
+                        if (!canDelete) {
+                          // Show single-button dialog explaining why it cannot be deleted
+                          showCupertinoDialog(
+                            // ignore: use_build_context_synchronously
+                            context: context,
+                            builder: (BuildContext context) => ConfirmationDialog(
+                              title: 'You can’t delete them yet'.tr,
+                              content:
+                                  'To delete them, they must be removed from your group, or you can delete the entire group'.tr
+                                      ,
+                              button1: 'Okay'.tr,
+                              singleButton: true,
+                              onConfirm: () {
+                                Get.find<ExpenseController>().clearForm();
+                              },
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Show the confirmation dialog and delete on confirm
                         showCupertinoDialog(
+                          // ignore: use_build_context_synchronously
                           context: context,
                           builder: (BuildContext context) => ConfirmationDialog(
                             title: 'Are you sure you want to delete?'.tr,
                             content: 'You won’t be able to undo this.'.tr,
                             button1: 'No'.tr,
                             button2: 'Yes'.tr,
-                            onConfirm: () {
-                              // ✅ Custom logic on confirm
-                              Get.find<ExpenseController>().clearForm();
-                              Get.snackbar(
-                                'Success'.tr,
-                                'Entry deleted successfully'.tr,
+                            onConfirm: () async {
+                              final success = await groupEditCtrl.deleteGroup(
+                                gid,
                               );
+                              if (success) {
+                                Get.snackbar('Success'.tr, 'Group deleted'.tr);
+                                // Close the bottom sheet and go back
+                                Get.back();
+                              }
                             },
                           ),
                         );
@@ -137,7 +192,7 @@ class GroupEditScreen extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: Text(
-                          'Leave group'.tr,
+                          'Delete group'.tr,
                           style: getTextStyle2(
                             color: isDark
                                 ? AppColors.textGrey

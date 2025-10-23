@@ -22,6 +22,15 @@ class Urls {
   static const addgroupcategory = "$baseUrl/users/categories/group";
   static const addpersonalcategory = "$baseUrl/users/categories/personal";
   static const getallcategory = "$baseUrl/users/categories";
+  static const gethistory = "$baseUrl/history/get-history";
+  static const deleteincomeorexpense = "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
+  static const incomepersonal = "$baseUrl/users/categories/income/personal";
+  static const deleteCategory = "$baseUrl/users/categories/";
+  static const addincomeexpence = "$baseUrl/incomeAndExpences/addIncomeOrExpenses";
+  static const updateincomeexpence = "$baseUrl/incomeAndExpences/updateIncomeOrExpenses/";
+  static const deleteincomeexpense = "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
+  static const getallplans = "$baseUrl/plans";
+  static const checkoutsession = "$baseUrl/payment/create-checkout-session";
 
   // Trip members endpoints
   static const removeTripMember = "$baseUrl/groupTransaction/members/remove";
@@ -43,16 +52,25 @@ class Urls {
   static const deleteaccount = "$baseUrl/users/selfDestruct";
   static const getincomeandexpence =
       "$baseUrl/incomeAndExpences/getFilteredIncomeAndExpenses";
-   static String getGroupStatus(String groupId) =>
-      "$baseUrl/groupTransaction/getGroupStatus/$groupId";   
-     static String updateGroupName(String groupId) =>
-      "$baseUrl/groupTransaction/updateGroupName/$groupId";  
+  static const monthlyyearlyBarChart =
+      "$baseUrl/incomeAndExpences/getAnalyticsDashboard";
+  static String getGroupStatus(String groupId) =>
+      "$baseUrl/groupTransaction/getGroupStatus/$groupId";
+  static String updateGroupName(String groupId) =>
+      "$baseUrl/groupTransaction/updateGroupName/$groupId";
 
-   //sliceup api
-   static String getSliceUp(String groupId) =>
-      "$baseUrl/groupTransaction/$groupId/settlements"; 
-    static String postFilterSliceUp(String groupId) =>
-      "$baseUrl/groupTransaction/$groupId/settle-multiple-debts";   
+  //sliceup api
+  static String getSliceUp(String groupId) =>
+      "$baseUrl/groupTransaction/$groupId/settlements";
+  static String postFilterSliceUp(String groupId) =>
+      "$baseUrl/groupTransaction/$groupId/settle-multiple-debts";
 
+  static String deleteGroup(String groupId) =>
+      "$baseUrl/groupTransaction/deleteGroup/$groupId";
 
+  static String removeMember(String groupId, String memberEmail) =>
+      "$baseUrl/groupTransaction/removeMember/$groupId/${Uri.encodeComponent(memberEmail)}";
+
+       static String updateGroupExpense(String groupId, String expenseId) =>
+      "$baseUrl/groupTransaction/updateGroupExpense/$groupId/${Uri.encodeComponent(expenseId)}";
 }

@@ -31,7 +31,7 @@ class MyFriendsBottomsheet2 extends StatelessWidget {
         double baseHeight = MediaQuery.of(context).size.height * 0.30;
         double extraHeight = controller.myFriends.isEmpty
             ? 0
-            : (controller.myFriends.length * 40);
+            : (controller.myFriends.length * 56.0);
         double totalHeight = (baseHeight + extraHeight).clamp(
           0,
           MediaQuery.of(context).size.height * 0.85,
@@ -128,141 +128,132 @@ class MyFriendsBottomsheet2 extends StatelessWidget {
                       ),
                     ),
                   );
-                } else {
-                  return Expanded(
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: friendsList.length,
-                      itemBuilder: (context, index) {
-                        final friend = friendsList[index];
-                        final String friendNameBase = friend.name.isNotEmpty
-                            ? friend.name
-                            : friend.email.split('@')[0].capitalizeFirst ??
-                                  'Friend';
-                        final String friendNameDisplay =
-                            friendNameBase.length > 15
-                            ? '${friendNameBase.substring(0, 15)}...'
-                            : friendNameBase;
-                        final String avatarLetter = friendNameBase.isNotEmpty
-                            ? friendNameBase[0].toUpperCase()
-                            : 'A';
-                        final String emailDisplay = friend.email.length > 20
-                            ? '${friend.email.substring(0, 20)}...'
-                            : friend.email;
+                }
 
-                        return Container(
-                          height: MediaQuery.of(context).size.height / 15,
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: isDark
-                                    ? AppColors.black
-                                    : AppColors.borderGrey,
-                                width: 0.7,
-                              ),
+                return Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: friendsList.length,
+                    itemBuilder: (context, index) {
+                      final friend = friendsList[index];
+                      final String friendNameBase =
+                          (friend.name.isNotEmpty
+                                  ? friend.name
+                                  : friend.email.split('@')[0])
+                              .toString()
+                              .capitalizeFirst ??
+                          'Friend';
+                      final String friendNameDisplay =
+                          friendNameBase.length > 20
+                          ? '${friendNameBase.substring(0, 20)}...'
+                          : friendNameBase;
+                      final String avatarLetter = friendNameBase.isNotEmpty
+                          ? friendNameBase[0].toUpperCase()
+                          : 'A';
+                      final String emailDisplay = friend.email.length > 40
+                          ? '${friend.email.substring(0, 40)}...'
+                          : friend.email;
+
+                      return Container(
+                        height: MediaQuery.of(context).size.height / 15,
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: isDark
+                                  ? AppColors.deepGrey
+                                  : AppColors.borderGrey,
+                              width: 0.7,
                             ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: isDark
-                                          ? AppColors.textWhite
-                                          : Colors.black,
-                                      spreadRadius: 0.1,
-                                      blurRadius: 1,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 15,
+                              backgroundColor: AppColors.readishred,
+                              child: Center(
+                                child: Text(
+                                  avatarLetter,
+                                  style: getTextStyle2(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textWhite,
+                                  ),
                                 ),
-                                child: CircleAvatar(
-                                  radius: 15,
-                                  backgroundColor: AppColors.readishred,
-                                  child: Center(
+                              ),
+                            ),
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width / 40,
+                            ),
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Flexible(
                                     child: Text(
-                                      avatarLetter,
+                                      friendNameDisplay,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: getTextStyle2(
-                                        fontSize: 12,
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w500,
-                                        color: AppColors.textWhite,
+                                        color: isDark
+                                            ? AppColors.textWhite
+                                            : AppColors.black,
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width / 48,
-                              ),
-                              Flexible(
-                                child: Text(
-                                  friendNameDisplay,
-                                  style: getTextStyle2(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: isDark
-                                        ? AppColors.textWhite
-                                        : AppColors.black,
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      emailDisplay,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: getTextStyle2(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.textGrey,
+                                      ),
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                ],
                               ),
-                              SizedBox(width: 15),
-                              Flexible(
-                                flex: 2,
-                                child: Text(
-                                  emailDisplay,
-                                  style: getTextStyle2(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textGrey,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                            ),
+                            IconButton(
+                              icon: SvgPicture.asset(
+                                'assets/icons/delete.svg',
+                                height: 17.h,
+                                width: 15.w,
+                                color: isDark
+                                    ? AppColors.textWhite
+                                    : AppColors.black,
                               ),
-                              SizedBox(width: 16),
-                              IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: SvgPicture.asset(
-                                  'assets/icons/delete.svg',
-                                  height: 17.h,
-                                  width: 15.w,
-                                  color: isDark
-                                      ? AppColors.textWhite
-                                      : AppColors.black,
-                                ),
-                                onPressed: () {
-                                  showCupertinoDialog(
-                                    context: context,
-                                    builder: (BuildContext context) =>
-                                        ConfirmationDialog(
-                                          title:
-                                              'Are you sure you want to delete them?'
-                                                  .tr,
-                                          content:
-                                              'You won’t be able to undo this.'
-                                                  .tr,
-                                          button1: 'No'.tr,
-                                          button2: 'Yes'.tr,
-                                          onConfirm: () async {
-                                            await controller.removeFriend(
-                                              friend.email,
-                                            );
-                                          },
-                                        ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ).marginSymmetric(horizontal: 16), // Reduced margins
-                        );
-                      },
-                    ),
-                  );
-                }
+                              onPressed: () {
+                                showCupertinoDialog(
+                                  context: context,
+                                  builder: (BuildContext context) =>
+                                      ConfirmationDialog(
+                                        title:
+                                            'Are you sure you want to delete them?'
+                                                .tr,
+                                        content:
+                                            'You won’t be able to undo this.'
+                                                .tr,
+                                        button1: 'No'.tr,
+                                        button2: 'Yes'.tr,
+                                        onConfirm: () {
+                                          controller.removeFriend(friend.email);
+                                        },
+                                      ),
+                                );
+                              },
+                            ),
+                          ],
+                        ).marginOnly(left: 24, right: 10),
+                      );
+                    },
+                  ),
+                );
               }),
             ],
           ),

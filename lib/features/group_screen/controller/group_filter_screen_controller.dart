@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/features/group_screen/controller/expenses_page_controller.dart';
 
@@ -32,21 +33,22 @@ class GroupFilterScreenController extends GetxController {
   // Apply filters to expenses
   Future<void> applyFilters(String? groupId) async {
     try {
-      print('🎯 [FILTER] Starting filter application...');
-      print('🎯 [FILTER] GroupId: $groupId');
-      print('🎯 [FILTER] Group One Selected: ${groupOneSelected.value}');
-      print('🎯 [FILTER] Group Two Selected: ${groupTwoSelected.value}');
+
+      debugPrint('🎯 [FILTER] Starting filter application...');
+      debugPrint('🎯 [FILTER] GroupId: $groupId');
+      debugPrint('🎯 [FILTER] Group One Selected: ${groupOneSelected.value}');
+      debugPrint('🎯 [FILTER] Group Two Selected: ${groupTwoSelected.value}');
 
       // Get the expenses controller for the specific group
       String controllerTag = groupId ?? 'default';
-      print('🎯 [FILTER] Looking for controller with tag: $controllerTag');
+      debugPrint('🎯 [FILTER] Looking for controller with tag: $controllerTag');
 
       // Debug: Check what controllers are registered
-      print('🎯 [FILTER] Checking all registered controllers...');
+      debugPrint('🎯 [FILTER] Checking all registered controllers...');
       Get.printInfo();
 
       if (Get.isRegistered<ExpensesPageController>(tag: controllerTag)) {
-        print('🎯 [FILTER] Found expenses controller with specific tag');
+        debugPrint('🎯 [FILTER] Found expenses controller with specific tag');
         final expensesController = Get.find<ExpensesPageController>(
           tag: controllerTag,
         );
@@ -55,25 +57,29 @@ class GroupFilterScreenController extends GetxController {
         String? expenseView;
         if (groupOneSelected.value == 0) {
           expenseView = null; // All group - no filter needed
-          print('🎯 [FILTER] Expense view: All group');
+
+          debugPrint('🎯 [FILTER] Expense view: All group');
         } else if (groupOneSelected.value == 1) {
           expenseView = 'involving_me'; // Involving me only
-          print('🎯 [FILTER] Expense view: Involving me only');
+          debugPrint('🎯 [FILTER] Expense view: Involving me only');
+
         }
 
         // Determine transaction type filter
         String? transactionType;
         if (groupTwoSelected.value == 0) {
           transactionType = 'borrowed'; // I borrowed
-          print('🎯 [FILTER] Transaction type: borrowed');
+
+          debugPrint('🎯 [FILTER] Transaction type: borrowed');
         } else if (groupTwoSelected.value == 1) {
           transactionType = 'lent'; // I lent
-          print('🎯 [FILTER] Transaction type: lent');
+          debugPrint('🎯 [FILTER] Transaction type: lent');
         }
 
-        print(
+        debugPrint(
           '🎯 [FILTER] Applying filters - expenseView: $expenseView, transactionType: $transactionType',
         );
+
 
         // Apply the filters
         await expensesController.getGroupExpenses(
@@ -81,16 +87,17 @@ class GroupFilterScreenController extends GetxController {
           transactionType: transactionType,
         );
 
-        print('🎯 [FILTER] Filters applied successfully');
+
+        debugPrint('🎯 [FILTER] Filters applied successfully');
         isFilterApplied.value = true;
       } else {
-        print(
+        debugPrint(
           '❌ [FILTER] ExpensesPageController not found with tag: $controllerTag',
         );
 
         // Try to find without tag as fallback
         if (Get.isRegistered<ExpensesPageController>()) {
-          print(
+          debugPrint(
             '🎯 [FILTER] Found expenses controller without tag, using default',
           );
           final expensesController = Get.find<ExpensesPageController>();
@@ -115,12 +122,17 @@ class GroupFilterScreenController extends GetxController {
 
           isFilterApplied.value = true;
         } else {
-          print('❌ [FILTER] No ExpensesPageController found at all');
+
+          debugPrint('❌ [FILTER] No ExpensesPageController found at all');
+
         }
       }
+    // ignore: empty_catches
     } catch (e) {
-      print('❌ [FILTER] Error applying filters: $e');
-      print('❌ [FILTER] Stack trace: ${StackTrace.current}');
+
+      debugPrint('❌ [FILTER] Error applying filters: $e');
+      debugPrint('❌ [FILTER] Stack trace: ${StackTrace.current}');
+
     }
   }
 

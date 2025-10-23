@@ -20,6 +20,7 @@ class LoginController extends GetxController {
   final passwordError = ''.obs;
   final isEmailFocused = false.obs;
   final isPasswordFocused = false.obs;
+  
 
   @override
   void onInit() {
@@ -143,7 +144,6 @@ class LoginController extends GetxController {
     debugPrint('sendOTP method completed');
   }
 
-  //Log In=============================================================================
   Future<void> login() async {
     debugPrint('Starting login with email: ${emailController.text.trim()}');
     EasyLoading.show(status: 'Logging in...');
@@ -174,10 +174,12 @@ class LoginController extends GetxController {
         final approvalToken = responseData['approvalToken'] as String;
         final userId = responseData['user']['_id'] as String;
         final role = responseData['user']['role'] as String;
+        final issubscribed = responseData['isSubscribed'] as bool;
         final isProfileUpdated =
             responseData['user']['isProfileUpdated'] as bool;
+        final assistantType = responseData['user']['assistantType'] as String?;
         debugPrint(
-          'OTPVerified: $otpVerified, ApprovalToken: $approvalToken, UserId: $userId, Role: $role, isProfileUpdated: $isProfileUpdated',
+          'OTPVerified: $otpVerified, ApprovalToken: $approvalToken, UserId: $userId, Role: $role, isProfileUpdated: $isProfileUpdated, assistantType: $assistantType , issubscribed: $issubscribed',
         );
 
         // Save auth data to AuthService
@@ -187,6 +189,8 @@ class LoginController extends GetxController {
           userId: userId,
           role: role,
           userEmail: email, // Save the email too
+          assistantType: assistantType,
+          isSubscribed: issubscribed,
         );
         debugPrint('Auth data saved successfully');
 
