@@ -3,41 +3,74 @@ import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
-import 'package:teddy_5618/features/group_screen/screen/group_trip_spent_screen.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_trip_friend_spent_amo.dart';
 
 class PaidByMultiple extends StatelessWidget {
-  const PaidByMultiple({super.key});
+  final String controllerTag;
+
+  const PaidByMultiple({super.key, this.controllerTag = 'groupTripSpent'});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<GroupTripSpentController>();
+    final controller = Get.find<GroupTripSpentController>(tag: controllerTag);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Load group members when the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       debugPrint(
-        '🔍 Multiple widget callback - groupMembers.length: ${controller.groupMembers.length}, isLoading: ${controller.isLoadingMembers.value}, currentGroupId: "${controller.currentGroupId.value}"',
+        '🔍 [PAID_BY_MULTIPLE] ========== WIDGET CALLBACK START ==========',
       );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] groupMembers.length: ${controller.groupMembers.length}',
+      );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] isLoadingMembers: ${controller.isLoadingMembers.value}',
+      );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] currentGroupId: "${controller.currentGroupId.value}"',
+      );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] editingExpenseId: "${controller.editingExpenseId.value}"',
+      );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] friendNames: ${controller.friendNames.toList()}',
+      );
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] multipleFriendControllers.keys: ${controller.multipleFriendControllers.keys.toList()}',
+      );
+
+      // Print all controller values
+      debugPrint('🔍 [PAID_BY_MULTIPLE] Controller values:');
+      controller.multipleFriendControllers.forEach((key, ctrl) {
+        debugPrint('🔍 [PAID_BY_MULTIPLE]   "$key" → "${ctrl.text}"');
+      });
 
       if (controller.groupMembers.isEmpty &&
           !controller.isLoadingMembers.value) {
         if (controller.currentGroupId.value.isEmpty) {
           debugPrint(
-            '🚀 No group ID, getting user groups first to set group ID...',
+            '🚀 [PAID_BY_MULTIPLE] No group ID, getting user groups first...',
           );
           controller
               .getUserGroupsAndSetFirst(); // This will get groups and then call getGroupMembers
         } else {
-          debugPrint('🚀 Have group ID, fetching members directly...');
+          debugPrint(
+            '🚀 [PAID_BY_MULTIPLE] Have group ID, fetching members directly...',
+          );
           controller
               .getGroupMembers(); // This uses the getGroupMembers endpoint
         }
       }
 
       // Initialize calculations when screen loads
+      debugPrint('🔍 [PAID_BY_MULTIPLE] Calling updateMainTotal()');
       controller.updateMainTotal();
+      debugPrint('🔍 [PAID_BY_MULTIPLE] Calling updateMultipleFriendTotal()');
       controller.updateMultipleFriendTotal();
+
+      debugPrint(
+        '🔍 [PAID_BY_MULTIPLE] ========== WIDGET CALLBACK END ==========',
+      );
     });
 
     return SafeArea(
@@ -56,7 +89,7 @@ class PaidByMultiple extends StatelessWidget {
               SizedBox(height: 16),
               Obx(
                 () => Text(
-                  'Total ${controller.totalComparisonText.value}'.tr,
+                  "${'Total'.tr} ${controller.totalComparisonText.value}",
                   style: getTextStyle2(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
@@ -137,9 +170,32 @@ class PaidByMultiple extends StatelessWidget {
                             index,
                           );
 
+                          // Debug: Print state at render time
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            debugPrint(
+                              '🎨 [PAID_BY_MULTIPLE_UI] Rendering item $index: friendName="$friendName" → displayName="$displayName"',
+                            );
+                            debugPrint(
+                              '🎨 [PAID_BY_MULTIPLE_UI] multipleFriendControllers.keys: ${controller.multipleFriendControllers.keys.toList()}',
+                            );
+                            if (controller.multipleFriendControllers
+                                .containsKey(friendName)) {
+                              final amount = controller
+                                  .multipleFriendControllers[friendName]
+                                  ?.text;
+                              debugPrint(
+                                '🎨 [PAID_BY_MULTIPLE_UI] ✅ Found controller for "$friendName" with value: "$amount"',
+                              );
+                            } else {
+                              debugPrint(
+                                '🎨 [PAID_BY_MULTIPLE_UI] ❌ NO controller found for "$friendName"',
+                              );
+                            }
+                          });
+
                           // Ensure the controller is initialized for this friend
                           controller.initializeFriendControllerIfAbsent(
-                            displayName,
+                            friendName,
                             controller.multipleFriendControllers,
                           );
 
@@ -147,7 +203,7 @@ class PaidByMultiple extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 5),
                             child: GroupTripFriendSpentAmount(
                               controller: controller,
-                              name: displayName,
+                              name: friendName,
                               initials: initials,
                               color: avatarColor,
                               showCheckbox: false,
@@ -163,36 +219,59 @@ class PaidByMultiple extends StatelessWidget {
                 ),
               ),
 
-              GestureDetector(
-                onTap: () async {
-                  // Save the expense with selected members
-                  await controller.saveExpenseWithMembers();
-                  // Then navigate to the next screen with group ID
-                  Get.to(
-                    () => GroupTripSpentScreen(
-                      groupId: controller.currentGroupId.value,
+              // Show the Update button always; enable (green/clickable)
+              // only when totals match. When disabled, it stays visible
+              // but greyed out and non-clickable.
+              Obx(() {
+                final enabled = controller.doAmountsMatch.value;
+                return GestureDetector(
+                  onTap: enabled
+                      ? () async {
+                          debugPrint(
+                            '🔘 [PAID_BY_MULTIPLE] Update button clicked',
+                          );
+                          debugPrint(
+                            '🔘 [PAID_BY_MULTIPLE] doAmountsMatch: ${controller.doAmountsMatch.value}',
+                          );
+                          debugPrint(
+                            '🔘 [PAID_BY_MULTIPLE] totalComparisonText: ${controller.totalComparisonText.value}',
+                          );
+
+                          // Mark that the paid-by selection came from Multiple flow
+                          controller.paidByWasMultiple.value = true;
+                          debugPrint(
+                            '🔘 [PAID_BY_MULTIPLE] Set paidByWasMultiple = true',
+                          );
+
+                          // Close the bottom sheet (saving happens elsewhere)
+                          debugPrint(
+                            '🔘 [PAID_BY_MULTIPLE] Closing bottom sheet...',
+                          );
+                          Get.back();
+                        }
+                      : null,
+                  child: Container(
+                    height: 52,
+                    width: MediaQuery.of(context).size.width / 1.1,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(25),
+                      color: enabled
+                          ? AppColors.green
+                          : (isDark ? Color(0xFF3A3A3A) : Color(0xFFE0E0E0)),
                     ),
-                  );
-                },
-                child: Container(
-                  height: 52,
-                  width: MediaQuery.of(context).size.width / 1.1,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    color: AppColors.green,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Update'.tr,
-                      style: getTextStyle2(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                    child: Center(
+                      child: Text(
+                        'Update'.tr,
+                        style: getTextStyle2(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: enabled ? Colors.black : Colors.grey,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
+                );
+              }),
               SizedBox(height: 12),
             ],
           ).marginSymmetric(horizontal: 24),

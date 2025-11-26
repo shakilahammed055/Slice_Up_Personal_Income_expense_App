@@ -17,10 +17,12 @@ class ExpenseBarChart extends StatelessWidget {
   final Color? circlevatercolor;
   final String? valueText;
   final String? valueText2;
+  final String? middleText;
   final Color? valueColor;
   final Color? lightbarColor;
   final double? valuegap;
   final double? progressValue; // New parameter for progress (0.0 to 1.0)
+  final double? lightProgressValue; // Progress for the light (background) bar
   final Widget? iconWidget;
 
   const ExpenseBarChart({
@@ -30,10 +32,12 @@ class ExpenseBarChart extends StatelessWidget {
     this.icontextfont,
     this.circlevatercolor,
     this.valueText,
+    this.middleText,
     this.valueText2,
     this.valueColor,
     this.valuegap,
     this.progressValue,
+    this.lightProgressValue,
 
     this.iconWidget,
     this.lightbarColor, // Initialize the new parameter // Initialize the new parameter
@@ -42,10 +46,11 @@ class ExpenseBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double gap = valuegap ?? 1.5;
-    final double progress =
-        progressValue ?? 0.5; // Progress value from 0.0 to 1.0
-    final double percentage =
-        progress * 100; // Convert to percentage for display
+    // Clamp progress values so they never exceed 100% (1.0) or fall below 0%
+    final double progress = (progressValue ?? 0.5).clamp(0.0, 1.0);
+    final double lightProgress = (lightProgressValue ?? 0.9).clamp(0.0, 1.0);
+    // Display percentage (capped at 100)
+    final double percentage = (progress * 100).clamp(0.0, 100.0);
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -85,6 +90,7 @@ class ExpenseBarChart extends StatelessWidget {
 
             Spacer(),
 
+            // Primary value (e.g., person's amount)
             Text(
               valueText ?? AppText.hundr1,
               style: getTextStyle2(
@@ -93,14 +99,33 @@ class ExpenseBarChart extends StatelessWidget {
                 color: valueColor ?? AppColors.green,
               ),
             ),
-            Text(
-              valueText2 ?? '',
-              style: getTextStyle2(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textGrey,
+
+            // Optional middle value (e.g., group's involvedAmount)
+            if (middleText != null && middleText!.isNotEmpty) ...[
+              SizedBox(width: 4.w),
+              Text(
+                '/${middleText!}',
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textGrey,
+                ),
               ),
-            ),
+            ],
+
+            // Secondary trailing value (e.g., "/total")
+            if (valueText2 != null && valueText2!.isNotEmpty) ...[
+              SizedBox(width: 4.w),
+              Text(
+                // Ensure we don't duplicate slashes if caller already included '/'
+                valueText2!.startsWith('/') ? valueText2! : '/${valueText2!}',
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textGrey,
+                ),
+              ),
+            ],
           ],
         ).marginSymmetric(horizontal: 24.w), // Responsive horizontal margin
         SizedBox(height: 10.h), // Responsive height
@@ -117,7 +142,8 @@ class ExpenseBarChart extends StatelessWidget {
           child: Stack(
             children: [
               FractionallySizedBox(
-                widthFactor: 0.9, // Target soft range (e.g., 60%)
+                widthFactor:
+                    lightProgress, // Light/background width according to involved percent
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(

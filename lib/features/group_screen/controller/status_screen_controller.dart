@@ -17,18 +17,20 @@ class StatusScreenController extends GetxController {
   final RxString groupId = ''.obs;
   final RxString ownerEmail =
       ''.obs; // Add owner email to identify current user
+  // Current logged-in user's email (cached from AuthService)
+  final RxString currentUserEmail = ''.obs;
 
   // Summary data
-  final RxString involvedCurrency = 'SGD'.obs;
+  final RxString involvedCurrency = ''.obs;
   final RxDouble involvedAmount = 0.0.obs;
   final RxDouble myExpensesPercentage = 0.0.obs;
-  final RxString myExpensesCurrency = 'SGD'.obs;
+  final RxString myExpensesCurrency = ''.obs;
   final RxDouble myExpensesAmount = 0.0.obs;
 
   // Net balance
   final RxDouble netBalanceAmount = 0.0.obs;
   final RxString netBalanceStatus = ''.obs;
-  final RxString netBalanceCurrency = 'SGD'.obs;
+  final RxString netBalanceCurrency = ''.obs;
 
   // Category wise data
   final RxList<CategoryWiseStatus> categoryWiseData =
@@ -80,6 +82,15 @@ class StatusScreenController extends GetxController {
 
       debugPrint("🔑 [STATUS] Token found for group: $groupId");
 
+      // Cache current logged-in user's email so we can mark "Me" in lists
+      try {
+        final String? userEmail = await AuthService.getUserEmail();
+        currentUserEmail.value = userEmail ?? '';
+        debugPrint("🔑 [STATUS] Current user email: ${currentUserEmail.value}");
+      } catch (e) {
+        debugPrint("⚠️ [STATUS] Could not read current user email: $e");
+      }
+
       // Build query parameters
       final Map<String, String> queryParams = {
         'expenseView': expenseView.value,
@@ -118,13 +129,20 @@ class StatusScreenController extends GetxController {
             responseData['message'] ?? 'Failed to fetch group status',
           );
         }
+      } else if (response.statusCode == 404 || response.statusCode == 500) {
+        // Group not found or server error - silently skip status data
+        // This is optional data, not critical to the app
+        debugPrint(
+          "ℹ️ [STATUS] Status data unavailable (${response.statusCode}): Continuing without status details",
+        );
+        return; // Exit early - don't throw exception
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['message'] ?? 'Failed to fetch group status');
       }
     } catch (e) {
-      debugPrint("❌ [STATUS] Error fetching group status: $e");
-      EasyLoading.showError('Failed to load status: ${e.toString()}');
+      // Silently handle errors - status screen is optional
+      debugPrint("ℹ️ [STATUS] Status data unavailable, continuing without it");
     } finally {
       isLoading.value = false;
       EasyLoading.dismiss();
@@ -144,23 +162,27 @@ class StatusScreenController extends GetxController {
       // Summary data
       final summaryData = data['summary'] as Map<String, dynamic>? ?? {};
 
-      // Prefer the user's selected currency from SettingController if available,
-      // otherwise fall back to the API-provided currency or sensible default.
-      String preferredCurrency = 'SGD';
+      // Prefer the API-provided currency when present; otherwise fall back
+      // to user-selected currency from SettingController. No hardcoded
+      // fallback is used — prefer empty string when nothing is available.
+      String preferredCurrency = '';
+      final String apiInvolvedCurrency = (summaryData['involvedCurrency'] ?? '')
+          .toString();
       try {
-        final setting = Get.find<SettingController>();
-        final sel = setting.currency.value; // e.g. 'S\$' or 'US\$'
-        if (sel.isNotEmpty) {
-          preferredCurrency = sel;
-        } else if ((summaryData['involvedCurrency'] ?? '')
-            .toString()
-            .isNotEmpty) {
-          preferredCurrency = summaryData['involvedCurrency'].toString();
+        if (apiInvolvedCurrency.isNotEmpty) {
+          preferredCurrency = apiInvolvedCurrency;
+        } else {
+          final setting = Get.find<SettingController>();
+          final sel = setting.currency.value; // e.g. 'S\$' or 'US\$'
+          if (sel.isNotEmpty) {
+            preferredCurrency = sel;
+          }
         }
       } catch (e) {
-        // No SettingController available; use API or default
-        preferredCurrency = (summaryData['involvedCurrency'] ?? 'SGD')
-            .toString();
+        // No SettingController available; prefer API value if present
+        if (apiInvolvedCurrency.isNotEmpty) {
+          preferredCurrency = apiInvolvedCurrency;
+        }
       }
 
       involvedCurrency.value = preferredCurrency;
@@ -168,7 +190,10 @@ class StatusScreenController extends GetxController {
       myExpensesPercentage.value = (summaryData['myExpensesPercentage'] ?? 0)
           .toDouble();
 
-      myExpensesCurrency.value = preferredCurrency;
+      // Use API-provided myExpensesCurrency if present, otherwise prefer
+      // the previously determined preferredCurrency (may be empty).
+      myExpensesCurrency.value =
+          (summaryData['myExpensesCurrency'] ?? preferredCurrency).toString();
       myExpensesAmount.value = (summaryData['myExpensesAmount'] ?? 0)
           .toDouble();
 
@@ -177,7 +202,9 @@ class StatusScreenController extends GetxController {
       if (netBalance != null && netBalance is Map) {
         netBalanceAmount.value = (netBalance['amount'] ?? 0).toDouble();
         netBalanceStatus.value = netBalance['status'] ?? '';
-        netBalanceCurrency.value = preferredCurrency;
+        // Use netBalance.currency from API if present; otherwise keep empty
+        netBalanceCurrency.value = (netBalance['currency'] ?? preferredCurrency)
+            .toString();
       }
 
       // Category wise data: parse then ensure displayed currency matches preferredCurrency
@@ -188,12 +215,16 @@ class StatusScreenController extends GetxController {
             (c) => CategoryWiseStatus(
               categoryName: c.categoryName,
               involved: AmountInfo(
-                currency: preferredCurrency,
+                currency: (c.involved.currency.isNotEmpty)
+                    ? c.involved.currency
+                    : preferredCurrency,
                 amount: c.involved.amount,
                 percentage: c.involved.percentage,
               ),
               myExpense: AmountInfo(
-                currency: preferredCurrency,
+                currency: (c.myExpense.currency.isNotEmpty)
+                    ? c.myExpense.currency
+                    : preferredCurrency,
                 amount: c.myExpense.amount,
                 percentage: c.myExpense.percentage,
               ),
@@ -209,13 +240,18 @@ class StatusScreenController extends GetxController {
           .map(
             (p) => PersonWiseStatus(
               memberEmail: p.memberEmail,
+              memberName: p.memberName,
               involved: AmountInfo(
-                currency: preferredCurrency,
+                currency: (p.involved.currency.isNotEmpty)
+                    ? p.involved.currency
+                    : preferredCurrency,
                 amount: p.involved.amount,
                 percentage: p.involved.percentage,
               ),
               myExpense: AmountInfo(
-                currency: preferredCurrency,
+                currency: (p.myExpense.currency.isNotEmpty)
+                    ? p.myExpense.currency
+                    : preferredCurrency,
                 amount: p.myExpense.amount,
                 percentage: p.myExpense.percentage,
               ),
@@ -242,6 +278,20 @@ class StatusScreenController extends GetxController {
       debugPrint("   - Categories: ${categoryWiseData.length}");
       debugPrint("   - Members: ${personWiseData.length}");
       debugPrint("   - Owner Email: ${ownerEmail.value}");
+
+      // Debug: log personWise members and whether they are identified as current user
+      try {
+        for (var p in personWiseData) {
+          debugPrint(
+            "🔎 [STATUS] Member: ${p.memberEmail} / ${p.memberName} -> isMe: ${isCurrentUser(p.memberEmail)}",
+          );
+        }
+        debugPrint(
+          "🔎 [STATUS] Current user cached email: ${currentUserEmail.value}",
+        );
+      } catch (e) {
+        debugPrint("⚠️ [STATUS] Failed to debug-log members: $e");
+      }
     } catch (e) {
       debugPrint("❌ [STATUS] Error parsing API response: $e");
       throw Exception('Failed to parse status data');
@@ -318,11 +368,21 @@ class StatusScreenController extends GetxController {
   }
 
   bool isCurrentUser(String memberEmail) {
-    final isOwner = memberEmail == ownerEmail.value;
+    final normalizedMember = memberEmail.trim().toLowerCase();
+    final normalizedCurrent = currentUserEmail.value.trim().toLowerCase();
+
+    // Only mark a member as the current user when the member's email
+    // exactly matches the logged-in user's email. Do NOT treat the
+    // group owner as 'Me' unless the owner is the logged-in user.
+    final isCurrent =
+        normalizedMember.isNotEmpty && normalizedMember == normalizedCurrent;
+
     debugPrint("🔍 [USER_CHECK] Checking if $memberEmail is current user");
+    debugPrint("   - Current user email: ${currentUserEmail.value}");
     debugPrint("   - Owner email: ${ownerEmail.value}");
-    debugPrint("   - Is owner: $isOwner");
-    return isOwner;
+    debugPrint("   - Is current: $isCurrent");
+
+    return isCurrent;
   }
 
   // Get net balance display text
@@ -373,11 +433,13 @@ class CategoryWiseStatus {
 
 class PersonWiseStatus {
   final String memberEmail;
+  final String memberName;
   final AmountInfo involved;
   final AmountInfo myExpense;
 
   PersonWiseStatus({
     required this.memberEmail,
+    required this.memberName,
     required this.involved,
     required this.myExpense,
   });
@@ -385,6 +447,7 @@ class PersonWiseStatus {
   factory PersonWiseStatus.fromJson(Map<String, dynamic> json) {
     return PersonWiseStatus(
       memberEmail: json['memberEmail'] ?? '',
+      memberName: (json['memberName'] ?? json['memberEmail'] ?? '').toString(),
       involved: AmountInfo.fromJson(json['involved'] ?? {}),
       myExpense: AmountInfo.fromJson(json['myExpense'] ?? {}),
     );
@@ -393,20 +456,55 @@ class PersonWiseStatus {
 
 class AmountInfo {
   final String currency;
-  final double amount;
+  final double
+  amount; // normalized amount used across the UI (prefer currentAmount)
   final double percentage;
+
+  // Optional raw values from API (kept for future use / debugging)
+  final double? originalAmount;
+  final double? settledAmount;
+  final double? currentAmountRaw;
 
   AmountInfo({
     required this.currency,
     required this.amount,
     required this.percentage,
+    this.originalAmount,
+    this.settledAmount,
+    this.currentAmountRaw,
   });
 
   factory AmountInfo.fromJson(Map<String, dynamic> json) {
+    // Helper to safely parse various numeric shapes (int, double, string)
+    double toDouble(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is double) return v;
+      if (v is int) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0.0;
+      return 0.0;
+    }
+
+    // API may provide 'currentAmount' (preferred), or 'amount' in older responses.
+    final double parsedOriginal = toDouble(
+      json['originalAmount'] ?? json['original_amount'],
+    );
+    final double parsedSettled = toDouble(
+      json['settledAmount'] ?? json['settled_amount'],
+    );
+    final double parsedCurrent = toDouble(
+      json['currentAmount'] ?? json['current_amount'] ?? json['amount'],
+    );
+    final double parsedPercentage = toDouble(json['percentage']);
+
+    final String parsedCurrency = (json['currency'] ?? '').toString();
+
     return AmountInfo(
-      currency: json['currency'] ?? 'SGD',
-      amount: (json['amount'] ?? 0).toDouble(),
-      percentage: (json['percentage'] ?? 0).toDouble(),
+      currency: parsedCurrency,
+      amount: parsedCurrent,
+      percentage: parsedPercentage,
+      originalAmount: parsedOriginal != 0.0 ? parsedOriginal : null,
+      settledAmount: parsedSettled != 0.0 ? parsedSettled : null,
+      currentAmountRaw: parsedCurrent != 0.0 ? parsedCurrent : null,
     );
   }
 }

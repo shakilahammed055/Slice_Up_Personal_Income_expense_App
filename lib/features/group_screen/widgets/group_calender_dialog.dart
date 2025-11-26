@@ -5,9 +5,10 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 
-void showCalendarBottomSheet(BuildContext context) {
-  final controller = Get.find<GroupTripSpentController>();
-   final isDark = Theme.of(context).brightness == Brightness.dark;
+void showCalendarBottomSheet(BuildContext context, {String? controllerTag}) {
+  final tag = controllerTag ?? 'groupTripSpent';
+  final controller = Get.find<GroupTripSpentController>(tag: tag);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
 
   showModalBottomSheet(
     context: context,
@@ -35,18 +36,16 @@ void showCalendarBottomSheet(BuildContext context) {
                     titleCentered: true,
                     formatButtonVisible: false,
                     titleTextStyle: TextStyle(
-                      color: isDark
-                          ? AppColors.textWhite
-                          : AppColors.black,
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                       fontSize: 17.0,
                     ), // Month/Year color
                     leftChevronIcon: Icon(
                       Icons.chevron_left,
-                      color:  isDark ? AppColors.textWhite : AppColors.black,
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                     ), // Chevron color
                     rightChevronIcon: Icon(
                       Icons.chevron_right,
-                      color:  isDark ? AppColors.textWhite : AppColors.black,
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                     ), // Chevron color
                   ),
                   calendarStyle: CalendarStyle(
@@ -54,22 +53,23 @@ void showCalendarBottomSheet(BuildContext context) {
                       color: Colors.transparent,
                       shape: BoxShape.rectangle,
                     ),
-                    todayTextStyle:  TextStyle(
-                      color:  isDark ? AppColors.textWhite : AppColors.black,
+                    todayTextStyle: TextStyle(
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                       fontWeight: FontWeight.normal,
                     ),
-                    selectedDecoration:  BoxDecoration(
-                      color:  isDark
-                          ? AppColors.textWhite
-                          : AppColors.black,
+                    selectedDecoration: BoxDecoration(
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                     ),
-                    selectedTextStyle:  TextStyle(color: isDark ? AppColors.black : AppColors.textWhite,
+                    selectedTextStyle: TextStyle(
+                      color: isDark ? AppColors.black : AppColors.textWhite,
                     ),
-                    defaultTextStyle:  TextStyle(color:  isDark ? AppColors.textWhite : AppColors.black,
+                    defaultTextStyle: TextStyle(
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                     ),
-                    weekendTextStyle:  TextStyle(color:  isDark ? AppColors.textWhite : AppColors.black,
+                    weekendTextStyle: TextStyle(
+                      color: isDark ? AppColors.textWhite : AppColors.black,
                     ),
-                    outsideTextStyle:  TextStyle(color: Colors.grey),
+                    outsideTextStyle: TextStyle(color: Colors.grey),
                   ),
                 );
               }),

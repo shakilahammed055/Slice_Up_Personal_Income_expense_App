@@ -1,15 +1,17 @@
 class Urls {
-  static const baseUrl = "https://teddybackend-mivk.onrender.com/api/v1";
+  static const baseUrl = "http://72.60.211.60:3000/api/v1";
   static const createuser = "$baseUrl/users/createUser";
   static const verifyotp = "$baseUrl/auth/otpCrossCheck";
   static const resendOtp = "$baseUrl/auth/reSend_OTP";
   static const login = "$baseUrl/auth/login";
+   static const logout = "$baseUrl/auth/logOut";
   static const sendotp = "$baseUrl/auth/send_OTP";
   static const forgetpassword = "$baseUrl/auth/forgetPassword";
   static const resetpassword = "$baseUrl/auth/resetPassword";
   static const uploadimage =
       "$baseUrl/users/uploadOrChangeImg?acctionType=upload";
   static const getsettingprofile = "$baseUrl/users/getSettingProfile";
+  static const getcurrency = "$baseUrl/users/all-courrencys";
   static const updateprofile = "$baseUrl/users/updateProfileData";
   static const addmultiplefriends = "$baseUrl/users/friends/add-multiple";
   static const allfriends = "$baseUrl/users/friends";
@@ -23,12 +25,16 @@ class Urls {
   static const addpersonalcategory = "$baseUrl/users/categories/personal";
   static const getallcategory = "$baseUrl/users/categories";
   static const gethistory = "$baseUrl/history/get-history";
-  static const deleteincomeorexpense = "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
+  static const deleteincomeorexpense =
+      "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
   static const incomepersonal = "$baseUrl/users/categories/income/personal";
   static const deleteCategory = "$baseUrl/users/categories/";
-  static const addincomeexpence = "$baseUrl/incomeAndExpences/addIncomeOrExpenses";
-  static const updateincomeexpence = "$baseUrl/incomeAndExpences/updateIncomeOrExpenses/";
-  static const deleteincomeexpense = "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
+  static const addincomeexpence =
+      "$baseUrl/incomeAndExpences/addIncomeOrExpenses";
+  static const updateincomeexpence =
+      "$baseUrl/incomeAndExpences/updateIncomeOrExpenses/";
+  static const deleteincomeexpense =
+      "$baseUrl/incomeAndExpences/deleteIncomeOrExpenses/";
   static const getallplans = "$baseUrl/plans";
   static const checkoutsession = "$baseUrl/payment/create-checkout-session";
 
@@ -62,6 +68,9 @@ class Urls {
   //sliceup api
   static String getSliceUp(String groupId) =>
       "$baseUrl/groupTransaction/$groupId/settlements";
+   static String getSettlements(String groupId) =>
+      "$baseUrl/groupTransaction/$groupId/current-settlements";
+
   static String postFilterSliceUp(String groupId) =>
       "$baseUrl/groupTransaction/$groupId/settle-multiple-debts";
 
@@ -71,6 +80,9 @@ class Urls {
   static String removeMember(String groupId, String memberEmail) =>
       "$baseUrl/groupTransaction/removeMember/$groupId/${Uri.encodeComponent(memberEmail)}";
 
-       static String updateGroupExpense(String groupId, String expenseId) =>
+  static String updateGroupExpense(String groupId, String expenseId) =>
       "$baseUrl/groupTransaction/updateGroupExpense/$groupId/${Uri.encodeComponent(expenseId)}";
+
+  static String deleteGroupExpense(String groupId, String expenseId) =>
+      "$baseUrl/groupTransaction/deleteGroupExpense/$groupId/${Uri.encodeComponent(expenseId)}";
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
-import 'package:teddy_5618/core/utils/constants/app_texts.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/responsive_helper.dart';
 import 'package:teddy_5618/features/home_screen/widgets/expense_bar_chart.dart';
@@ -24,7 +23,22 @@ class IndividualStatusScreen extends StatelessWidget {
       statusController = Get.put(StatusScreenController());
     }
 
+    // Helper to format amounts without repeating the currency symbol (same approach as group screen)
+    String formatWithoutCurrency(double amount) {
+      final formatted = statusController.getFormattedAmount(
+        amount,
+        statusController.involvedCurrency.value,
+      );
+      final currencyPrefix = statusController.involvedCurrency.value;
+      if (formatted.startsWith(currencyPrefix)) {
+        return formatted.substring(currencyPrefix.length).trim();
+      }
+      final parts = formatted.split(RegExp(r"\s+"));
+      return parts.length > 1 ? parts.sublist(1).join(' ') : formatted;
+    }
+
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
         child: Column(
           children: [
@@ -85,9 +99,7 @@ class IndividualStatusScreen extends StatelessWidget {
             Container(
               width: r.size.width / 1.1,
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(
-                 Radius.circular(10)
-                ),
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
                 color: isDark ? Color(0xFF262626) : AppColors.textWhite,
 
                 boxShadow: const [
@@ -101,34 +113,6 @@ class IndividualStatusScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Involved'.tr,
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textWhite
-                              : AppColors.backgroundDark,
-                        ),
-                      ),
-                      Spacer(),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedAmount(
-                            statusController.involvedAmount.value,
-                            statusController.involvedCurrency.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).marginSymmetric(horizontal: 16, vertical: 8),
                   Row(
                     children: [
                       Text(
@@ -164,16 +148,17 @@ class IndividualStatusScreen extends StatelessWidget {
                           style: getTextStyle2(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.green,
+                            color: AppColors.textGrey,
                           ),
                         ),
                       ),
                     ],
                   ).marginSymmetric(horizontal: 14, vertical: 8),
+
                   Row(
                     children: [
                       Text(
-                        AppText.involved,
+                        'My split amount'.tr, //it also means involved amount
                         style: getTextStyle2(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -182,7 +167,6 @@ class IndividualStatusScreen extends StatelessWidget {
                               : AppColors.backgroundDark,
                         ),
                       ),
-
                       Spacer(),
                       Obx(
                         () => Text(
@@ -193,55 +177,12 @@ class IndividualStatusScreen extends StatelessWidget {
                           style: getTextStyle2(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? AppColors.textGrey
-                                : AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).marginSymmetric(horizontal: 14, vertical: 8),
-                  Row(
-                    children: [
-                      Text(
-                        AppText.myExpense,
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textWhite
-                              : AppColors.backgroundDark,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedPercentage(
-                            statusController.myExpensesPercentage.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                      Spacer(),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedAmount(
-                            statusController.myExpensesAmount.value,
-                            statusController.myExpensesCurrency.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
                             color: AppColors.green,
                           ),
                         ),
                       ),
                     ],
-                  ).marginSymmetric(horizontal: 14, vertical: 8),
+                  ).marginSymmetric(horizontal: 16, vertical: 8),
                 ],
               ),
             ),
@@ -266,28 +207,19 @@ class IndividualStatusScreen extends StatelessWidget {
                   : Column(
                       children: () {
                         final members = statusController.personWiseData;
-                        // Find the maximum amount to normalize progress bars
-                        final maxAmount = members.isNotEmpty
-                            ? members
-                                  .map((p) => p.myExpense.amount)
-                                  .reduce((a, b) => a > b ? a : b)
-                            : 1.0;
-
                         return members.map((person) {
                           final isMe = statusController.isCurrentUser(
                             person.memberEmail,
                           );
 
-                          // Extract name from email
-                          String displayName = person.memberEmail.split('@')[0];
+                          // Prefer API-provided memberName, fall back to email-derived name
+                          String displayName = (person.memberName.isNotEmpty)
+                              ? person.memberName
+                              : person.memberEmail.split('@')[0];
                           if (isMe) {
-                            displayName = "$displayName (Me)";
+                            // Translate only the "Me" label, keep the displayName unchanged.
+                            displayName = "$displayName (${'Me'.tr})";
                           }
-
-                          // Calculate relative progress (0.0 to 1.0) based on max amount
-                          final relativeProgress = maxAmount > 0
-                              ? (person.myExpense.amount / maxAmount)
-                              : 0.0;
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 24),
@@ -303,8 +235,8 @@ class IndividualStatusScreen extends StatelessWidget {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    person.memberEmail.isNotEmpty
-                                        ? person.memberEmail[0].toUpperCase()
+                                    displayName.isNotEmpty
+                                        ? displayName[0].toUpperCase()
                                         : "U",
                                     style: TextStyle(
                                       fontSize: 14,
@@ -314,15 +246,23 @@ class IndividualStatusScreen extends StatelessWidget {
                                 ),
                               ),
                               icontext: displayName,
+                              // Primary:  involved amount (shows currency)
                               valueText: statusController.getFormattedAmount(
-                                person.myExpense.amount,
-                                person.myExpense.currency,
+                                person.involved.amount,
+
+                                person.involved.currency,
                               ),
-                              valueText2:
-                                  "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                              // Middle:  myExpense amount (no currency)
+                              middleText: formatWithoutCurrency(
+                                person.myExpense.amount,
+                              ),
                               valueColor: AppColors.green,
                               lightbarColor: AppColors.greylightbarcolor,
-                              progressValue: relativeProgress,
+                              // Colored progress equals myExpense percentage
+                              progressValue: person.myExpense.percentage / 100,
+                              // Light/background progress equals involved percentage
+                              lightProgressValue:
+                                  person.involved.percentage / 100,
                             ),
                           );
                         }).toList();
@@ -340,7 +280,7 @@ class IndividualStatusScreen extends StatelessWidget {
                         ? Center(child: CircularProgressIndicator())
                         : Center(
                             child: Text(
-                              'No category data available',
+                              'No category data available'.tr,
                               style: getTextStyle2(
                                 fontSize: 16,
                                 color: isDark
@@ -377,18 +317,23 @@ class IndividualStatusScreen extends StatelessWidget {
                                   style: const TextStyle(fontSize: 20),
                                 ),
                                 icontext: categoryDisplayName,
+                                // Primary: myExpense (shows currency)
                                 valueText: statusController.getFormattedAmount(
-                                  category.myExpense.amount,
-                                  category.myExpense.currency,
+                                  category.involved.amount,
+                                  category.involved.currency,
                                 ),
-                                valueText2:
-                                    "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                                // Middle: involved amount (no currency)
+                                middleText: formatWithoutCurrency(
+                                  category.myExpense.amount,
+                                ),
                                 valueColor: AppColors.green,
                                 lightbarColor: AppColors.greylightbarcolor,
-                                progressValue: statusController
-                                    .getRelativeProgress(
-                                      category.myExpense.amount,
-                                    ), // Use relative progress
+                                // Colored progress equals myExpense percentage
+                                progressValue:
+                                    category.myExpense.percentage / 100,
+                                // Light/background progress equals involved percentage
+                                lightProgressValue:
+                                    category.involved.percentage / 100,
                               ),
                             );
                           })

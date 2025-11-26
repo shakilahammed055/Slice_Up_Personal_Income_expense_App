@@ -7,7 +7,12 @@ import 'package:teddy_5618/features/group_screen/widgets/share_with_custom.dart'
 import 'package:teddy_5618/features/group_screen/widgets/share_with_equal.dart';
 
 class GroupTripSharedWithBottom extends StatefulWidget {
-  const GroupTripSharedWithBottom({super.key});
+  final String controllerTag;
+
+  const GroupTripSharedWithBottom({
+    super.key,
+    this.controllerTag = 'groupTripSpent',
+  });
 
   @override
   State<GroupTripSharedWithBottom> createState() =>
@@ -20,11 +25,17 @@ class _GroupTripSharedWithBottomState extends State<GroupTripSharedWithBottom> {
     super.initState();
     // Load group members when the bottom sheet opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final controller = Get.find<GroupTripSpentController>();
+      final controller = Get.find<GroupTripSpentController>(
+        tag: widget.controllerTag,
+      );
 
-      // Clear any previous Share-with selections when opening the bottom sheet
-      // but preserve the Paid-by selection so users don't lose their choice.
-      controller.clearSharedWithSelections();
+      // Only clear previous Share-with selections when opening the bottom sheet
+      // for creating a NEW expense. If we're editing an existing expense,
+      // `editingExpenseId` will be set and we must preserve the loaded
+      // share-with selections so the bottom sheet shows the correct state.
+      if (controller.editingExpenseId.value.isEmpty) {
+        controller.clearSharedWithSelections();
+      }
 
       if (controller.friendNames.isEmpty) {
         controller.getGroupMembers();
@@ -34,7 +45,9 @@ class _GroupTripSharedWithBottomState extends State<GroupTripSharedWithBottom> {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<GroupTripSpentController>();
+    final controller = Get.find<GroupTripSpentController>(
+      tag: widget.controllerTag,
+    );
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -100,10 +113,10 @@ class _GroupTripSharedWithBottomState extends State<GroupTripSharedWithBottom> {
           Obx(() {
             // Show 'ShareWithEqual' when isEquallySelected is true
             if (controller.isEquallySelected.value) {
-              return const ShareWithEqual();
+              return ShareWithEqual(controllerTag: widget.controllerTag);
             } else {
               // Show 'ShareWithCustom' when it's false
-              return const ShareWithCustom();
+              return ShareWithCustom(controllerTag: widget.controllerTag);
             }
           }),
           // --- END OF FIX ---

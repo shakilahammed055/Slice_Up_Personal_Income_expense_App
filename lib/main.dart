@@ -10,8 +10,6 @@
 //   runApp(Teddy5618(savedLocale: savedLocale));
 // }
 
-
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/app.dart' show Teddy5618;
@@ -23,8 +21,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService.init();
   final settingController = Get.put(SettingController());
-  await settingController.loadInitialSettings(); 
+  await settingController.loadInitialSettings();
   await settingController.loadSavedLanguage();
-  final savedLocale = await LanguageService.loadLocale() ?? settingController.nameToLocale(settingController.language.value);
+  final savedLocale =
+      await LanguageService.loadLocale() ??
+      settingController.nameToLocale(settingController.language.value);
   runApp(Teddy5618(savedLocale: savedLocale));
 }

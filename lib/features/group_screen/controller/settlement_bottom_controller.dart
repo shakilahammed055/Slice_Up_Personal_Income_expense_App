@@ -18,11 +18,21 @@ class SettlementBottomController extends GetxController {
   /// Optional reference to the SliceUpController for the group
   SliceUpController? sliceUpController;
 
+  /// Local cached settlements fetched directly from the slice-up API
+  final RxList<Map<String, dynamic>> activeSettlements =
+      <Map<String, dynamic>>[].obs;
+
+  /// Local cached balances fetched directly from the slice-up API
+  // Local balances & "To Collect" selection are disabled for now.
+  // If you want to re-enable the "To Collect" option, restore this list
+  // and the related methods below.
+  // final RxList<Map<String, dynamic>> balances = <Map<String, dynamic>>[].obs;
+
   /// Holds selected state for the "To Pay" list
   var groupOneSelected = <bool>[].obs;
 
   /// Holds selected state for the "To Collect" list
-  var groupTwoSelected = <bool>[].obs;
+  // var groupTwoSelected = <bool>[].obs;
 
   /// Toggle a specific checkbox in Group One
   void toggleGroupOne(int index) {
@@ -31,10 +41,10 @@ class SettlementBottomController extends GetxController {
   }
 
   /// Toggle a specific checkbox in Group Two
-  void toggleGroupTwo(int index) {
-    if (index < 0 || index >= groupTwoSelected.length) return;
-    groupTwoSelected[index] = !groupTwoSelected[index];
-  }
+  // void toggleGroupTwo(int index) {
+  //   if (index < 0 || index >= groupTwoSelected.length) return;
+  //   groupTwoSelected[index] = !groupTwoSelected[index];
+  // }
 
   /// Select or unselect all in Group One
   void selectAllGroupOne(bool isSelected) {
@@ -45,9 +55,9 @@ class SettlementBottomController extends GetxController {
 
   /// Select or unselect all in Group Two
   void selectAllGroupTwo(bool isSelected) {
-    for (var i = 0; i < groupTwoSelected.length; i++) {
-      groupTwoSelected[i] = isSelected;
-    }
+    // for (var i = 0; i < groupTwoSelected.length; i++) {
+    //   groupTwoSelected[i] = isSelected;
+    // }
   }
 
   /// Initialize Group One selection list to [false] * length
@@ -60,10 +70,10 @@ class SettlementBottomController extends GetxController {
 
   /// Initialize Group Two selection list to [false] * length
   void initGroupTwo(int length) {
-    groupTwoSelected.clear();
-    for (var i = 0; i < length; i++) {
-      groupTwoSelected.add(false);
-    }
+    // groupTwoSelected.clear();
+    // for (var i = 0; i < length; i++) {
+    //   groupTwoSelected.add(false);
+    // }
   }
 
   /// Check if all items in Group One are selected
@@ -72,7 +82,8 @@ class SettlementBottomController extends GetxController {
 
   /// Check if all items in Group Two are selected
   bool get isAllGroupTwoSelected =>
-      groupTwoSelected.every((selected) => selected);
+      // groupTwoSelected.every((selected) => selected);
+      false;
 
   /// Submit settlements to backend for a given groupId.
   ///
@@ -266,31 +277,128 @@ class SettlementBottomController extends GetxController {
   /// the SliceUpController for that group and initializing selection arrays.
   Future<void> prepareForGroup(String groupId) async {
     if (prepared.value) return;
-    if (groupId.isEmpty) return;
+    if (groupId.isEmpty) {
+      debugPrint(
+        '❌ [SETTLEMENT_BOTTOM_CTRL] prepareForGroup: groupId is empty',
+      );
+      return;
+    }
 
     try {
-      try {
-        sliceUpController = Get.find<SliceUpController>(tag: groupId);
-      } catch (_) {
-        sliceUpController = Get.put(SliceUpController(), tag: groupId);
-        sliceUpController?.setGroupId(groupId);
-      }
+      debugPrint(
+        '🔍 [SETTLEMENT_BOTTOM_CTRL] prepareForGroup: fetching slice-up data directly for: $groupId',
+      );
 
-      final settlements =
-          // Use only active (non-historical) settlements for selection/submission
-          sliceUpController?.getActiveSettlements() ?? [];
-      initGroupOne(settlements.length);
+      // Fetch slice-up data directly (prefer API over relying on existing controller)
+      await fetchSliceUpDirect(groupId);
 
-      final balances = sliceUpController?.getBalanceEntries() ?? [];
-      // We'll treat positive balances as 'to collect' items
-      final toCollect = balances
-          .where((b) => b.amount.startsWith('+'))
+      // Initialize selection arrays based on fetched lists
+      final settlementsList = activeSettlements
+          .where((s) => s['isHistorical'] == false)
           .toList();
-      initGroupTwo(toCollect.length);
+      initGroupOne(settlementsList.length);
+      debugPrint(
+        '📊 [SETTLEMENT_BOTTOM_CTRL] Initialized groupOne with ${settlementsList.length} settlements',
+      );
+
+      // "To Collect" initialization disabled. Uncomment balances and
+      // initGroupTwo when re-enabling the To Collect feature.
     } catch (e) {
       debugPrint('❌ [SETTLEMENT_BOTTOM_CTRL] prepareForGroup error: $e');
     } finally {
       prepared.value = true;
+    }
+  }
+
+  /// Fetch slice-up data directly from the API and populate local caches.
+  Future<void> fetchSliceUpDirect(String groupId) async {
+    try {
+      final token = await AuthService.getApprovalToken();
+      if (token == null || token.isEmpty) {
+        debugPrint(
+          '❌ [SETTLEMENT_BOTTOM_CTRL] No token available to fetch slice-up',
+        );
+        return;
+      }
+
+      final headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      };
+
+      // Use the new settlements endpoint rather than the legacy slice-up URL
+      final url = Urls.getSettlements(groupId);
+      debugPrint(
+        '🌐 [SETTLEMENT_BOTTOM_CTRL] Fetching current settlements: $url',
+      );
+
+      final request = http.Request('GET', Uri.parse(url));
+      request.headers.addAll(headers);
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData = json.decode(body);
+
+        // The new API returns { "status": "success", "data": { ... } }
+        final bool ok =
+            (jsonData['success'] == true) ||
+            (jsonData['statusCode'] == 200) ||
+            (jsonData['status'] != null &&
+                jsonData['status'].toString().toLowerCase() == 'success');
+
+        if (ok && jsonData['data'] != null) {
+          final data = jsonData['data'] as Map<String, dynamic>;
+
+          // Parse settlements
+          final rawSettlements = List<Map<String, dynamic>>.from(
+            data['settlements'] ?? [],
+          );
+
+          // Map the new API settlement objects into the controller's internal shape.
+          final parsedSettlements = rawSettlements.map((s) {
+            return {
+              'from': s['from'] ?? '',
+              'to': s['to'] ?? '',
+              'amount': s['amount'] ?? 0,
+              // The new API does not include historical flag; default to false
+              'isHistorical': s['isHistorical'] ?? false,
+              'fromName': s['fromName'] ?? s['formName'] ?? '',
+              'toName': s['toName'] ?? '',
+              'currency': s['currency'] ?? data['currency'] ?? '',
+            };
+          }).toList();
+          activeSettlements.assignAll(parsedSettlements);
+
+          // Parse totalBalances (disabled)
+          // final rawBalances = List<Map<String, dynamic>>.from(
+          //   data['totalBalances'] ?? [],
+          // );
+          // final parsedBalances = rawBalances.map((b) {
+          //   return {
+          //     'memberEmail': b['memberEmail'] ?? '',
+          //     'memberName': b['memberName'] ?? b['memberEmail'] ?? '',
+          //     'netBalance': b['netBalance'] ?? 0,
+          //     'totalPaid': b['totalPaid'] ?? 0,
+          //     'totalOwes': b['totalOwes'] ?? 0,
+          //   };
+          // }).toList();
+          // balances.assignAll(parsedBalances);
+          debugPrint(
+            '✅ [SETTLEMENT_BOTTOM_CTRL] Fetched ${parsedSettlements.length} settlements (balances parsing disabled)',
+          );
+        } else {
+          debugPrint(
+            '❌ [SETTLEMENT_BOTTOM_CTRL] Unexpected slice-up response: $jsonData',
+          );
+        }
+      } else {
+        debugPrint(
+          '❌ [SETTLEMENT_BOTTOM_CTRL] Failed to fetch slice-up: ${response.statusCode} - $body',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ [SETTLEMENT_BOTTOM_CTRL] Exception fetching slice-up: $e');
     }
   }
 }

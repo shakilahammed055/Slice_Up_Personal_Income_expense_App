@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/features/home_screen/controller/profile_service.dart';
 import 'package:teddy_5618/features/home_screen/widgets/month_setting.dart';
 import 'package:teddy_5618/features/set_expense_income/screen/expense_screen.dart';
 import 'package:dio/dio.dart' as dio;
@@ -42,88 +43,115 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     fetchIncomeAndExpenses(); // Fetch API data on initialization
+    _loadSavedSettings();
+    ProfileService.fetchProfileSettings(
+      onAssistantTypeLoaded: (type) {
+        selectedAssistant.value = type;
+        _saveSettings();
+      },
+      onLanguageLoaded: (lang) {},
+      onCurrencyLoaded: (cur) {},
+      onNameLoaded: (name) {},
+      onEmailLoaded: (email) {},
+      onImageLoaded: (img) {},
+      onDateRangeLoaded: (start, end) {
+        selectedStartDate.value = start;
+        selectedEndDate.value = end;
+        isDateRangeSet.value = true;
+        _updateNextMonth();
+        _updateTotalAmount();
+        _saveSettings();
+      },
+    );
   }
 
- Future<void> fetchIncomeAndExpenses() async {
-  try {
-    final String? approvalToken = await AuthService.getApprovalToken();
-    if (approvalToken == null || approvalToken.isEmpty) {
-      debugPrint('No approval token found');
-      return;
-    }
+  Future<void> fetchIncomeAndExpenses() async {
+    try {
+      final String? approvalToken = await AuthService.getApprovalToken();
+      if (approvalToken == null || approvalToken.isEmpty) {
+        debugPrint('No approval token found');
+        return;
+      }
 
-    final dio.Response response = await _dio.get(
-      Urls.getincomeandexpence,
-      options: dio.Options(
-        headers: {
-          'Authorization': approvalToken,
-          'Content-Type': 'application/json',
-        },
-      ),
-    );
+      final dio.Response response = await _dio.get(
+        Urls.getincomeandexpence,
+        options: dio.Options(
+          headers: {
+            'Authorization': approvalToken,
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
 
-    debugPrint('API response received: statusCode=${response.statusCode}');
-    debugPrint('Response data: ${response.data}');
+      debugPrint('API response received: statusCode=${response.statusCode}');
+      debugPrint('Response data: ${response.data}');
 
-    if (response.statusCode == 200) {
-      dynamic responseData = response.data;
-      if (responseData is Map<String, dynamic> && responseData['status'] == 'success') {
-        final data = responseData['data'];
+      if (response.statusCode == 200) {
+        dynamic responseData = response.data;
+        if (responseData is Map<String, dynamic> &&
+            responseData['status'] == 'success') {
+          final data = responseData['data'];
 
-        // Update remaining balance
-        remainingBalance.value = (data['remainingBalance'] ?? 0.0).toDouble();
+          // Update remaining balance
+          remainingBalance.value = (data['remainingBalance'] ?? 0.0).toDouble();
 
-        // Compute totals from transactions
-        double computedIncome = 0.0;
-        double computedExpense = 0.0;
-        final List<dynamic> groupedList = data['groupedByDate'] ?? [];
-        for (var groupItem in groupedList) {
-          final List<dynamic> transactions = (groupItem['transactions'] ?? []) as List;
-          for (var trans in transactions) {
-            final Map<String, dynamic> transaction = Map<String, dynamic>.from(trans);
-            final double amount = (transaction['amount'] as num).toDouble();
-            if (transaction['transactionType'] == 'income') {
-              computedIncome += amount;
-            } else {
-              computedExpense += amount;
+          // Compute totals from transactions
+          double computedIncome = 0.0;
+          double computedExpense = 0.0;
+          final List<dynamic> groupedList = data['groupedByDate'] ?? [];
+          for (var groupItem in groupedList) {
+            final List<dynamic> transactions =
+                (groupItem['transactions'] ?? []) as List;
+            for (var trans in transactions) {
+              final Map<String, dynamic> transaction =
+                  Map<String, dynamic>.from(trans);
+              final double amount = (transaction['amount'] as num).toDouble();
+              if (transaction['transactionType'] == 'income') {
+                computedIncome += amount;
+              } else {
+                computedExpense += amount;
+              }
             }
           }
-        }
-        totalIncome.value = computedIncome;
-        totalExpense.value = computedExpense;
+          totalIncome.value = computedIncome;
+          totalExpense.value = computedExpense;
 
-        // Update date range from API
-        if (data['profileDate'] != null) {
-          final profileDate = data['profileDate'];
-          if (profileDate['startDate'] != null && profileDate['endDate'] != null) {
-            apiStartDate.value = profileDate['startDate'];
-            apiEndDate.value = profileDate['endDate'];
+          // Update date range from API
+          if (data['profileDate'] != null) {
+            final profileDate = data['profileDate'];
+            if (profileDate['startDate'] != null &&
+                profileDate['endDate'] != null) {
+              apiStartDate.value = profileDate['startDate'];
+              apiEndDate.value = profileDate['endDate'];
 
-            // Update local date range settings from API
-            await _updateLocalDateRangeFromAPI(profileDate['startDate'], profileDate['endDate']);
+              // Update local date range settings from API
+              await _updateLocalDateRangeFromAPI(
+                profileDate['startDate'],
+                profileDate['endDate'],
+              );
+            }
           }
+
+          // Update grouped by date data
+          apiGroupedByDate.value = groupedList
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+          isApiDataLoaded.value = true;
+          debugPrint('Income and expenses data loaded successfully');
         }
-
-        // Update grouped by date data
-        apiGroupedByDate.value = groupedList.map((e) => Map<String, dynamic>.from(e)).toList();
-
-        isApiDataLoaded.value = true;
-        debugPrint('Income and expenses data loaded successfully');
       }
+    } on dio.DioException catch (e) {
+      debugPrint('DioException during fetch: ${e.type}');
+      debugPrint('Error message: ${e.message}');
+      isApiDataLoaded.value = true; // Set to true even on error to stop loading
+    } catch (e) {
+      debugPrint('Unexpected error during fetch: $e');
+      isApiDataLoaded.value = true;
+    } finally {
+      EasyLoading.dismiss();
     }
-  } on dio.DioException catch (e) {
-    debugPrint('DioException during fetch: ${e.type}');
-    debugPrint('Error message: ${e.message}');
-    isApiDataLoaded.value = true; // Set to true even on error to stop loading
-  } catch (e) {
-    debugPrint('Unexpected error during fetch: $e');
-    isApiDataLoaded.value = true;
-  } finally {
-    EasyLoading.dismiss();
   }
-}
-
-
 
   // New method to update local date range from API data
   Future<void> _updateLocalDateRangeFromAPI(

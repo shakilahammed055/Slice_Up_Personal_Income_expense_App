@@ -393,7 +393,7 @@
 //                                                                   ),
 //                                                                   side: BorderSide(
 //                                                                     width: 0.5,
-//                                                                     color: 
+//                                                                     color:
 //                                                                          AppColors
 //                                                                               .black,
 //                                                                   ),
@@ -562,8 +562,6 @@
 //   }
 // }
 
-
-
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
@@ -711,7 +709,9 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                     : Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: isDark ? Color(0xFF262626) : AppColors.textWhite,
+                          color: isDark
+                              ? Color(0xFF262626)
+                              : AppColors.textWhite,
                         ),
                         child: SingleChildScrollView(
                           child: Column(
@@ -727,17 +727,26 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                     builder: (innerContext) {
                                       return SizedBox(
                                         height:
-                                            MediaQuery.of(context).size.height * 0.80,
+                                            MediaQuery.of(context).size.height *
+                                            0.80,
                                         child: AddCategoryBottomSheet(
                                           isIncome: widget.isIncome,
                                           onCategoryAdded: (newCategory) {
-                                            final controller = Get.find<ExpenseController>();
-                                            final typesList = widget.isIncome ? controller.incomeTypes : controller.expenseTypes;
-                                            final newType = typesList.firstWhereOrNull((t) => t.name == newCategory);
+                                            final controller =
+                                                Get.find<ExpenseController>();
+                                            final typesList = widget.isIncome
+                                                ? controller.incomeTypes
+                                                : controller.expenseTypes;
+                                            final newType = typesList
+                                                .firstWhereOrNull(
+                                                  (t) => t.name == newCategory,
+                                                );
                                             if (newType != null) {
                                               controller.setType(newType);
                                             }
-                                            Navigator.pop(innerContext); // Close AddCategoryBottomSheet only
+                                            Navigator.pop(
+                                              innerContext,
+                                            ); // Close AddCategoryBottomSheet only
                                           },
                                         ),
                                       );
@@ -768,7 +777,8 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       SizedBox(
                                         width: 250,
@@ -784,7 +794,9 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                       Spacer(),
                                       Container(
                                         height: 32,
-                                        padding: EdgeInsets.symmetric(horizontal: 4),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
                                         child: Icon(
                                           Icons.add,
                                           color: Color(0xFF828282),
@@ -825,7 +837,8 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
                                           crossAxisAlignment:
                                               CrossAxisAlignment.center,
                                           children: [
@@ -851,7 +864,9 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                               ),
                                               child: Obx(() {
                                                 final expenseController =
-                                                    Get.find<ExpenseController>();
+                                                    Get.find<
+                                                      ExpenseController
+                                                    >();
                                                 return Icon(
                                                   expenseController
                                                               .selectedType
@@ -880,21 +895,34 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                           ).size.height *
                                                           0.80,
                                                       child: EditCategoryBottomSheet(
-                                                        isIncome: widget.isIncome,
-                                                        currentCategory: type.name,
+                                                        isIncome:
+                                                            widget.isIncome,
+                                                        currentCategory:
+                                                            type.name,
                                                         onCategoryEdited:
-                                                            (newCategory) async {
-                                                          try {
-                                                            await Get.find<ExpenseController>().editCategory(
-                                                              type.name,
+                                                            (
                                                               newCategory,
-                                                              widget.isIncome,
-                                                            );
-                                                            Navigator.pop(context);
-                                                          } catch (e) {
-                                                            Get.snackbar('Error'.tr, e.toString());
-                                                          }
-                                                        },
+                                                            ) async {
+                                                              try {
+                                                                await Get.find<
+                                                                      ExpenseController
+                                                                    >()
+                                                                    .editCategory(
+                                                                      type.name,
+                                                                      newCategory,
+                                                                      widget
+                                                                          .isIncome,
+                                                                    );
+                                                                Navigator.pop(
+                                                                  context,
+                                                                );
+                                                              } catch (e) {
+                                                                Get.snackbar(
+                                                                  'Error'.tr,
+                                                                  e.toString(),
+                                                                );
+                                                              }
+                                                            },
                                                       ),
                                                     );
                                                   },
@@ -910,7 +938,9 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                       ? AppColors.deepGrey
                                                       : Color(
                                                           0xffF2F2F2,
-                                                        ).withValues(alpha: 1.1),
+                                                        ).withValues(
+                                                          alpha: 1.1,
+                                                        ),
                                                   title:
                                                       'Are you sure you want to delete  "${type.name}"?',
                                                   titleStyle: getTextStyle2(
@@ -921,12 +951,14 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                     fontWeight: FontWeight.w600,
                                                   ),
                                                   content: Column(
-                                                    mainAxisSize: MainAxisSize.min,
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
                                                     children: [
                                                       Text(
                                                         'This action cannot be undone.'
                                                             .tr,
-                                                        textAlign: TextAlign.center,
+                                                        textAlign:
+                                                            TextAlign.center,
                                                       ),
                                                       SizedBox(height: 20),
                                                       Row(
@@ -942,44 +974,48 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                             child: Container(
                                                               padding:
                                                                   EdgeInsets.symmetric(
-                                                                horizontal: 16,
-                                                                vertical: 12,
-                                                              ),
+                                                                    horizontal:
+                                                                        16,
+                                                                    vertical:
+                                                                        12,
+                                                                  ),
                                                               decoration: ShapeDecoration(
-                                                                 color: isDark
+                                                                color: isDark
                                                                     ? Color(
                                                                         0xFF262626,
                                                                       )
-                                                                    : AppColors.black,
+                                                                    : AppColors
+                                                                          .textWhite,
                                                                 shape: RoundedRectangleBorder(
                                                                   borderRadius:
                                                                       BorderRadius.circular(
-                                                                    05,
-                                                                  ),
+                                                                        05,
+                                                                      ),
                                                                   side: BorderSide(
                                                                     width: 0.5,
-                                                                    color: 
-                                                                         AppColors
-                                                                              .black,
+                                                                    color: AppColors
+                                                                        .black,
                                                                   ),
                                                                 ),
                                                               ),
                                                               child: Text(
                                                                 'Cancel',
                                                                 style: getTextStyle2(
-                                                                  color: Color(
-                                                                    0xFF007AFF,
-                                                                  ),
+                                                                  color: Colors
+                                                                      .black,
                                                                   fontSize: 17,
                                                                   fontWeight:
-                                                                      FontWeight.w400,
+                                                                      FontWeight
+                                                                          .w400,
                                                                 ),
                                                               ),
                                                             ),
                                                           ),
                                                           GestureDetector(
                                                             onTap: () async {
-                                                              Navigator.pop(context); // Close dialog first
+                                                              Navigator.pop(
+                                                                context,
+                                                              ); // Close dialog first
                                                               final expenseController =
                                                                   Get.find<
                                                                     ExpenseController
@@ -987,9 +1023,10 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                               try {
                                                                 await expenseController
                                                                     .deleteCategory(
-                                                                  type.name,
-                                                                  widget.isIncome,
-                                                                );
+                                                                      type.name,
+                                                                      widget
+                                                                          .isIncome,
+                                                                    );
                                                                 Get.snackbar(
                                                                   'Success'.tr,
                                                                   'Category "${type.name}" deleted',
@@ -1004,20 +1041,23 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                             child: Container(
                                                               padding:
                                                                   EdgeInsets.symmetric(
-                                                                horizontal: 16,
-                                                                vertical: 12,
-                                                              ),
+                                                                    horizontal:
+                                                                        16,
+                                                                    vertical:
+                                                                        12,
+                                                                  ),
                                                               decoration: ShapeDecoration(
                                                                 color: isDark
                                                                     ? Color(
                                                                         0xFF262626,
                                                                       )
-                                                                    : AppColors.black,
+                                                                    : AppColors
+                                                                          .textWhite,
                                                                 shape: RoundedRectangleBorder(
                                                                   borderRadius:
                                                                       BorderRadius.circular(
-                                                                    05,
-                                                                  ),
+                                                                        05,
+                                                                      ),
                                                                   side: BorderSide(
                                                                     width: 0.5,
                                                                     color: Color(
@@ -1029,12 +1069,12 @@ class _TypeBottomSheetState extends State<TypeBottomSheet> {
                                                               child: Text(
                                                                 'Delete'.tr,
                                                                 style: getTextStyle2(
-                                                                  color: Color(
-                                                                    0xFF007AFF,
-                                                                  ),
+                                                                  color: Colors
+                                                                      .black,
                                                                   fontSize: 17,
                                                                   fontWeight:
-                                                                      FontWeight.w600,
+                                                                      FontWeight
+                                                                          .w600,
                                                                 ),
                                                               ),
                                                             ),

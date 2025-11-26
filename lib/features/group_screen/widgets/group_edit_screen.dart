@@ -8,6 +8,7 @@ import 'package:teddy_5618/features/group_screen/controller/create_trip_bottomsh
 import 'package:teddy_5618/features/group_screen/widgets/confirmation_dialog.dart';
 import 'package:teddy_5618/features/set_expense_income/controller/expense_controller.dart'; // Make sure path is correct
 import 'package:teddy_5618/features/group_screen/controller/group_edit_controller.dart';
+import 'package:teddy_5618/features/bottom_navaigationbar/controller/bottomnavbar_controller.dart';
 
 class GroupEditScreen extends StatelessWidget {
   const GroupEditScreen({super.key});
@@ -97,6 +98,48 @@ class GroupEditScreen extends StatelessWidget {
                     ).marginOnly(left: 16),
                   ),
                 ).marginSymmetric(horizontal: 13),
+
+                const SizedBox(height: 20),
+                Container(
+                  height: 48.h,
+                  width: MediaQuery.of(context).size.width, // Use full width
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.deepGrey
+                        : AppColors.lightGreyContainer,
+
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Obx(() {
+                        final raw = tripController.currency.value.trim();
+                        final symbol = raw.isEmpty ? '' : raw.split(' ').first;
+                        return Text(
+                          symbol,
+                          style: getTextStyle3(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppColors.textWhite
+                                : Color(0xFFAAAAAA),
+                          ),
+                        );
+                      }),
+                      Spacer(),
+                      Icon(Icons.keyboard_arrow_down),
+                    ],
+                  ).marginOnly(left: 16, right: 8),
+                ).marginSymmetric(horizontal: 13),
+                SizedBox(height: 5),
+                Text(
+                  '*Once the currency is set, it cannot be changed'.tr,
+                  style: getTextStyle2(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.red,
+                  ),
+                ).marginSymmetric(horizontal: 24),
                 const SizedBox(height: 30),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -142,8 +185,8 @@ class GroupEditScreen extends StatelessWidget {
                             builder: (BuildContext context) => ConfirmationDialog(
                               title: 'You can’t delete them yet'.tr,
                               content:
-                                  'To delete them, they must be removed from your group, or you can delete the entire group'.tr
-                                      ,
+                                  'To delete them, they must be removed from your group, or you can delete the entire group'
+                                      .tr,
                               button1: 'Okay'.tr,
                               singleButton: true,
                               onConfirm: () {
@@ -160,7 +203,7 @@ class GroupEditScreen extends StatelessWidget {
                           context: context,
                           builder: (BuildContext context) => ConfirmationDialog(
                             title: 'Are you sure you want to delete?'.tr,
-                            content: 'You won’t be able to undo this.'.tr,
+                            content: "You won't be able to undo this.".tr,
                             button1: 'No'.tr,
                             button2: 'Yes'.tr,
                             onConfirm: () async {
@@ -169,8 +212,22 @@ class GroupEditScreen extends StatelessWidget {
                               );
                               if (success) {
                                 Get.snackbar('Success'.tr, 'Group deleted'.tr);
-                                // Close the bottom sheet and go back
+
+                                // Reset the trip controller state
+                                tripController.tripNameController.clear();
+                                tripController.currentGroupId.value = '';
+                                tripController.createTripFocusNode.unfocus();
+                                tripController.editTripFocusNode.unfocus();
+
+                                // Close the confirmation dialog
                                 Get.back();
+                                // Close the bottom sheet
+                                Get.back();
+                                // Navigate to BottomNavbarView and select Group tab (index 1)
+                                BottomNavbarController navController =
+                                    Get.find<BottomNavbarController>();
+                                navController.changeTab(1);
+                                Get.offNamed('/bottomNavbarView');
                               }
                             },
                           ),

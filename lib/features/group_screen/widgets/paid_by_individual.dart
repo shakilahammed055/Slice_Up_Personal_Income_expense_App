@@ -5,11 +5,13 @@ import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 
 class PaidByIndividual extends StatelessWidget {
-  const PaidByIndividual({super.key});
+  final String controllerTag;
+
+  const PaidByIndividual({super.key, this.controllerTag = 'groupTripSpent'});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<GroupTripSpentController>();
+    final controller = Get.find<GroupTripSpentController>(tag: controllerTag);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -121,7 +123,7 @@ class PaidByIndividual extends StatelessWidget {
                               if (isCurrentUser) ...[
                                 const SizedBox(width: 4),
                                 Text(
-                                  '(Me)',
+                                  '(Me)'.tr,
                                   style: getTextStyle2(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,

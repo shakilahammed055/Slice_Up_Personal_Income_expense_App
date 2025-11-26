@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:math';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/features/group_screen/controller/group_trip_add_new_friend_controller.dart';
-import 'package:teddy_5618/features/group_screen/controller/group_trip_spent_controller.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/widgets/group_trip_add_new_friend_bottom.dart';
 
 class GroupTripAddNewFriend extends StatelessWidget {
-  const GroupTripAddNewFriend({super.key, required this.trip});
+  const GroupTripAddNewFriend({
+    super.key,
+    required this.trip,
+    this.controllerTag = 'groupTripSpent',
+  });
 
   final Trip trip;
+  final String controllerTag;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final String tag = trip.id ?? 'default';
+    // Use the externally provided controllerTag so parent & bottom sheet
+    // share the same GetX controller instance for this trip.
+    final String tag = controllerTag.isNotEmpty
+        ? controllerTag
+        : (trip.id ?? 'default');
     final GroupTripAddNewFriendController friendSelectionController =
         Get.isRegistered<GroupTripAddNewFriendController>(tag: tag)
         ? Get.find<GroupTripAddNewFriendController>(tag: tag)
@@ -32,95 +38,23 @@ class GroupTripAddNewFriend extends StatelessWidget {
     return Row(
       children: [
         Obx(() {
-          final selectedFriends = friendSelectionController.selectedFriendNames;
+          final groupMembers = friendSelectionController.groupMembers;
           List<Widget> avatars = [];
 
-          // 1. Add the Trip's CircleAvatar first - use owner email initial and random color if available
-          // Try to get owner email from GroupTripSpentController; fallback to trip.name
-          String ownerInitial = '';
-          Color ownerBgColor = friendSelectionController.getAvatarColor(0);
-          try {
-            if (Get.isRegistered<GroupTripSpentController>()) {
-              final spentCtrl = Get.find<GroupTripSpentController>();
-              final ownerEmail = spentCtrl.groupOwnerEmail.value;
-              if (ownerEmail.isNotEmpty) {
-                final localPart = ownerEmail.split('@')[0];
-                if (localPart.isNotEmpty) {
-                  ownerInitial = localPart[0].toUpperCase();
-                }
-              }
-            }
-          } catch (e) {
-            // ignore - we'll fallback to trip.name
-          }
-
-          // Do not fall back to trip.name - we only show an owner avatar when owner email is available
-
-          // Pick a random color index for the avatar background so it's not always green
-          try {
-            final rand = Random();
-            final colorIndex = rand.nextInt(
-              friendSelectionController.avatarColors.length,
-            );
-            ownerBgColor = friendSelectionController.getAvatarColor(colorIndex);
-          } catch (e) {
-            ownerBgColor = friendSelectionController.getAvatarColor(0);
-          }
-
-          if (ownerInitial.isNotEmpty) {
-            avatars.add(
-              Positioned(
-                left: 0, // It's the first avatar, so its position is 0
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.backgroundDark
-                          : AppColors.textWhite,
-                      width: 2.0,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        spreadRadius: 0.1,
-                        blurRadius: 1,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: CircleAvatar(
-                    radius: 13,
-                    backgroundColor: ownerBgColor,
-                    child: Center(
-                      child: Text(
-                        ownerInitial,
-                        style: getTextStyle2(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textWhite,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }
-
-          // Determine how many *friend* avatars to actually render based on the limit
-          final int numFriendAvatarsToRender =
-              selectedFriends.length > maxVisibleFriendsAvatars
+          // Determine how many member avatars to actually render based on the limit
+          final int numMembersToRender =
+              groupMembers.length > maxVisibleFriendsAvatars
               ? maxVisibleFriendsAvatars
-              : selectedFriends.length;
+              : groupMembers.length;
 
-          // Offset for friend avatars, starting after the owner avatar
-          // If ownerInitial is empty, the offset for friends starts from 0 (no owner avatar)
-          // Otherwise, it starts after the owner avatar's width (2*radius + overlap)
-          double currentLeftPosition = (ownerInitial.isNotEmpty ? 27.0 : 0.0);
+          // Start position for avatars
+          double currentLeftPosition = 0.0;
 
-          // 2. Add CircleAvatars for each selected friend up to the determined limit
-          for (int i = 0; i < numFriendAvatarsToRender; i++) {
+          // 2. Add CircleAvatars for each group member up to the determined limit
+          for (int i = 0; i < numMembersToRender; i++) {
+            final member = groupMembers[i];
+            final String initial = member['initial'] ?? '?';
+
             avatars.add(
               Positioned(
                 left: currentLeftPosition,
@@ -144,8 +78,7 @@ class GroupTripAddNewFriend extends StatelessWidget {
                     ), // Dynamic color
                     child: Center(
                       child: Text(
-                        selectedFriends[i][0]
-                            .toUpperCase(), // First letter of friend's name
+                        initial,
                         style: getTextStyle2(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -201,7 +134,7 @@ class GroupTripAddNewFriend extends StatelessWidget {
                       ),
                     ),
                     builder: (context) =>
-                        GroupTripAddNewFriendBottom(groupId: trip.id!),
+                        GroupTripAddNewFriendBottom(groupId: tag),
                   );
                   // Refresh the friends data after the bottom sheet is closed
                   friendSelectionController.refreshFriends();

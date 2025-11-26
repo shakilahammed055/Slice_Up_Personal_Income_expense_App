@@ -21,7 +21,7 @@ class GroupFilterScreen extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.60,
+        height: MediaQuery.of(context).size.height * 0.68,
 
         decoration: BoxDecoration(
           color: isDark ? Color(0xFF262626) : AppColors.textWhite,
@@ -87,6 +87,17 @@ class GroupFilterScreen extends StatelessWidget {
 
             Obx(
               () => GestureDetector(
+                onTap: () => controller.selectGroupTwo(2),
+                child: _buildSingleRow(
+                  context: context,
+                  title: 'All'.tr,
+                  showCheck: controller.groupTwoSelected.value == 2,
+                ),
+              ),
+            ),
+
+            Obx(
+              () => GestureDetector(
                 onTap: () => controller.selectGroupTwo(0),
                 child: _buildSingleRow(
                   context: context,
@@ -119,7 +130,6 @@ class GroupFilterScreen extends StatelessWidget {
                   '🎯 [FILTER_UI] Selected filters - View: ${controller.groupOneSelected.value}, Type: ${controller.groupTwoSelected.value}',
                 );
 
-
                 // Ensure the showIndividual flag reflects the expense view selection so StatusPage can switch
                 controller.showIndividual.value =
                     controller.groupOneSelected.value == 1;
@@ -130,11 +140,9 @@ class GroupFilterScreen extends StatelessWidget {
                   debugPrint('🎯 [FILTER_UI] Filters applied, closing modal');
 
                   Get.back();
-                // ignore: empty_catches
+                  // ignore: empty_catches
                 } catch (e) {
-
                   debugPrint('❌ [FILTER_UI] Error applying filters: $e');
-
                 }
               },
               child: Container(

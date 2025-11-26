@@ -7,7 +7,8 @@ class GroupFilterScreenController extends GetxController {
   var groupOneSelected = 0.obs;
 
   // For the "Transaction Type" section
-  var groupTwoSelected = 0.obs;
+  // Default to 'All' (index 2) so the UI shows All selected by default
+  var groupTwoSelected = 2.obs;
 
   // Used if you want to show a specific screen based on 'Invoice Me' or 'All Group'
   var showIndividual = false.obs;
@@ -33,7 +34,6 @@ class GroupFilterScreenController extends GetxController {
   // Apply filters to expenses
   Future<void> applyFilters(String? groupId) async {
     try {
-
       debugPrint('🎯 [FILTER] Starting filter application...');
       debugPrint('🎯 [FILTER] GroupId: $groupId');
       debugPrint('🎯 [FILTER] Group One Selected: ${groupOneSelected.value}');
@@ -62,7 +62,6 @@ class GroupFilterScreenController extends GetxController {
         } else if (groupOneSelected.value == 1) {
           expenseView = 'involving_me'; // Involving me only
           debugPrint('🎯 [FILTER] Expense view: Involving me only');
-
         }
 
         // Determine transaction type filter
@@ -74,19 +73,20 @@ class GroupFilterScreenController extends GetxController {
         } else if (groupTwoSelected.value == 1) {
           transactionType = 'lent'; // I lent
           debugPrint('🎯 [FILTER] Transaction type: lent');
+        } else if (groupTwoSelected.value == 2) {
+          transactionType = null; // All transaction types
+          debugPrint('🎯 [FILTER] Transaction type: all');
         }
 
         debugPrint(
           '🎯 [FILTER] Applying filters - expenseView: $expenseView, transactionType: $transactionType',
         );
 
-
         // Apply the filters
         await expensesController.getGroupExpenses(
           expenseView: expenseView,
           transactionType: transactionType,
         );
-
 
         debugPrint('🎯 [FILTER] Filters applied successfully');
         isFilterApplied.value = true;
@@ -113,6 +113,8 @@ class GroupFilterScreenController extends GetxController {
             transactionType = 'borrowed';
           } else if (groupTwoSelected.value == 1) {
             transactionType = 'lent';
+          } else if (groupTwoSelected.value == 2) {
+            transactionType = null;
           }
 
           await expensesController.getGroupExpenses(
@@ -122,24 +124,21 @@ class GroupFilterScreenController extends GetxController {
 
           isFilterApplied.value = true;
         } else {
-
           debugPrint('❌ [FILTER] No ExpensesPageController found at all');
-
         }
       }
-    // ignore: empty_catches
+      // ignore: empty_catches
     } catch (e) {
-
       debugPrint('❌ [FILTER] Error applying filters: $e');
       debugPrint('❌ [FILTER] Stack trace: ${StackTrace.current}');
-
     }
   }
 
   // Reset filters to default
   void resetFilters() {
     groupOneSelected.value = 0;
-    groupTwoSelected.value = 0;
+    // Reset transaction type back to 'All' by default
+    groupTwoSelected.value = 2;
     showIndividual.value = false;
     isFilterApplied.value = false;
   }
@@ -162,6 +161,8 @@ class GroupFilterScreenController extends GetxController {
       descriptions.add('I borrowed');
     } else if (groupTwoSelected.value == 1) {
       descriptions.add('I lent');
+    } else if (groupTwoSelected.value == 2) {
+      descriptions.add('All');
     }
 
     return descriptions.join(' • ');

@@ -6,8 +6,14 @@ import 'package:teddy_5618/features/group_screen/controller/trip_text_controller
 class TripText extends StatelessWidget {
   final TripTextType? type;
   final String? groupId; // ✅ Add optional group ID parameter
+  final bool enableRefresh;
 
-  const TripText({super.key, this.type, this.groupId});
+  const TripText({
+    super.key,
+    this.type,
+    this.groupId,
+    this.enableRefresh = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +49,16 @@ class TripText extends StatelessWidget {
       }
     });
 
-    return Obx(() {
+    Widget obxContent = Obx(() {
+      // ✅ Observe reactive values from controller to trigger rebuilds on any change
+      // These lines ensure the Obx widget rebuilds when any observable changes
+      controller.sliceupIsAllSettled.value; // Observe settlement status
+      controller.currentType.value; // Observe type changes
+      controller.isLoading.value; // Observe loading state
+      controller.summaryData; // Observe summary data changes
+
+      // TripText rebuild (debug prints removed)
+
       // ✅ Add loading state indicator
       if (controller.isLoading.value) {
         return SizedBox(
@@ -118,71 +133,144 @@ class TripText extends StatelessWidget {
         youllCollectVal = parseAmountString(controller.secondaryAmount);
       }
 
-      // If both values are 0, don't show TripText
-      if ((youllPayVal == 0.0 || youllPayVal.isNaN) &&
-          (youllCollectVal == 0.0 || youllCollectVal.isNaN)) {
+      // Check if we should hide the TripText.
+      // NEW LOGIC: Do NOT use totalExpenses as a gate anymore.
+      // If we have any non-zero pay/collect amount or a non-empty label,
+      // we show the widget.
+      final primaryText = controller.primaryText;
+
+      final bool hasAnyAmount =
+          youllPayVal > 0 ||
+          youllCollectVal > 0 ||
+          controller.primaryAmount.isNotEmpty ||
+          controller.secondaryAmount.isNotEmpty;
+      final bool hasAnyText =
+          primaryText.isNotEmpty || controller.secondaryText.isNotEmpty;
+
+      if (!hasAnyAmount && !hasAnyText) {
+        return const SizedBox.shrink();
+      }
+
+      // Build primary text widget. Don't rely on trailing spaces in the
+      // controller text — control spacing here so all screens render the
+      // same single space between label and amount.
+      final String primaryLabelText = controller.primaryText;
+
+      // Decide amount colors: for status screen we want to match the
+      // pay/collect color scheme when not yet settled, but keep the
+      // settled message color when fully settled.
+      final bool statusNotSettled =
+          controller.currentType.value == TripTextType.status &&
+          !controller.sliceupIsAllSettled.value;
+
+      // Build list of widgets to show based on amount values
+      final List<Widget> textWidgets = [];
+
+      // ✅ IMPORTANT: When all settled, show the "All sliced up and settled!" message
+      // whenever sliceupIsAllSettled is true and primaryText contains that message.
+      final bool shouldShowSettledMessage = primaryText.contains(
+        'All sliced up and settled',
+      );
+
+      // Show primary text (You'll pay) only if youllPayVal > 0
+      // OR if we're showing the settled message
+      if (youllPayVal > 0 || shouldShowSettledMessage) {
+        Widget primaryWidget = Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: primaryLabelText,
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF828282),
+                ),
+              ),
+              // Only show amount if NOT the settled message
+              if (controller.primaryAmount.isNotEmpty &&
+                  !shouldShowSettledMessage)
+                TextSpan(
+                  // Ensure exactly one space between label and amount regardless
+                  // of whether controller.primaryText included a trailing space.
+                  text: controller.primaryAmount.startsWith(' ')
+                      ? controller.primaryAmount
+                      : ' ${controller.primaryAmount}',
+                  style: getTextStyle2(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: statusNotSettled
+                        ? // Use "you'll pay" color when status isn't settled
+                          Color(0xFFEF5C00)
+                        : _getPrimaryAmountColor(controller.currentType.value),
+                  ),
+                ),
+            ],
+          ),
+        );
+        textWidgets.add(primaryWidget);
+      }
+
+      // Show secondary text (You'll collect) only if controller says to show it
+      if (controller.secondaryText.isNotEmpty) {
+        if (textWidgets.isNotEmpty) {
+          textWidgets.add(const SizedBox(height: 2));
+        }
+        Widget secondaryWidget = Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: controller.secondaryText,
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF828282),
+                ),
+              ),
+              TextSpan(
+                text: controller.secondaryAmount,
+                style: getTextStyle2(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color:
+                      (controller.currentType.value == TripTextType.status &&
+                          !controller.sliceupIsAllSettled.value)
+                      ? // Use "you'll collect" color when status isn't settled
+                        Color(0xFF00D460)
+                      : _getSecondaryAmountColor(controller.currentType.value),
+                ),
+              ),
+            ],
+          ),
+        );
+        textWidgets.add(secondaryWidget);
+      }
+
+      // If no widgets to show, return empty widget
+      if (textWidgets.isEmpty) {
         return const SizedBox.shrink();
       }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: controller.primaryText,
-                  style: getTextStyle2(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF828282),
-                  ),
-                ),
-                if (controller.primaryAmount.isNotEmpty)
-                  TextSpan(
-                    text: controller.primaryAmount,
-                    style: getTextStyle2(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: _getPrimaryAmountColor(
-                        controller.currentType.value,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          // Only show secondary text if not status screen
-          if (controller.shouldShowSecondaryText) ...[
-            const SizedBox(height: 2),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: controller.secondaryText,
-                    style: getTextStyle2(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF828282),
-                    ),
-                  ),
-                  TextSpan(
-                    text: controller.secondaryAmount,
-                    style: getTextStyle2(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: _getSecondaryAmountColor(
-                        controller.currentType.value,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
+        children: textWidgets,
       );
     });
+
+    if (enableRefresh) {
+      return RefreshIndicator(
+        onRefresh: () async {
+          try {
+            controller.refreshCurrentData();
+          } catch (_) {}
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(padding: EdgeInsets.zero, child: obxContent),
+        ),
+      );
+    }
+
+    return obxContent;
   }
 
   Color _getPrimaryAmountColor(TripTextType type) {

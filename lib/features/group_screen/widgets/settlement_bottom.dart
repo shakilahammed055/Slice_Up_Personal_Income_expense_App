@@ -10,13 +10,23 @@ import 'package:teddy_5618/features/group_screen/controller/settlement_bottom_co
 
 class SettlementBottom extends StatelessWidget {
   final String? groupId;
+  final String controllerTag;
 
-  const SettlementBottom({super.key, this.groupId});
+  const SettlementBottom({
+    super.key,
+    this.groupId,
+    this.controllerTag = 'groupTripSpent',
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final controller = Get.put(SettlementBottomController());
+    // Ensure controller is prepared for this group (fetches data directly)
+    if (groupId != null && groupId!.isNotEmpty && controller.prepared.isFalse) {
+      // run async prepare without blocking build
+      Future.microtask(() => controller.prepareForGroup(groupId!));
+    }
 
     // controller.sliceUpController is prepared before opening this widget
 
@@ -53,93 +63,134 @@ class SettlementBottom extends StatelessWidget {
             const SizedBox(height: 10),
             _sectionHeader('To pay'.tr, context),
 
-            // Dynamic To Pay list (from settlements)
-            Obx(() {
-              // Use only active (non-historical) settlements for the To pay list
-              final settlements =
-                  controller.sliceUpController?.getActiveSettlements() ?? [];
-              if (settlements.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Text(
-                    'No items to pay'.tr,
-                    style: getTextStyle2(fontSize: 14, color: Colors.grey),
+            // Make the settlement list refreshable via pull-to-refresh.
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  // Re-fetch settlements for the current group and re-init selections
+                  await controller.fetchSliceUpDirect(groupId ?? '');
+                  final settlements = controller.activeSettlements
+                      .where((s) => s['isHistorical'] == false)
+                      .toList();
+                  controller.initGroupOne(settlements.length);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Dynamic To Pay list (from settlements)
+                      Obx(() {
+                        // Use only active (non-historical) settlements fetched directly
+                        final settlements = controller.activeSettlements
+                            .where((s) => s['isHistorical'] == false)
+                            .toList();
+                        if (settlements.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Text(
+                              'No items to pay'.tr,
+                              style: getTextStyle2(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          children: List.generate(settlements.length, (index) {
+                            final item = settlements[index];
+                            final from = (item['from'] ?? '').toString();
+                            final to = (item['to'] ?? '').toString();
+                            final amount = item['amount'] ?? 0;
+                            final fromName = (item['fromName'] ?? '')
+                                .toString();
+                            final toName = (item['toName'] ?? '').toString();
+
+                            String _shortName(
+                              String rawName,
+                              String email, [
+                              int len = 12,
+                            ]) {
+                              final name = (rawName.isNotEmpty)
+                                  ? rawName
+                                  : (email.split('@').first);
+                              if (name.length <= len) return name;
+                              return '${name.substring(0, len)}...';
+                            }
+
+                            final title =
+                                '${_shortName(fromName, from)} to ${_shortName(toName, to)} ${_formatAmount(amount)}';
+
+                            return Obx(
+                              () => GestureDetector(
+                                onTap: () => controller.toggleGroupOne(index),
+                                child: _buildSingleRow(
+                                  context: context,
+                                  title: title,
+                                  showCheck:
+                                      controller.groupOneSelected.length > index
+                                      ? controller.groupOneSelected[index]
+                                      : false,
+                                ),
+                              ),
+                            );
+                          }),
+                        );
+                      }),
+
+                      // Keep the To Collect block commented out for now (preserved)
+                      // _sectionHeader('To Collect'.tr, context),
+                      // ...
+                      const SizedBox(height: 40),
+                    ],
                   ),
-                );
-              }
+                ),
+              ),
+            ),
 
-              return Column(
-                children: List.generate(settlements.length, (index) {
-                  final item = settlements[index];
-                  final from = item['from'] ?? '';
-                  final to = item['to'] ?? '';
-                  final amount = item['amount'] ?? 0;
-
-                  String _shortEmail(String email, [int len = 10]) {
-                    if (email.isEmpty) return '';
-                    final local = email.split('@').first;
-                    if (local.length <= len) return local;
-                    return '${local.substring(0, len)}...';
-                  }
-
-                  final title =
-                      '${_shortEmail(from)} to ${_shortEmail(to)} ${_formatAmount(amount)}';
-
-                  return Obx(
-                    () => GestureDetector(
-                      onTap: () => controller.toggleGroupOne(index),
-                      child: _buildSingleRow(
-                        context: context,
-                        title: title,
-                        showCheck: controller.groupOneSelected.length > index
-                            ? controller.groupOneSelected[index]
-                            : false,
-                      ),
-                    ),
-                  );
-                }),
-              );
-            }),
-
-            _sectionHeader('To Collect'.tr, context),
-
-            // Dynamic To Collect list (based on positive balances)
-            Obx(() {
-              final balances =
-                  controller.sliceUpController?.getBalanceEntries() ?? [];
-              final toCollect = balances
-                  .where((b) => b.amount.startsWith('+'))
-                  .toList();
-              if (toCollect.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Text(
-                    'No items to collect'.tr,
-                    style: getTextStyle2(fontSize: 14, color: Colors.grey),
-                  ),
-                );
-              }
-
-              return Column(
-                children: List.generate(toCollect.length, (index) {
-                  final entry = toCollect[index];
-                  final title = '${entry.name} ${entry.amount}';
-                  return Obx(
-                    () => GestureDetector(
-                      onTap: () => controller.toggleGroupTwo(index),
-                      child: _buildSingleRow(
-                        context: context,
-                        title: title,
-                        showCheck: controller.groupTwoSelected.length > index
-                            ? controller.groupTwoSelected[index]
-                            : false,
-                      ),
-                    ),
-                  );
-                }),
-              );
-            }),
-
+            // "To Collect" section is currently disabled.
+            // _sectionHeader('To Collect'.tr, context),
+            //
+            // // Dynamic To Collect list (based on positive balances)
+            // Obx(() {
+            //   // Use balances fetched directly from API
+            //   final balances = controller.balances.toList();
+            //   final toCollect = balances
+            //       .where((b) => (b['netBalance'] ?? 0) > 0)
+            //       .toList();
+            //   if (toCollect.isEmpty) {
+            //     return Padding(
+            //       padding: const EdgeInsets.all(12.0),
+            //       child: Text(
+            //         'No items to collect'.tr,
+            //         style: getTextStyle2(fontSize: 14, color: Colors.grey),
+            //       ),
+            //     );
+            //   }
+            //
+            //   return Column(
+            //     children: List.generate(toCollect.length, (index) {
+            //       final entry = toCollect[index];
+            //       final memberName = (entry['memberName'] ?? '').toString();
+            //       final net = entry['netBalance'] ?? 0;
+            //       final title =
+            //           '${memberName.isNotEmpty ? memberName : (entry['memberEmail'] ?? '')} ${_formatAmount(net)}';
+            //       return Obx(
+            //         () => GestureDetector(
+            //           onTap: () => controller.toggleGroupTwo(index),
+            //           child: _buildSingleRow(
+            //             context: context,
+            //             title: title,
+            //             showCheck: controller.groupTwoSelected.length > index
+            //                 ? controller.groupTwoSelected[index]
+            //                 : false,
+            //           ),
+            //         ),
+            //       );
+            //     }),
+            //   );
+            // }),
             const SizedBox(height: 40),
             const Spacer(),
             const Divider(),
@@ -152,10 +203,9 @@ class SettlementBottom extends StatelessWidget {
                     : () async {
                         // Build settlements payload from selected items in groupOne
                         final settlements = <Map<String, dynamic>>[];
-                        final rawSettlements =
-                            controller.sliceUpController
-                                ?.getSettlementsForCurrentUser() ??
-                            [];
+                        final rawSettlements = controller.activeSettlements
+                            .where((s) => s['isHistorical'] == false)
+                            .toList();
                         for (
                           var i = 0;
                           i < controller.groupOneSelected.length;
@@ -183,7 +233,7 @@ class SettlementBottom extends StatelessWidget {
                             if (groupId != null && groupId!.isNotEmpty) {
                               final tripCtrl =
                                   Get.find<GroupTripSpentController>(
-                                    tag: groupId,
+                                    tag: controllerTag,
                                   );
                               tripCtrl.isIndividualSelected.value =
                                   false; // show 'Settled'

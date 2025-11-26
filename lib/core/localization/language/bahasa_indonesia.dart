@@ -1,15 +1,15 @@
 // ignore_for_file: equal_keys_in_map, duplicate_ignore
 
 final Map<String, String> indonesia = {
-
   //SplashScreen1
   'Sign up or Login': 'Daftar atau Masuk',
-  'By signing up or logging in, you agree to our ': 'Dengan mendaftar atau masuk, Anda menyetujui kami ',
+  'By signing up or logging in, you agree to our ':
+      'Dengan mendaftar atau masuk, Anda menyetujui kami ',
   'Terms of Use': 'Ketentuan Penggunaan',
   ' and ': ' dan ',
   'Privacy Policy.': 'Kebijakan Privasi.',
 
-   //SignupScreen
+  //SignupScreen
   'Sign up': 'Mendaftar',
   'Sign in': 'Masuk',
   'Create an account': 'Buat akun',
@@ -18,17 +18,17 @@ final Map<String, String> indonesia = {
   'Confirm Password': 'Konfirmasi Kata Sandi',
   'Sign Up': 'Mendaftar',
 
-
-   "Password is required": "Kata sandi wajib diisi",
+  "Password is required": "Kata sandi wajib diisi",
   "Email is required": "Email wajib diisi",
   "Confirm password is required": "Konfirmasi kata sandi wajib diisi",
-  "Confirm password must be at least 8 characters": "Konfirmasi kata sandi harus minimal 8 karakter",
+  "Confirm password must be at least 8 characters":
+      "Konfirmasi kata sandi harus minimal 8 karakter",
   "Passwords do not match": "Kata sandi tidak cocok",
-  "Sign up successful, please verify your email": "Pendaftaran berhasil, silakan verifikasi email Anda",
+  "Sign up successful, please verify your email":
+      "Pendaftaran berhasil, silakan verifikasi email Anda",
   "Signing up...": "Sedang mendaftar...",
   "OTPVerified": "OTP berhasil diverifikasi",
   "Signup successful!": "Pendaftaran berhasil!",
-
 
   'Email is required': 'Email wajib diisi',
   'Invalid email format': 'Format email tidak valid',
@@ -43,10 +43,11 @@ final Map<String, String> indonesia = {
   'Registration failed': 'Pendaftaran gagal',
   'Signup error': 'Kesalahan pendaftaran',
 
-    //LoginScreen
+  //LoginScreen
   'Welcome back!': 'Selamat Datang kembali!',
   'Forgot password?': 'Lupa kata sandi?',
-  'Password must be at least 8 characters': 'Kata sandi minimal harus 8 karakter',
+  'Password must be at least 8 characters':
+      'Kata sandi minimal harus 8 karakter',
 
   //OtpScreen
   'Verify your email': 'Verifikasi email Anda',
@@ -66,11 +67,10 @@ final Map<String, String> indonesia = {
   'Failed to resend OTP': 'Gagal mengirim ulang OTP',
   'Sending OTP...': 'Mengirim OTP...',
 
-
   //ForgetPasswordScreen
   'Next': 'Berikutnya',
 
-   //ResetPassword
+  //ResetPassword
   'Reset Your Password': 'Atur Ulang Kata Sandi Anda',
   'Reset Password': 'Atur Ulang Kata Sandi',
   'Passwords do not match': 'Kata sandi tidak cocok',
@@ -82,29 +82,28 @@ final Map<String, String> indonesia = {
   'Failed to reset password': 'Gagal mereset kata sandi',
 
   //ProfileSetupScreen
-   'Welcome! \nWhat’s your name?' : 'Selamat datang! \nSiapa namamu?',
-    'Name' : 'Nama',
-    'Finish' : 'Menyelesaikan',
+  'Welcome! \nWhat’s your name?': 'Selamat datang! \nSiapa namamu?',
+  'Name': 'Nama',
+  'Finish': 'Menyelesaikan',
 
-     //HomeScreen
+  //HomeScreen
+  'Continue setting': 'Lanjutkan pengaturan',
+  'Total S\$': 'Jumlah SRp',
+  'Ready to track your spending? \nOr just planning to ignore it again':
+      'Siap melacak pengeluaran Anda? \nAtau hanya berencana untuk mengabaikannya lagi',
+  'supportive': 'mendukung',
+  'Add assistant': 'Tambahkan asisten',
+  'No entries available': 'Tidak ada entri yang tersedia',
 
-    'Continue setting' : 'Lanjutkan pengaturan',
-    'Total S\$' : 'Jumlah SRp',
-    'Ready to track your spending? \nOr just planning to ignore it again' : 'Siap melacak pengeluaran Anda? \nAtau hanya berencana untuk mengabaikannya lagi',
-    'supportive' : 'mendukung',
-    'Add assistant' : 'Tambahkan asisten',
-     'No entries available' : 'Tidak ada entri yang tersedia',
-
-     
   //showassistant
-'Assistant' : 'Asisten',
-'Supportive & Friendly' : 'Dukungan & Ramah',
-'sarcastic' : 'sarkastik',
-'Sarcastic Truth-Teller' : 'Penyampai Kebenaran yang Sarkastik',
+  'Assistant': 'Asisten',
+  'Supportive & Friendly': 'Dukungan & Ramah',
+  'sarcastic': 'sarkastik',
+  'Sarcastic Truth-Teller': 'Penyampai Kebenaran yang Sarkastik',
 
-//SearchScreen
+  //SearchScreen
   'Search for category or title': 'Cari kategori atau judul',
-  'Delete': 'Menghapus',
+  'Delete': 'Mengh',
 
   //filter screen
   'Filter': 'Menyaring',
@@ -146,7 +145,8 @@ final Map<String, String> indonesia = {
 
   //ExpenseScreen
   'Are you sure you want to delete?': 'Apakah Anda yakin ingin menghapus?',
-  'You won\'t be able to undo this.': 'Anda tidak akan dapat membatalkan tindakan ini.',
+  'You won\'t be able to undo this.':
+      'Anda tidak akan dapat membatalkan tindakan ini.',
   'No': 'TIDAK',
   'Entry deleted successfully': 'Entri berhasil dihapus',
   'Yes': 'Ya',
@@ -180,7 +180,7 @@ final Map<String, String> indonesia = {
   'Type': 'Jenis',
   'Select Type': 'Pilih Jenis',
 
-   //GroupScreen
+  //GroupScreen
   'Our': 'Kita',
   'Spending': 'Pengeluaran',
   'Invite friends': 'Undang teman',
@@ -191,10 +191,12 @@ final Map<String, String> indonesia = {
   'Empty Email': 'Email Kosong',
   'Please enter an email address.': 'Silakan masukkan alamat email.',
   'Invalid Email': 'Email Tidak Valid',
-  'Please enter a valid email address.': 'Silakan masukkan alamat email yang valid.',
+  'Please enter a valid email address.':
+      'Silakan masukkan alamat email yang valid.',
   'Duplicate Email': 'Email Duplikat',
   'Trip Name Required': 'Nama Perjalanan Diperlukan',
-  'Please enter a name for your trip.': 'Silakan masukkan nama untuk perjalanan Anda.',
+  'Please enter a name for your trip.':
+      'Silakan masukkan nama untuk perjalanan Anda.',
 
   //GroupTripSpentController
   'Equally': 'Sama',
@@ -266,7 +268,7 @@ final Map<String, String> indonesia = {
 
   'Select': 'Memilih',
 
-  'Edit': 'Edit',
+  'Edit': 'Sunting',
 
   'Category setting': 'Pengaturan kategori',
 
@@ -305,16 +307,15 @@ final Map<String, String> indonesia = {
 
   'Send': 'Mengirim',
 
-  'Reset password' : 'Setel ulang kata sandi',
+  'Reset password': 'Setel ulang kata sandi',
 
- ' Enter your Email Address' : 'Masukkan Alamat Email Anda',
+  ' Enter your Email Address': 'Masukkan Alamat Email Anda',
 
+  'To Collect': 'Untuk Mengumpulkan', // Indonesian
+  'To pay': 'Untuk Membayar', // Indonesian
+  'Total balance': 'Jumlah Saldo', // Indonesian
 
-'To Collect' : 'Untuk Mengumpulkan', // Indonesian
-'To pay' : 'Untuk Membayar', // Indonesian
-'Total balance' : 'Jumlah Saldo', // Indonesian
-
-'AI Assistant': 'Asisten AI',
+  'AI Assistant': 'Asisten AI',
   'AI Assistant Chatbot': 'Chatbot Asisten AI',
   'Smart Budget Suggestions': 'Saran Anggaran Pintar',
   'Split Bills': 'Bagi Tagihan',
@@ -324,11 +325,11 @@ final Map<String, String> indonesia = {
   'Hire': 'Sewa',
 
   'Total Amount': 'Jumlah Total',
-  'Share with (Equally)': 'Bagikan dengan (Sama Rata)',
+  'Share with (Equally)': 'Bagikan dengan',
   // ignore: equal_keys_in_map
   'Category': 'Kategori',
-    
-    'You\'ll collect': 'Anda akan menerima',
+
+  'You\'ll collect': 'Anda akan menerima',
   'You\'ll pay': 'Anda akan membayar',
   'All sliced up and settled!': 'Semua sudah dibagi dan diselesaikan!',
   'My expenses': 'Pengeluaran saya',
@@ -350,19 +351,32 @@ final Map<String, String> indonesia = {
   'To delete them, they must be removed from your group, or you can delete the entire group':
       'Untuk menghapus mereka, mereka harus dikeluarkan dari grup Anda, atau Anda dapat menghapus seluruh grup',
   'Okay': 'Oke',
- 
 
-
- "You won’t be able to undo this.": "Anda tidak akan dapat membatalkan ini.",
+  "You won’t be able to undo this.": "Anda tidak akan dapat membatalkan ini.",
   "You can’t delete them yet": "Anda belum dapat menghapus mereka",
-  "No friends available.\nTap + to add friends from your list.": "Tidak ada teman yang tersedia.\nKetuk + untuk menambahkan teman dari daftar Anda.",
-  "You can’t remove them or leave this group just yet": "Anda belum dapat menghapus mereka atau keluar dari grup ini",
-  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses": "Anda hanya dapat menghapus mereka atau keluar dari grup setelah semua utang diselesaikan atau mereka (atau Anda) tidak lagi menjadi bagian dari pengeluaran bersama",
-  "Are you sure you want to remove them or leave the group yourself?": "Apakah Anda yakin ingin menghapus mereka atau keluar dari grup sendiri?",
-  "Ready to track your group expenses!": "Siap untuk melacak pengeluaran grup Anda!"
-  
+  "No friends available.\nTap + to add friends from your list.":
+      "Tidak ada teman yang tersedia.\nKetuk + untuk menambahkan teman dari daftar Anda.",
+  "You can’t remove them or leave this group just yet":
+      "Anda belum dapat menghapus mereka atau keluar dari grup ini",
+  "You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses":
+      "Anda hanya dapat menghapus mereka atau keluar dari grup setelah semua utang diselesaikan atau mereka (atau Anda) tidak lagi menjadi bagian dari pengeluaran bersama",
+  "Are you sure you want to remove them or leave the group yourself?":
+      "Apakah Anda yakin ingin menghapus mereka atau keluar dari grup sendiri?",
+  "Ready to track your group expenses!":
+      "Siap untuk melacak pengeluaran grup Anda!",
 
-
-
-
+  'Email': 'E-mail',
+  // Additional UI strings
+  'No expenses found': 'Tidak ada pengeluaran ditemukan',
+  'Add your first expense to get started':
+      'Tambahkan pengeluaran pertama Anda untuk memulai',
+  'No settlements yet': 'Belum ada penyelesaian',
+  'Add some expenses to see settlements':
+      'Tambahkan beberapa pengeluaran untuk melihat penyelesaian',
+  'No balance information available': 'Tidak ada informasi saldo tersedia',
+  'Error loading data': 'Terjadi kesalahan saat memuat data',
+  'No category data available': 'Tidak ada data kategori tersedia',
+  'Me': 'Saya',
+  'Per person': 'Per orang',
+  'People': 'Orang',
 };

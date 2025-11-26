@@ -3,36 +3,24 @@
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:math' as math;
+
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/foundation.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
 import 'package:teddy_5618/core/services/storage_service.dart';
 import 'package:teddy_5618/features/group_screen/controller/sliceup_controller.dart';
 
-// File-scoped debug toggle: set to `true` to enable debugPrints inside this file.
-// This shadows the imported debugPrint within this file only and prevents
-// the console from being flooded without editing every call-site.
-const bool _tripTextDebugLocal = false;
-
-void debugPrint(Object? message) {
-  if (_tripTextDebugLocal) {
-    // Use standard print for simplicity. This intentionally shadows
-    // Flutter's debugPrint for file-scoped control over logs.
-    // ignore: avoid_print
-    print(message?.toString() ?? '');
-  }
-}
+// Note: debug printing removed for production cleanliness.
+// Use Flutter's `debugPrint` from `foundation.dart` for logging.
 
 enum TripTextType { expenses, sliceup, status }
 
 class TripTextController extends GetxController {
   // Toggle this to false to silence TripTextController debug logs in debug console
-  static const bool _tripTextDebug = false;
 
-  void _d(Object? message) {
-    if (_tripTextDebug) debugPrint(message?.toString() ?? '');
-  }
+  // Internal debug helper is a no-op (debugging removed)
+  void _d(Object? message) {}
 
   final currentType = TripTextType.expenses.obs;
 
@@ -45,25 +33,31 @@ class TripTextController extends GetxController {
   // SliceUp controller reference
   SliceUpController? _sliceUpController;
 
+  // Mirror of SliceUpController.isAllSettled so this controller's Rx
+  // dependencies are tracked by Obx when building TripText.
+  // Using this avoids relying on Rxs from another controller to trigger
+  // rebuilds for the TripText widget.
+  var sliceupIsAllSettled = false.obs;
+
   // Guard to avoid scheduling multiple refreshes in the same frame
   bool _refreshScheduled = false;
 
   // Mock data for status (until their APIs are integrated)
   final statusData = {}.obs;
 
+  // ✅ Reactive mirrors of SliceUpController data for real-time UI updates
+  // These fields are synchronized with SliceUpController when it's initialized
+  // Mirrors removed: TripTextController no longer keeps formatted string copies
+
   @override
   void onClose() {
-    _d(
-      '🔄 [TRIP_TEXT_CONTROLLER] onClose called for group: ${currentGroupId.value}',
-    );
+    _d('onClose called for group: ${currentGroupId.value}');
     super.onClose();
   }
 
   // ✅ Method to clear data when switching groups
   void clearData() {
-    _d(
-      '🧹 [TRIP_TEXT_CONTROLLER] Clearing data for group: ${currentGroupId.value}',
-    );
+    _d('Clearing data for group: ${currentGroupId.value}');
     summaryData.clear();
     statusData.clear();
     error.value = '';
@@ -73,14 +67,14 @@ class TripTextController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _d('🔄 [TRIP_TEXT_CONTROLLER] onInit called');
+    _d('onInit called');
     // Don't auto-load data in onInit, wait for explicit group ID setting
   }
 
   @override
   void onReady() {
     super.onReady();
-    _d('🔄 [TRIP_TEXT_CONTROLLER] onReady called');
+    _d('onReady called');
     // Refresh data when controller becomes ready if we have a group ID
     if (currentGroupId.value.isNotEmpty) {
       refreshCurrentData();
@@ -88,20 +82,9 @@ class TripTextController extends GetxController {
   }
 
   // Auto-fetch first group if no group ID is set
+  // Note: Removed - no longer needed as group ID should be provided explicitly
   Future<void> autoFetchFirstGroup() async {
-    try {
-      _d('🔍 [TRIP_TEXT_CONTROLLER] Auto-fetching first group...');
-      final token = await AuthService.getApprovalToken();
-      if (token != null && token.isNotEmpty) {
-        final firstGroupId = await getUserGroupsAndGetFirst(token);
-        if (firstGroupId.isNotEmpty) {
-          _d('✅ [TRIP_TEXT_CONTROLLER] Auto-setting groupId: $firstGroupId');
-          setGroupId(firstGroupId);
-        }
-      }
-    } catch (e) {
-      _d('❌ [TRIP_TEXT_CONTROLLER] Error auto-fetching group: $e');
-    }
+    _d('autoFetchFirstGroup called but no longer implemented');
   }
 
   void setTripTextType(TripTextType type) {
@@ -109,60 +92,127 @@ class TripTextController extends GetxController {
     currentType.value = type;
 
     // Debug: Check current state when type changes
-    _d('🔄 [TRIP_TEXT_CONTROLLER] setTripTextType called: $type');
-    _d('🔄 [TRIP_TEXT_CONTROLLER] currentGroupId: ${currentGroupId.value}');
+    _d('setTripTextType called: $type');
+    _d('currentGroupId: ${currentGroupId.value}');
 
     // ✅ Always refresh data when changing type to ensure real-time updates
     if (currentGroupId.value.isNotEmpty) {
       _d(
         '🚀 [TRIP_TEXT_CONTROLLER] Scheduling refresh for type change: $previousType -> $type',
       );
+
+      // For status type, immediately initialize SliceUpController
+      if (type == TripTextType.status) {
+        _d('Initializing SliceUpController for status type');
+        _initializeSliceUpController();
+      }
+
       _scheduleRefreshAfterBuild();
     } else {
-      debugPrint('⚠️ [TRIP_TEXT_CONTROLLER] Cannot refresh: no group ID set');
+      _d('Cannot refresh: no group ID set');
     }
   }
 
   // Initialize SliceUpController when needed
   void _initializeSliceUpController() {
     final tag = currentGroupId.value;
-    if (_sliceUpController == null ||
-        !Get.isRegistered<SliceUpController>(tag: tag)) {
-      _sliceUpController = Get.put(
-        SliceUpController(),
-        tag:
-            tag, // ✅ Use group ID as tag for unique SliceUpController per group
-      );
-      _sliceUpController!.setGroupId(currentGroupId.value);
+    if (tag.isEmpty) {
+      _d('Cannot initialize SliceUpController: empty group ID');
+      return;
+    }
+
+    try {
+      if (_sliceUpController == null ||
+          !Get.isRegistered<SliceUpController>(tag: tag)) {
+        _d('Creating new SliceUpController with tag: $tag');
+        _sliceUpController = Get.put(
+          SliceUpController(),
+          tag:
+              tag, // ✅ Use group ID as tag for unique SliceUpController per group
+        );
+        _sliceUpController!.setGroupId(currentGroupId.value);
+      } else {
+        _d('SliceUpController already exists for tag: $tag');
+        _sliceUpController = Get.find<SliceUpController>(tag: tag);
+      }
+
+      // Always sync the mirror observables with current values
+      if (_sliceUpController != null) {
+        sliceupIsAllSettled.value = _sliceUpController!.isAllSettled.value;
+        _d('Synced SliceUpController data for group: ${currentGroupId.value}');
+
+        // Setup listener for settlement status changes only. Amount formatting
+        // should be read from `summaryData` so TripText displays consistent
+        // numeric -> formatted values derived from the summary.
+        _sliceUpController!.isAllSettled.listen((val) {
+          sliceupIsAllSettled.value = val;
+        });
+
+        // Sync summary data from SliceUp so TripText can read totalExpenses
+        _syncSummaryDataFromSliceUp();
+      }
+    } catch (e) {
+      _d('Error in _initializeSliceUpController: $e');
+    }
+  }
+
+  // ✅ Helper to sync summary data from SliceUpController into this controller
+  // so TripText widget can read totalExpenses and decide whether to show
+  void _syncSummaryDataFromSliceUp() {
+    if (_sliceUpController == null) return;
+    try {
+      final sliceSummary = _sliceUpController!.summaryData;
+      if (sliceSummary.isNotEmpty) {
+        summaryData.clear();
+        summaryData.addAll({
+          'youllPay': sliceSummary['youllPay'] ?? {'currency': '', 'amount': 0},
+          'youllCollect':
+              sliceSummary['youllCollect'] ?? {'currency': '', 'amount': 0},
+          'totalExpenses': sliceSummary['totalExpenses'] ?? 0,
+        });
+        summaryData.refresh();
+      }
+    } catch (e) {
+      // Silently ignore build errors during sync
     }
   }
 
   // Method to set group ID and auto-fetch data
   void setGroupId(String groupId) {
-    _d('🎯 [TRIP_TEXT_CONTROLLER] setGroupId called with: $groupId');
+    _d('setGroupId called with: $groupId');
+
     if (currentGroupId.value != groupId) {
       currentGroupId.value = groupId;
       // Clear previous data when switching groups
       summaryData.clear();
       statusData.clear();
       error.value = '';
+      sliceupIsAllSettled.value = false; // Reset settled state for new group
+      // formatted mirrors removed; TripText reads from `summaryData`
 
-      // Auto-fetch expense data when group changes and we're on expenses tab
-      if (currentType.value == TripTextType.expenses && groupId.isNotEmpty) {
-        _d(
-          '🚀 [TRIP_TEXT_CONTROLLER] Scheduling fetch for new group: $groupId',
-        );
-        _scheduleRefreshAfterBuild();
-      } else if (currentType.value == TripTextType.sliceup &&
-          groupId.isNotEmpty) {
-        _d(
-          '🚀 [TRIP_TEXT_CONTROLLER] Initializing slice-up controller for new group: $groupId',
-        );
-        // Initialization is lightweight - do it immediately
-        _initializeSliceUpController();
+      _d('Cleared previous group data');
+
+      // Immediately fetch data for Expenses screen if that's the current type
+      if (groupId.isNotEmpty && currentType.value == TripTextType.expenses) {
+        fetchSliceUpData(groupId);
       }
+
+      // Auto-fetch expense data for ALL screens to get summary
+      if (groupId.isNotEmpty) {
+        _d('Scheduling fetch for group: $groupId');
+        _scheduleRefreshAfterBuild();
+      }
+
+      // Additionally initialize SliceUpController for sliceup/status screens
+      if (currentType.value == TripTextType.sliceup && groupId.isNotEmpty) {
+        _d('SLICEUP screen - Will also initialize SliceUpController');
+      } else if (currentType.value == TripTextType.status &&
+          groupId.isNotEmpty) {
+        _d('STATUS screen - Will also initialize SliceUpController');
+      }
+      _d('GROUP CHANGE COMPLETE');
     } else {
-      _d('🔄 [TRIP_TEXT_CONTROLLER] Group ID unchanged: $groupId');
+      _d('Group ID unchanged: $groupId (no action needed)');
       // Even if group ID is same, schedule a refresh to ensure it's up to date
       _scheduleRefreshAfterBuild();
     }
@@ -173,19 +223,24 @@ class TripTextController extends GetxController {
     if (currentGroupId.value.isEmpty) return;
 
     debugPrint(
-      '🔄 [TRIP_TEXT_CONTROLLER] Refreshing data for type: ${currentType.value}, group: ${currentGroupId.value}',
+      '🔄 [TRIP_TEXT_CTRL] Refreshing data for type: ${currentType.value}, group: ${currentGroupId.value}',
     );
 
+    // For ALL screens, fetch slice-up data from settlements API
+    // This provides the summary data needed for TripText
+    fetchSliceUpData(currentGroupId.value);
+
+    // Additionally, for slice-up and status screens, initialize SliceUpController
+    // for additional slice-up specific data (settlements, balances, etc.)
     switch (currentType.value) {
       case TripTextType.expenses:
-        fetchExpenseData(currentGroupId.value);
+        // Already fetching slice-up data above
         break;
       case TripTextType.sliceup:
         _initializeSliceUpController();
         break;
       case TripTextType.status:
-        // For now, status data is handled differently
-        // You can add status data refresh logic here when APIs are ready
+        _initializeSliceUpController();
         break;
     }
   }
@@ -198,10 +253,6 @@ class TripTextController extends GetxController {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       try {
         refreshCurrentData();
-      } catch (e) {
-        debugPrint(
-          '❌ [TRIP_TEXT_CONTROLLER] Error during scheduled refresh: $e',
-        );
       } finally {
         _refreshScheduled = false;
       }
@@ -210,54 +261,36 @@ class TripTextController extends GetxController {
 
   // TEMPORARY: Method to test API with hardcoded group ID
   void testApiCall() async {
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] === STARTING DEBUG TEST ===');
+    _d('Starting debug test');
 
     // First check if we have authentication
     final token = await AuthService.getApprovalToken();
-    debugPrint(
-      '🔑 [TRIP_TEXT_CONTROLLER] Token available: ${token != null && token.isNotEmpty}',
-    );
+    _d('Token available: ${token != null && token.isNotEmpty}');
     if (token != null) {
-      debugPrint('🔑 [TRIP_TEXT_CONTROLLER] Token length: ${token.length}');
-      debugPrint(
-        '🔑 [TRIP_TEXT_CONTROLLER] Token starts with: ${token.substring(0, math.min(20, token.length))}...',
-      );
+      _d('Token length: ${token.length}');
     }
 
     // Check current controller state before API call
-    debugPrint('📊 [TRIP_TEXT_CONTROLLER] === BEFORE API CALL ===');
-    debugCurrentState();
+    _d('Before API call');
 
     // Try to get the first available group ID dynamically
     String testGroupId = '';
-    if (token != null && token.isNotEmpty) {
-      debugPrint(
-        '🔍 [TRIP_TEXT_CONTROLLER] Getting first available group ID...',
-      );
-      testGroupId = await getUserGroupsAndGetFirst(token);
-      debugPrint('📋 [TRIP_TEXT_CONTROLLER] Found group ID: $testGroupId');
-    }
+    // Note: Group ID lookup removed - must be provided explicitly
 
     // If no group ID found, use current group ID if available
     if (testGroupId.isEmpty && currentGroupId.value.isNotEmpty) {
       testGroupId = currentGroupId.value;
-      debugPrint(
-        '🔄 [TRIP_TEXT_CONTROLLER] Using current group ID: $testGroupId',
-      );
+      _d('Using current group ID: $testGroupId');
     }
 
     // If still no group ID, show error
     if (testGroupId.isEmpty) {
-      debugPrint('❌ [TRIP_TEXT_CONTROLLER] No group ID available for testing');
-      debugPrint(
-        '❌ [TRIP_TEXT_CONTROLLER] Make sure you have at least one group created',
-      );
+      _d('No group ID available for testing');
+      _d('Make sure you have at least one group created');
       return;
     }
 
-    debugPrint(
-      '🧪 [TRIP_TEXT_CONTROLLER] Testing with dynamic group ID: $testGroupId',
-    );
+    _d('Testing with dynamic group ID: $testGroupId');
 
     // Set group ID and watch for changes
     setGroupId(testGroupId);
@@ -266,152 +299,112 @@ class TripTextController extends GetxController {
     await Future.delayed(Duration(seconds: 3));
 
     // Check state after API call
-    debugPrint('📊 [TRIP_TEXT_CONTROLLER] === AFTER API CALL ===');
-    debugCurrentState();
+    _d('After API call');
 
-    // Test manual URL construction
-    final testUrl = Urls.getGroupTransactions(testGroupId);
-    debugPrint('🌐 [TRIP_TEXT_CONTROLLER] Constructed URL: $testUrl');
+    // Test manual URL construction - (no-op in production build)
 
     // Test if we can reach the endpoint manually
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] Testing manual API call...');
+    _d('Testing manual API call');
     await testManualApiCall(testGroupId, token);
-
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] === DEBUG TEST COMPLETE ===');
+    _d('Debug test complete');
   }
 
   // Manual API test method
   Future<void> testManualApiCall(String groupId, String? token) async {
     if (token == null || token.isEmpty) {
-      debugPrint('❌ [TRIP_TEXT_CONTROLLER] No token for manual test');
+      _d('No token for manual test');
       return;
     }
 
     try {
-      debugPrint('🔧 [TRIP_TEXT_CONTROLLER] === MANUAL API TEST START ===');
+      _d('Manual API test start');
 
+      // Use transactions endpoint for manual tests within TripTextController
       final url = Urls.getGroupTransactions(groupId);
-      debugPrint('🌐 [TRIP_TEXT_CONTROLLER] Manual test URL: $url');
 
       var headers = {
         'Authorization': token,
         'Content-Type': 'application/json',
       };
-      debugPrint('🔑 [TRIP_TEXT_CONTROLLER] Manual test headers: $headers');
+      _d('Manual test headers: $headers');
 
       var request = http.Request('GET', Uri.parse(url));
       request.headers.addAll(headers);
 
-      debugPrint('📤 [TRIP_TEXT_CONTROLLER] Sending manual request...');
+      _d('Sending manual request...');
       http.StreamedResponse response = await request.send();
       final responseString = await response.stream.bytesToString();
 
-      debugPrint(
-        '📥 [TRIP_TEXT_CONTROLLER] Manual response status: ${response.statusCode}',
-      );
-      debugPrint(
-        '📥 [TRIP_TEXT_CONTROLLER] Manual response headers: ${response.headers}',
-      );
-      debugPrint(
-        '📋 [TRIP_TEXT_CONTROLLER] Manual response body: $responseString',
-      );
+      _d('Manual response status: ${response.statusCode}');
+      _d('Manual response headers: ${response.headers}');
+      _d('Manual response body: $responseString');
 
       if (response.statusCode == 200) {
         try {
           final responseData =
               json.decode(responseString) as Map<String, dynamic>;
-          debugPrint(
-            '✅ [TRIP_TEXT_CONTROLLER] Manual parsed JSON: $responseData',
-          );
+          _d('Manual parsed JSON: $responseData');
 
           // Check response structure
-          debugPrint(
-            '🔍 [TRIP_TEXT_CONTROLLER] Response keys: ${responseData.keys}',
-          );
-          debugPrint(
-            '🔍 [TRIP_TEXT_CONTROLLER] Status: ${responseData['status']}',
-          );
-          debugPrint(
-            '🔍 [TRIP_TEXT_CONTROLLER] Has data: ${responseData['data'] != null}',
-          );
+          _d('Response keys: ${responseData.keys}');
+          _d('Status: ${responseData['status']}');
+          _d('Has data: ${responseData['data'] != null}');
 
           if (responseData['data'] != null) {
             final data = responseData['data'] as Map<String, dynamic>;
-            debugPrint('🔍 [TRIP_TEXT_CONTROLLER] Data keys: ${data.keys}');
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] Has summary: ${data['summary'] != null}',
-            );
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] Has transactions: ${data['transactions'] != null}',
-            );
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] Has totals: ${data['totals'] != null}',
-            );
+            _d('Data keys: ${data.keys}');
+            _d('Has summary: ${data['summary'] != null}');
+            _d('Has transactions: ${data['transactions'] != null}');
+            _d('Has totals: ${data['totals'] != null}');
 
             if (data['summary'] != null) {
-              debugPrint(
-                '📊 [TRIP_TEXT_CONTROLLER] Summary structure: ${data['summary']}',
-              );
+              _d('Summary structure: ${data['summary']}');
             }
             if (data['transactions'] != null) {
               final transactions = data['transactions'] as List;
-              debugPrint(
-                '📊 [TRIP_TEXT_CONTROLLER] Transactions count: ${transactions.length}',
-              );
+              _d('Transactions count: ${transactions.length}');
               if (transactions.isNotEmpty) {
-                debugPrint(
-                  '📊 [TRIP_TEXT_CONTROLLER] First transaction: ${transactions[0]}',
-                );
+                _d('First transaction: ${transactions[0]}');
               }
             }
             if (data['totals'] != null) {
-              debugPrint(
-                '📊 [TRIP_TEXT_CONTROLLER] Totals structure: ${data['totals']}',
-              );
+              _d('Totals structure: ${data['totals']}');
             }
           }
         } catch (e) {
-          debugPrint(
-            '❌ [TRIP_TEXT_CONTROLLER] Error parsing manual response JSON: $e',
-          );
+          _d('Error parsing manual response JSON: $e');
         }
       } else {
-        debugPrint(
-          '❌ [TRIP_TEXT_CONTROLLER] Manual API failed: ${response.statusCode}',
-        );
+        _d('Manual API failed: ${response.statusCode}');
         if (response.statusCode == 401) {
-          debugPrint(
-            '🔐 [TRIP_TEXT_CONTROLLER] Unauthorized - token might be invalid',
-          );
+          _d('Unauthorized - token might be invalid');
         } else if (response.statusCode == 404) {
-          debugPrint(
-            '🚫 [TRIP_TEXT_CONTROLLER] Not found - group ID might be invalid',
-          );
+          _d('Not found - group ID might be invalid');
         }
       }
 
-      debugPrint('🔧 [TRIP_TEXT_CONTROLLER] === MANUAL API TEST END ===');
+      _d('Manual API test end');
     } catch (e) {
-      debugPrint('💥 [TRIP_TEXT_CONTROLLER] Manual API test exception: $e');
+      _d('Manual API test exception: $e');
     }
   }
 
   // TEMPORARY: Method to manually set test data
   void setTestData() {
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] Setting manual test data');
+    _d('Setting manual test data');
     summaryData.clear();
     summaryData.addAll({
-      'youllPay': {'currency': 'USD', 'amount': 0},
-      'youllCollect': {'currency': 'USD', 'amount': 480},
+      'youllPay': {'currency': '', 'amount': 0},
+      'youllCollect': {'currency': '', 'amount': 480},
     });
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] Test data set: $summaryData');
+    _d('Test data set: $summaryData');
     summaryData.refresh();
-    debugPrint('🧪 [TRIP_TEXT_CONTROLLER] UI refresh called');
+    _d('UI refresh called');
   }
 
   // TEMPORARY: Method to force data fetch for testing
   void forceRefresh() {
-    debugPrint('🔄 [TRIP_TEXT_CONTROLLER] Force refresh called');
+    _d('Force refresh called');
     if (currentGroupId.value.isNotEmpty) {
       fetchExpenseData(currentGroupId.value);
     } else {
@@ -421,45 +414,102 @@ class TripTextController extends GetxController {
 
   // TEMPORARY: Quick debug method to check state
   void quickDebug() {
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] === QUICK DEBUG ===');
-    debugPrint(
-      '⚡ [TRIP_TEXT_CONTROLLER] currentGroupId: ${currentGroupId.value}',
+    _d(
+      'Quick debug state: currentGroupId=${currentGroupId.value} currentType=${currentType.value} isLoading=${isLoading.value} error=${error.value} summaryData=$summaryData primaryAmount=$primaryAmount secondaryAmount=$secondaryAmount',
     );
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] currentType: ${currentType.value}');
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] isLoading: ${isLoading.value}');
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] error: ${error.value}');
-    debugPrint(
-      '⚡ [TRIP_TEXT_CONTROLLER] summaryData.isEmpty: ${summaryData.isEmpty}',
-    );
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] summaryData: $summaryData');
-
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] primaryAmount: $primaryAmount');
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] secondaryAmount: $secondaryAmount');
-    debugPrint('⚡ [TRIP_TEXT_CONTROLLER] === QUICK DEBUG END ===');
   }
 
   // Debug method to check current state
   void debugCurrentState() {
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] === DEBUG STATE ===');
-    debugPrint(
-      '🔍 [TRIP_TEXT_CONTROLLER] summaryData.isEmpty: ${summaryData.isEmpty}',
+    _d(
+      'Debug state: summaryData=${summaryData.isEmpty ? 'empty' : summaryData} isLoading=${isLoading.value} error=${error.value} currentType=${currentType.value}',
     );
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] summaryData: $summaryData');
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] isLoading: ${isLoading.value}');
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] error: ${error.value}');
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] currentType: ${currentType.value}');
-    if (summaryData.isNotEmpty) {
-      debugPrint(
-        '🔍 [TRIP_TEXT_CONTROLLER] youllPay: ${summaryData['youllPay']}',
-      );
-      debugPrint(
-        '🔍 [TRIP_TEXT_CONTROLLER] youllCollect: ${summaryData['youllCollect']}',
-      );
-    }
-    debugPrint('🔍 [TRIP_TEXT_CONTROLLER] === END DEBUG ===');
   }
 
-  // Method to fetch expense data from API
+  // Method to fetch slice-up data from settlements API
+  Future<void> fetchSliceUpData(String groupId) async {
+    try {
+      isLoading.value = true;
+      error.value = '';
+
+      final token = await AuthService.getApprovalToken();
+      if (token == null || token.isEmpty) {
+        error.value = 'Please login to view data';
+        return;
+      }
+
+      var headers = {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      };
+
+      final url = Urls.getSliceUp(groupId);
+      debugPrint('🌐 [FETCH_SLICEUP] Calling: $url');
+      var request = http.Request('GET', Uri.parse(url));
+      request.headers.addAll(headers);
+
+      http.StreamedResponse response = await request.send();
+      final responseString = await response.stream.bytesToString();
+
+      debugPrint('📊 [FETCH_SLICEUP] Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final responseData =
+            json.decode(responseString) as Map<String, dynamic>;
+
+        debugPrint(
+          '✅ [FETCH_SLICEUP] Response success: ${responseData['success']}',
+        );
+        debugPrint(
+          '✅ [FETCH_SLICEUP] Has data: ${responseData['data'] != null}',
+        );
+
+        if (responseData['success'] == true && responseData['data'] != null) {
+          final data = responseData['data'] as Map<String, dynamic>;
+
+          debugPrint(
+            '✅ [FETCH_SLICEUP] Has summary: ${data['summary'] != null}',
+          );
+
+          if (data['summary'] != null) {
+            final summary = data['summary'] as Map<String, dynamic>;
+            debugPrint('📥 [FETCH_SLICEUP] Summary data: $summary');
+
+            summaryData.clear();
+            summaryData.addAll({
+              'youllPay': summary['youllPay'] ?? {'currency': '', 'amount': 0},
+              'youllCollect':
+                  summary['youllCollect'] ?? {'currency': '', 'amount': 0},
+              'totalExpenses': summary['totalExpenses'] ?? 0,
+            });
+            summaryData.refresh();
+
+            // Update isAllSettled from API response
+            if (responseData['data']['isAllSettled'] != null) {
+              sliceupIsAllSettled.value =
+                  responseData['data']['isAllSettled'] as bool;
+              debugPrint(
+                '🔔 [FETCH_SLICEUP] isAllSettled: ${sliceupIsAllSettled.value}',
+              );
+            }
+
+            debugPrint('✅ [FETCH_SLICEUP] Data stored: $summaryData');
+          } else {
+            debugPrint('❌ [FETCH_SLICEUP] No summary field in response');
+          }
+        }
+      } else {
+        debugPrint('❌ [FETCH_SLICEUP] HTTP Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      error.value = 'Error fetching data: $e';
+      debugPrint('❌ [FETCH_SLICEUP] Exception: $e');
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Method to fetch expense data from API (DEPRECATED - use fetchSliceUpData)
   Future<void> fetchExpenseData(String groupId) async {
     try {
       isLoading.value = true;
@@ -469,7 +519,7 @@ class TripTextController extends GetxController {
       final token = await AuthService.getApprovalToken();
       if (token == null || token.isEmpty) {
         error.value = 'Please login to view expense data';
-        debugPrint('❌ [TRIP_TEXT_CONTROLLER] No token available');
+        _d('No token available');
         return;
       }
 
@@ -485,48 +535,33 @@ class TripTextController extends GetxController {
         'Content-Type': 'application/json',
       };
 
-      // Make API call to getGroupTransactions
-      final url = Urls.getGroupTransactions(groupId);
-      debugPrint('🌐 [TRIP_TEXT_CONTROLLER] Fetching expense data from: $url');
-      debugPrint('🔑 [TRIP_TEXT_CONTROLLER] Headers: $headers');
+      // Make API call to settlements endpoint (old transactions endpoint removed)
+      final url = Urls.getSliceUp(groupId);
 
       var request = http.Request('GET', Uri.parse(url));
       request.headers.addAll(headers);
-      // Note: No body for GET request
 
       http.StreamedResponse response = await request.send();
       final responseString = await response.stream.bytesToString();
 
-      debugPrint(
-        '📋 [TRIP_TEXT_CONTROLLER] Response status: ${response.statusCode}',
-      );
-      debugPrint('📋 [TRIP_TEXT_CONTROLLER] Raw Response: $responseString');
+      _d('Response status: ${response.statusCode}');
+      _d('Raw Response: $responseString');
 
       if (response.statusCode == 200) {
         final responseData =
             json.decode(responseString) as Map<String, dynamic>;
 
-        debugPrint(
-          '🔍 [TRIP_TEXT_CONTROLLER] Parsed responseData keys: ${responseData.keys}',
-        );
-        debugPrint(
-          '🔍 [TRIP_TEXT_CONTROLLER] Response status field: ${responseData['status']}',
-        );
-        debugPrint(
-          '🔍 [TRIP_TEXT_CONTROLLER] Has data field: ${responseData['data'] != null}',
-        );
+        _d('Parsed responseData keys: ${responseData.keys}');
+        _d('Response status field: ${responseData['status']}');
+        _d('Has data field: ${responseData['data'] != null}');
 
         if (responseData['data'] != null) {
           final data = responseData['data'] as Map<String, dynamic>;
-          debugPrint('🔍 [TRIP_TEXT_CONTROLLER] Data keys: ${data.keys}');
-          debugPrint(
-            '🔍 [TRIP_TEXT_CONTROLLER] Has summary: ${data['summary'] != null}',
-          );
+          _d('Data keys: ${data.keys}');
+          _d('Has summary: ${data['summary'] != null}');
 
           if (data['summary'] != null) {
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] Summary content: ${data['summary']}',
-            );
+            _d('Summary content: ${data['summary']}');
           }
         }
 
@@ -535,7 +570,7 @@ class TripTextController extends GetxController {
             responseData['data']['summary'] != null) {
           final summary =
               responseData['data']['summary'] as Map<String, dynamic>;
-          debugPrint('✅ [TRIP_TEXT_CONTROLLER] Summary data found: $summary');
+          _d('Summary data found: $summary');
 
           // Update summary data with proper reactive updates
           // Normalize summary so callers can always read 'youllPay' and 'youllCollect'
@@ -543,33 +578,21 @@ class TripTextController extends GetxController {
           summaryData.clear();
           summaryData.addAll(normalized);
 
-          debugPrint(
-            '✅ [TRIP_TEXT_CONTROLLER] summaryData after update: $summaryData',
-          );
-          debugPrint(
-            '✅ [TRIP_TEXT_CONTROLLER] summaryData.isEmpty: ${summaryData.isEmpty}',
-          );
-          debugPrint(
-            '✅ [TRIP_TEXT_CONTROLLER] youllPay in summaryData: ${summaryData['youllPay']}',
-          );
-          debugPrint(
-            '✅ [TRIP_TEXT_CONTROLLER] youllCollect in summaryData: ${summaryData['youllCollect']}',
-          );
+          _d('summaryData after update: $summaryData');
+          _d('summaryData.isEmpty: ${summaryData.isEmpty}');
+          _d('youllPay in summaryData: ${summaryData['youllPay']}');
+          _d('youllCollect in summaryData: ${summaryData['youllCollect']}');
 
           // Force UI update using refresh() instead of update()
           summaryData.refresh();
-          debugPrint('✅ [TRIP_TEXT_CONTROLLER] summaryData.refresh() called');
+          _d('summaryData.refresh() called');
         } else {
           // Check if data exists but without summary - handle different response structures
           if (responseData['status'] == 'success' &&
               responseData['data'] != null) {
             final data = responseData['data'] as Map<String, dynamic>;
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] No summary field, checking for alternative structure',
-            );
-            debugPrint(
-              '🔍 [TRIP_TEXT_CONTROLLER] Available data keys: ${data.keys}',
-            );
+            _d('No summary field, checking for alternative structure');
+            _d('Available data keys: ${data.keys}');
 
             // Try to extract summary data from alternative structures
             Map<String, dynamic> extractedSummary = {};
@@ -579,49 +602,37 @@ class TripTextController extends GetxController {
               extractedSummary = calculateSummaryFromTransactions(
                 data['transactions'],
               );
-              debugPrint(
-                '🔄 [TRIP_TEXT_CONTROLLER] Calculated summary from transactions: $extractedSummary',
-              );
+              _d('Calculated summary from transactions: $extractedSummary');
             }
 
             // Check for totals field
             if (data['totals'] != null && extractedSummary.isEmpty) {
               extractedSummary = processTotalsData(data['totals']);
-              debugPrint(
-                '🔄 [TRIP_TEXT_CONTROLLER] Extracted summary from totals: $extractedSummary',
-              );
+              _d('Extracted summary from totals: $extractedSummary');
             }
 
             if (extractedSummary.isNotEmpty) {
               summaryData.clear();
               summaryData.addAll(extractedSummary);
               summaryData.refresh();
-              debugPrint(
-                '✅ [TRIP_TEXT_CONTROLLER] Alternative summary data set: $extractedSummary',
-              );
+              _d('Alternative summary data set: $extractedSummary');
             } else {
               error.value = 'No summary data found in response';
-              debugPrint(
-                '❌ [TRIP_TEXT_CONTROLLER] No summary data: $responseData',
-              );
+              _d('No summary data: $responseData');
             }
           } else {
             error.value = 'No summary data found in response';
-            debugPrint(
-              '❌ [TRIP_TEXT_CONTROLLER] No summary data: $responseData',
-            );
+            _d('No summary data: $responseData');
           }
         }
       } else {
         error.value = 'Failed to fetch expense data: ${response.statusCode}';
-        debugPrint(
-          '❌ [TRIP_TEXT_CONTROLLER] HTTP Error: ${response.statusCode}',
-        );
-        debugPrint('❌ [TRIP_TEXT_CONTROLLER] Response body: $responseString');
+        _d('HTTP Error: ${response.statusCode}');
+        _d('Response body: $responseString');
       }
     } catch (e) {
       error.value = 'Error fetching expense data: $e';
-      debugPrint('❌ [TRIP_TEXT_CONTROLLER] Exception: $e');
+      _d('Exception: $e');
     } finally {
       isLoading.value = false;
     }
@@ -629,7 +640,7 @@ class TripTextController extends GetxController {
 
   // Helper method to format summary amount
   String _formatSummaryAmount(Map<String, dynamic> summaryItem) {
-    final currency = summaryItem['currency'] ?? 'USD';
+    final currency = summaryItem['currency'] ?? '';
     final amount = summaryItem['amount'] ?? 0;
     return _formatCurrency(amount, currency);
   }
@@ -645,12 +656,12 @@ class TripTextController extends GetxController {
           src['totalUserLent'] ?? src['totalUserLended'] ?? src['totalLent'];
 
       final currencyFromYoullPay = (src['youllPay'] is Map)
-          ? (src['youllPay']['currency'] ?? src['currency'] ?? 'USD')
-          : (src['currency'] ?? 'USD');
+          ? (src['youllPay']['currency'] ?? src['currency'] ?? '')
+          : (src['currency'] ?? '');
 
       final currencyFromYoullCollect = (src['youllCollect'] is Map)
-          ? (src['youllCollect']['currency'] ?? src['currency'] ?? 'USD')
-          : (src['currency'] ?? 'USD');
+          ? (src['youllCollect']['currency'] ?? src['currency'] ?? '')
+          : (src['currency'] ?? '');
 
       // If backend provides totalUserBorrowed/totalUserLent prefer those values
       if (altPay != null || altCollect != null) {
@@ -696,10 +707,10 @@ class TripTextController extends GetxController {
         'totalUserLent': src['totalUserLent'] ?? 0,
       };
     } catch (e) {
-      debugPrint('❌ [TRIP_TEXT_CONTROLLER] Error normalizing summary: $e');
+      _d('Error normalizing summary: $e');
       return {
-        'youllPay': {'currency': 'USD', 'amount': 0},
-        'youllCollect': {'currency': 'USD', 'amount': 0},
+        'youllPay': {'currency': '', 'amount': 0},
+        'youllCollect': {'currency': '', 'amount': 0},
       };
     }
   }
@@ -720,7 +731,7 @@ class TripTextController extends GetxController {
       }
       return '$currencySymbol ${val.toStringAsFixed(2)}';
     } catch (e) {
-      return 'US\$0';
+      return '${_getCurrencySymbol(currency)}0';
     }
   }
 
@@ -728,9 +739,7 @@ class TripTextController extends GetxController {
   static void cleanupControllerForGroup(String groupId) {
     final tag = groupId.isNotEmpty ? groupId : 'default';
     if (Get.isRegistered<TripTextController>(tag: tag)) {
-      debugPrint(
-        '🧹 [TRIP_TEXT_CONTROLLER] Cleaning up controller for group: $groupId',
-      );
+      debugPrint('Cleaning up controller for group: $groupId');
       final controller = Get.find<TripTextController>(tag: tag);
       controller.clearData();
       // Optionally delete the controller if you want to free memory completely
@@ -749,8 +758,7 @@ class TripTextController extends GetxController {
         return '£';
       case 'JPY':
         return '¥';
-      case 'SGD':
-        return 'S\$';
+
       default:
         return currency;
     }
@@ -758,79 +766,93 @@ class TripTextController extends GetxController {
 
   // Getters for different text formats
   String get primaryText {
-    switch (currentType.value) {
-      case TripTextType.expenses:
-        // Ensure a trailing space so the amount doesn't stick to the text
-        return '${'You\'ll pay'.tr} ';
-      case TripTextType.sliceup:
-        // Ensure a trailing space so the amount doesn't stick to the text
-        return '${'You\'ll pay'.tr} ';
-      case TripTextType.status:
-        return 'All sliced up and settled!'.tr;
+    // If all settled AND there were expenses, show settled message
+    final totalExpenses = summaryData['totalExpenses'] ?? 0;
+    final totalExpensesAmount = totalExpenses is num
+        ? totalExpenses.toDouble()
+        : 0.0;
+
+    if (sliceupIsAllSettled.value && totalExpensesAmount > 0) {
+      return 'All sliced up and settled!'.tr;
     }
+
+    // If no pay amount from API summary, no label
+    final payAmt = _numericAmountFromSummaryEntry(summaryData['youllPay']);
+    if (payAmt <= 0) return '';
+    return '${'You\'ll pay'.tr} ';
   }
 
   String get primaryAmount {
-    switch (currentType.value) {
-      case TripTextType.expenses:
-        // Use API summary data only (no verbose logs)
-        if (summaryData.isNotEmpty && summaryData['youllPay'] != null) {
-          if (summaryData['youllPay'] is Map) {
-            final amount = _formatSummaryAmount(summaryData['youllPay']);
-            return amount;
-          }
-        }
-        return 'US\$0'; // Default when no API data
-      case TripTextType.sliceup:
-        // Use SliceUpController data
-        if (_sliceUpController != null &&
-            _sliceUpController!.youllPayAmount.value.isNotEmpty) {
-          return _sliceUpController!.youllPayAmount.value;
-        }
-        return 'US\$0'; // Default when no slice-up data
-      case TripTextType.status:
-        return ''; // No amount for status screen
+    // If all settled AND there were expenses, don't show an amount (only the settled message)
+    final totalExpenses = summaryData['totalExpenses'] ?? 0;
+    final totalExpensesAmount = totalExpenses is num
+        ? totalExpenses.toDouble()
+        : 0.0;
+
+    if (sliceupIsAllSettled.value && totalExpensesAmount > 0) return '';
+
+    // Always use API summary for all three screens
+    final payAmt = _numericAmountFromSummaryEntry(summaryData['youllPay']);
+    if (payAmt <= 0) return '';
+    if (summaryData.isNotEmpty &&
+        summaryData['youllPay'] != null &&
+        summaryData['youllPay'] is Map) {
+      return _formatSummaryAmount(summaryData['youllPay']);
     }
+    return _formatCurrency(payAmt, '');
   }
 
   // Check if secondary text should be shown
   bool get shouldShowSecondaryText {
-    return currentType.value != TripTextType.status;
+    // Don't show secondary when all settled AND there were expenses
+    final totalExpenses = summaryData['totalExpenses'] ?? 0;
+    final totalExpensesAmount = totalExpenses is num
+        ? totalExpenses.toDouble()
+        : 0.0;
+
+    if (sliceupIsAllSettled.value && totalExpensesAmount > 0) return false;
+
+    double collectAmt = _numericAmountFromSummaryEntry(
+      summaryData['youllCollect'],
+    );
+    return collectAmt > 0;
   }
 
   String get secondaryText {
-    switch (currentType.value) {
-      case TripTextType.expenses:
-        // Add trailing space for spacing before amount
-        return '${'You\'ll collect'.tr} ';
-      case TripTextType.sliceup:
-        // Add trailing space for spacing before amount
-        return '${'You\'ll collect'.tr} ';
-      case TripTextType.status:
-        return 'Pending'.tr;
-    }
+    // Don't show secondary text when all settled AND there were expenses
+    final totalExpenses = summaryData['totalExpenses'] ?? 0;
+    final totalExpensesAmount = totalExpenses is num
+        ? totalExpenses.toDouble()
+        : 0.0;
+
+    if (sliceupIsAllSettled.value && totalExpensesAmount > 0) return '';
+
+    final collectAmt = _numericAmountFromSummaryEntry(
+      summaryData['youllCollect'],
+    );
+    if (collectAmt <= 0) return '';
+    return '${'You\'ll collect'.tr} ';
   }
 
   String get secondaryAmount {
-    switch (currentType.value) {
-      case TripTextType.expenses:
-        // Use API summary data only (no verbose logs)
-        if (summaryData.isNotEmpty && summaryData['youllCollect'] != null) {
-          if (summaryData['youllCollect'] is Map) {
-            return ' ${_formatSummaryAmount(summaryData['youllCollect'])}';
-          }
-        }
-        return ' US\$0'; // Default when no API data
-      case TripTextType.sliceup:
-        // Use SliceUpController data
-        if (_sliceUpController != null &&
-            _sliceUpController!.youllCollectAmount.value.isNotEmpty) {
-          return ' ${_sliceUpController!.youllCollectAmount.value}';
-        }
-        return ' US\$0'; // Default when no slice-up data
-      case TripTextType.status:
-        return ' ${statusData['pending'] ?? 'US\$0'}';
+    // Don't show secondary amount when all settled AND there were expenses
+    final totalExpenses = summaryData['totalExpenses'] ?? 0;
+    final totalExpensesAmount = totalExpenses is num
+        ? totalExpenses.toDouble()
+        : 0.0;
+
+    if (sliceupIsAllSettled.value && totalExpensesAmount > 0) return '';
+
+    final collectAmt = _numericAmountFromSummaryEntry(
+      summaryData['youllCollect'],
+    );
+    if (collectAmt <= 0) return '';
+    if (summaryData.isNotEmpty &&
+        summaryData['youllCollect'] != null &&
+        summaryData['youllCollect'] is Map) {
+      return ' ${_formatSummaryAmount(summaryData['youllCollect'])}';
     }
+    return ' ${_formatCurrency(collectAmt, '')}';
   }
 
   // Method to update data from API - now delegates to SliceUpController
@@ -845,69 +867,6 @@ class TripTextController extends GetxController {
   void updateStatusData({String? settled, String? pending}) {
     if (settled != null) statusData['settled'] = settled;
     if (pending != null) statusData['pending'] = pending;
-  }
-
-  // Get user's groups and return the first group ID
-  Future<String> getUserGroupsAndGetFirst(String token) async {
-    try {
-      debugPrint('🔄 [TRIP_TEXT_CONTROLLER] Getting user groups...');
-
-      var headers = {
-        'Authorization': token,
-        'Content-Type': 'application/json',
-      };
-      var request = http.Request('GET', Uri.parse(Urls.getGroups));
-      request.headers.addAll(headers);
-
-      http.StreamedResponse response = await request.send();
-
-      if (response.statusCode == 200) {
-        final responseString = await response.stream.bytesToString();
-        final responseData =
-            json.decode(responseString) as Map<String, dynamic>;
-
-        debugPrint('🔍 [TRIP_TEXT_CONTROLLER] Groups response: $responseData');
-
-        if (responseData['status'] == 'success' &&
-            responseData['data'] != null) {
-          final data = responseData['data'] as Map<String, dynamic>;
-
-          // ✅ Fix: Handle the correct API structure
-          if (data['groups'] != null) {
-            final groups = data['groups'] as List<dynamic>;
-            if (groups.isNotEmpty) {
-              final firstGroup = groups[0] as Map<String, dynamic>;
-              final groupId = firstGroup['groupId']?.toString() ?? '';
-              debugPrint(
-                '✅ [TRIP_TEXT_CONTROLLER] Found first group ID: $groupId',
-              );
-              return groupId;
-            }
-          } else if (data is List<dynamic>) {
-            // Fallback: if data is directly a list
-            final groups = data;
-            if (groups.isNotEmpty) {
-              final firstGroup = groups[0] as Map<String, dynamic>;
-              final groupId = firstGroup['id']?.toString() ?? '';
-              debugPrint(
-                '✅ [TRIP_TEXT_CONTROLLER] Found first group ID (fallback): $groupId',
-              );
-              return groupId;
-            }
-          }
-        }
-      } else {
-        debugPrint(
-          '❌ [TRIP_TEXT_CONTROLLER] Failed to get groups: ${response.statusCode}',
-        );
-      }
-    } catch (e) {
-      debugPrint(
-        '❌ [TRIP_TEXT_CONTROLLER] Exception in getUserGroupsAndGetFirst: $e',
-      );
-    }
-
-    return '';
   }
 
   // Helper method to calculate summary from transactions
@@ -930,8 +889,8 @@ class TripTextController extends GetxController {
       }
 
       return {
-        'youllPay': {'currency': 'USD', 'amount': youllPay},
-        'youllCollect': {'currency': 'USD', 'amount': youllCollect},
+        'youllPay': {'currency': '', 'amount': youllPay},
+        'youllCollect': {'currency': '', 'amount': youllCollect},
       };
     } catch (e) {
       debugPrint(
@@ -952,8 +911,8 @@ class TripTextController extends GetxController {
       );
 
       return {
-        'youllPay': {'currency': 'USD', 'amount': youllPay},
-        'youllCollect': {'currency': 'USD', 'amount': youllCollect},
+        'youllPay': {'currency': '', 'amount': youllPay},
+        'youllCollect': {'currency': '', 'amount': youllCollect},
       };
     } catch (e) {
       debugPrint('❌ [TRIP_TEXT_CONTROLLER] Error processing totals data: $e');
@@ -972,5 +931,14 @@ class TripTextController extends GetxController {
       return double.tryParse(cleanAmount) ?? 0.0;
     }
     return 0.0;
+  }
+
+  // Helper to get a numeric amount from summary entry or formatted string
+  double _numericAmountFromSummaryEntry(dynamic entry) {
+    if (entry == null) return 0.0;
+    if (entry is Map && entry['amount'] != null) {
+      return _parseAmount(entry['amount']);
+    }
+    return _parseAmount(entry);
   }
 }

@@ -25,15 +25,14 @@ class SliceupPageScreen extends StatelessWidget {
     // Use either trip ID or direct groupId parameter
     final effectiveGroupId = groupId ?? trip?.id;
 
-    // Create a unique controller tag based on the group ID to ensure data isolation
-    final String controllerTag = effectiveGroupId ?? 'default';
+    // ✅ FIX: Consistent tagging - use effectiveGroupId for both controllers
+    // This matches GroupTripSpentScreen's tag strategy
+    final String controllerTag = effectiveGroupId ?? 'groupTripSpent';
+
     final controller = Get.put(GroupTripSpentController(), tag: controllerTag);
 
-    // ✅ Initialize SliceUpController for this trip/group
-    final sliceUpController = Get.put(
-      SliceUpController(),
-      tag: effectiveGroupId ?? 'default',
-    );
+    // ✅ Initialize SliceUpController for this trip/group with SAME tag
+    final sliceUpController = Get.put(SliceUpController(), tag: controllerTag);
 
     // Set the group ID if available
     if (effectiveGroupId != null && effectiveGroupId.isNotEmpty) {
@@ -58,172 +57,192 @@ class SliceupPageScreen extends StatelessWidget {
           ? AppColors.backgroundDark
           : AppColors.backgroundLightGrey,
       // AppColors.backgroundLightGrey,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(height: 23),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Trigger controller refresh to reload slice-up data
+          await sliceUpController.refreshSliceUpData();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
+              SizedBox(height: 23),
 
-            Obx(() {
-              if (sliceUpController.isLoading.value) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-
-              if (sliceUpController.error.value.isNotEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                        SizedBox(height: 8),
-                        Text(
-                          'Error loading data',
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        Text(
-                          sliceUpController.error.value,
-                          style: getTextStyle2(fontSize: 12, color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+              Obx(() {
+                if (sliceUpController.isLoading.value) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: CircularProgressIndicator(),
                     ),
-                  ),
-                );
-              }
+                  );
+                }
 
-              // Use real data from SliceUpController instead of hardcoded
-              final individualEntries = sliceUpController
-                  .getIndividualTransactions();
-
-              if (individualEntries.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.account_balance_wallet_outlined,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'No settlements yet',
-                          style: getTextStyle2(
-                            fontSize: 16,
+                if (sliceUpController.error.value.isNotEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
                             color: Colors.grey,
                           ),
-                        ),
-                        Text(
-                          'Add some expenses to see settlements',
-                          style: getTextStyle2(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              return IndividualCard(entries: individualEntries);
-            }),
-
-            SizedBox(height: 24),
-
-            // SlidingButtonIndivMin(controller: controller),
-            Obx(() {
-              final isIndividual = controller.isIndividualSelected.value;
-              final isAllSettled = sliceUpController.isAllSettled.value;
-
-              return GestureDetector(
-                onTap: isAllSettled
-                    ? null
-                    : () async {
-                        // Prepare the settlement controller outside of widget build
-                        final settCtrl = Get.put(SettlementBottomController());
-                        if (trip?.id != null && trip!.id!.isNotEmpty) {
-                          await settCtrl.prepareForGroup(trip!.id!);
-                        }
-
-                        showMaterialModalBottomSheet(
-                          context: context,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(34),
+                          SizedBox(height: 8),
+                          Text(
+                            'Error loading data'.tr,
+                            style: getTextStyle2(
+                              fontSize: 16,
+                              color: Colors.grey,
                             ),
                           ),
-                          builder: (context) =>
-                              SettlementBottom(groupId: trip?.id),
-                        );
-                      },
-                child: Container(
-                  width: MediaQuery.of(context).size.width / 1.1,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: isAllSettled
-                        ? AppColors.borderGrey
-                        : (isIndividual
-                              ? AppColors.green
-                              : AppColors.borderGrey),
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    isAllSettled
-                        ? 'Settled'.tr
-                        : (isIndividual ? 'Settle up'.tr : 'Settled'.tr),
-                    style: getTextStyle2(
-                      color: isAllSettled
-                          ? AppColors.textGrey
-                          : (isIndividual
-                                ? AppColors.black
-                                : AppColors.textGrey),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                          Text(
+                            sliceUpController.error.value,
+                            style: getTextStyle2(
+                              fontSize: 12,
+                              color: Colors.red,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }),
+                  );
+                }
 
-            SizedBox(height: 16),
-            // Use real balance data instead of hardcoded
-            Obx(() {
-              final balanceEntries = sliceUpController.getBalanceEntries();
+                // Use real data from SliceUpController instead of hardcoded
+                final individualEntries = sliceUpController
+                    .getIndividualTransactions();
 
-              if (balanceEntries.isEmpty &&
-                  !sliceUpController.isLoading.value) {
-                return Container(
-                  margin: EdgeInsets.symmetric(horizontal: 20),
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[800] : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
+                if (individualEntries.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'No settlements yet'.tr,
+                            style: getTextStyle2(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            'Add some expenses to see settlements'.tr,
+                            style: getTextStyle2(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return IndividualCard(entries: individualEntries);
+              }),
+
+              SizedBox(height: 24),
+
+              // SlidingButtonIndivMin(controller: controller),
+              Obx(() {
+                // ✅ FIX: Only check isAllSettled flag from API
+                // This is the authoritative source - true only when ALL settlements are complete
+                final isAllSettled = sliceUpController.isAllSettled.value;
+
+                // Button is disabled only when isAllSettled is true
+                final isButtonDisabled = isAllSettled;
+
+                return GestureDetector(
+                  onTap: isButtonDisabled
+                      ? null
+                      : () async {
+                          // Prepare the settlement controller outside of widget build
+                          final settCtrl = Get.put(
+                            SettlementBottomController(),
+                          );
+                          if (trip?.id != null && trip!.id!.isNotEmpty) {
+                            await settCtrl.prepareForGroup(trip!.id!);
+                          }
+
+                          showMaterialModalBottomSheet(
+                            context: context,
+                            // Disable dragging the sheet to avoid conflict with
+                            // the RefreshIndicator's pull-to-refresh gesture.
+                            enableDrag: false,
+                            isDismissible: true,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(34),
+                              ),
+                            ),
+                            builder: (context) => SettlementBottom(
+                              groupId: trip?.id,
+                              controllerTag: controllerTag,
+                            ),
+                          );
+                        },
+                  child: Container(
+                    width: MediaQuery.of(context).size.width / 1.1,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isButtonDisabled
+                          ? AppColors.borderGrey
+                          : AppColors.green,
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    alignment: Alignment.center,
                     child: Text(
-                      'No balance information available',
-                      style: getTextStyle2(fontSize: 14, color: Colors.grey),
+                      isButtonDisabled ? 'Settled'.tr : 'Settle up'.tr,
+                      style: getTextStyle2(
+                        color: isButtonDisabled
+                            ? AppColors.textGrey
+                            : AppColors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 );
-              }
+              }),
 
-              return SliceupBalanceCard(entries: balanceEntries);
-            }),
+              SizedBox(height: 16),
+              // Use real balance data instead of hardcoded
+              Obx(() {
+                final balanceEntries = sliceUpController.getBalanceEntries();
 
-            SizedBox(height: 66),
-          ],
+                if (balanceEntries.isEmpty &&
+                    !sliceUpController.isLoading.value) {
+                  return Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[800] : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'No balance information available'.tr,
+                        style: getTextStyle2(fontSize: 14, color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                return SliceupBalanceCard(entries: balanceEntries);
+              }),
+
+              SizedBox(height: 66),
+            ],
+          ),
         ),
       ),
     );

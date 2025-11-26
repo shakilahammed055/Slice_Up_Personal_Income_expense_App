@@ -38,7 +38,6 @@ final Map<String, String> japanese = {
   'Registration failed': '登録に失敗しました',
   'Signup error': '登録エラー',
 
-
   //LoginScreen
   'Welcome back!': 'おかえり！',
   'Forgot password?': 'パスワードをお忘れですか？',
@@ -319,9 +318,6 @@ final Map<String, String> japanese = {
   'Category': 'カテゴリー',
 
   // Add your keys here...
-
-
-  
   'You\'ll collect': 'あなたが集めます',
   'You\'ll pay': 'あなたが支払います',
   'All sliced up and settled!': 'すべて分割されて精算されました！',
@@ -343,7 +339,7 @@ final Map<String, String> japanese = {
       '削除するには、グループから削除するか、グループ全体を削除する必要があります',
   'Okay': 'わかりました',
 
-   "You won’t be able to undo this.": "この操作は元に戻せません。",
+  "You won’t be able to undo this.": "この操作は元に戻せません。",
   "You can’t delete them yet": "まだ削除できません",
   "No friends available.\nTap + to add friends from your list.":
       "利用可能な友達がいません。\n+ をタップしてリストから友達を追加してください。",
@@ -353,9 +349,19 @@ final Map<String, String> japanese = {
       "すべての借金が清算されるか、彼ら（またはあなた）が共有費用に含まれなくなった後でのみ削除または退出できます",
   "Are you sure you want to remove them or leave the group yourself?":
       "本当に彼らを削除するか、自分でグループを離れますか？",
-  "Ready to track your group expenses!": "グループの支出を追跡する準備ができました！"
+  "Ready to track your group expenses!": "グループの支出を追跡する準備ができました！",
 
+  'Email': '電子メール',
 
-
-
+  // Additional UI strings
+  'No expenses found': '支出が見つかりません',
+  'Add your first expense to get started': '始めるには最初の支出を追加してください',
+  'No settlements yet': 'まだ精算はありません',
+  'Add some expenses to see settlements': '精算を見るにはいくつかの支出を追加してください',
+  'No balance information available': '利用可能な残高情報がありません',
+  'Error loading data': 'データの読み込みエラー',
+  'No category data available': '利用可能なカテゴリデータがありません',
+  'Me': '私',
+  'Per person': '1人あたり',
+  'People': '人',
 };

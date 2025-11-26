@@ -8,9 +8,11 @@ import 'package:intl/intl.dart';
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
+import 'package:teddy_5618/features/home_screen/controller/profile_service.dart';
 
 class TripController extends GetxController {
   final RxList<Trip> trips = <Trip>[].obs;
+  final RxBool isLoading = false.obs;
   final TextEditingController tripNameController = TextEditingController();
   final createTripFocusNode = FocusNode();
   final editTripFocusNode = FocusNode();
@@ -19,18 +21,48 @@ class TripController extends GetxController {
   // Add these variables for group updating
   final RxString currentGroupId = ''.obs;
   final RxBool isUpdating = false.obs;
+  // Currency state used when creating a group
+  final RxString currency = ''.obs; // symbol, e.g. "€"
+  final RxString currencyCode = ''.obs; // code, e.g. "EUR"
 
   @override
   void onInit() {
     super.onInit();
     debugPrint("--- TripController Initialized ---");
-    fetchTrips();
+    if (trips.isEmpty) {
+      fetchTrips();
+    }
+    // Load preferred currency from user profile settings
+    _loadPreferredCurrency();
+  }
+
+  void _loadPreferredCurrency() {
+    try {
+      ProfileService.fetchProfileSettings(
+        onAssistantTypeLoaded: (_) {},
+        onLanguageLoaded: (_) {},
+        onCurrencyLoaded: (pref) {
+          if (pref.isNotEmpty) {
+            // Ensure we only keep the symbol part (e.g. "US$" from "US$ United states dollsr")
+            final symbolOnly = pref.split(' ').first;
+            currency.value = symbolOnly;
+            debugPrint('Loaded preferred currency symbol: $symbolOnly');
+          }
+        },
+        onNameLoaded: (_) {},
+        onEmailLoaded: (_) {},
+        onImageLoaded: (_) {},
+        onDateRangeLoaded: (_, __) {},
+      );
+    } catch (e) {
+      debugPrint('Error loading preferred currency: $e');
+    }
   }
 
   /// Fetches the list of all trips from the API and updates the local list.
   Future<void> fetchTrips() async {
     debugPrint("🚀 [FETCH] Starting to fetch trips...");
-    EasyLoading.show(status: 'Loading Trips...'.tr);
+    isLoading.value = true;
     try {
       final String? token = await AuthService.getApprovalToken();
       if (token == null) {
@@ -149,6 +181,7 @@ class TripController extends GetxController {
             name: tripName,
             date: DateFormat('MMM yyyy').format(parsedDate),
             aiSummary: aiSummary,
+            currency: tripData['currency']?.toString(),
           );
         }).toList();
 
@@ -164,7 +197,7 @@ class TripController extends GetxController {
       debugPrint("🔥 [FETCH] An error occurred: ${e.toString()}");
       EasyLoading.showError(e.toString());
     } finally {
-      EasyLoading.dismiss();
+      isLoading.value = false;
     }
   }
 
@@ -175,6 +208,17 @@ class TripController extends GetxController {
       Get.snackbar(
         'Trip Name Required'.tr,
         'Please enter a name for your trip'.tr,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orangeAccent,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    // Ensure a currency is selected before creating the group
+    if (currency.value.isEmpty) {
+      Get.snackbar(
+        'Currency Required'.tr,
+        'Please select a currency before creating a group'.tr,
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.orangeAccent,
         colorText: Colors.white,
@@ -194,14 +238,23 @@ class TripController extends GetxController {
         'Authorization': token,
         'Content-Type': 'application/json',
       };
-      final String body = jsonEncode({'groupName': tripName});
-      final http.Response response = await http.post(
-        url,
-        headers: headers,
-        body: body,
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
+
+      // Updated API format for creating a group with currency
+      final http.Request request = http.Request('POST', url);
+      request.headers.addAll(headers);
+      debugPrint('💰 [CREATE] Currency Symbol: ${currency.value}');
+      request.body = jsonEncode({
+        'groupName': tripName,
+        'currency': currency.value,
+      });
+      debugPrint('📤 [CREATE] Request Body: ${request.body}');
+
+      final http.StreamedResponse streamedResponse = await request.send();
+      final String responseBody = await streamedResponse.stream.bytesToString();
+
+      if (streamedResponse.statusCode == 200 ||
+          streamedResponse.statusCode == 201) {
+        final responseData = jsonDecode(responseBody);
         debugPrint("📋 [CREATE] Full API response: $responseData");
 
         final newTripData = responseData['data'];
@@ -238,13 +291,14 @@ class TripController extends GetxController {
           date: currentDate,
           aiSummary:
               'Ready to track your group expenses!'.tr, // Default for new trips
+          currency: newTripData['currency']?.toString(),
         );
         trips.insert(0, newTrip);
         tripNameController.clear();
         Get.back();
         EasyLoading.showSuccess('Trip created successfully!'.tr);
       } else {
-        final errorData = jsonDecode(response.body);
+        final errorData = jsonDecode(responseBody);
         throw Exception(errorData['message'] ?? 'Failed to create trip.'.tr);
       }
     } catch (e) {
@@ -360,6 +414,18 @@ class TripController extends GetxController {
     debugPrint(
       '🎯 Set current group for editing: $groupId with name: $currentName',
     );
+    // When editing a group, prefer showing the group's currency (from the Trip)
+    try {
+      final selected = trips.firstWhere((t) => t.id == groupId);
+      if (selected.currency != null && selected.currency!.isNotEmpty) {
+        // Keep the API-provided currency string as-is (don't split by space)
+        currency.value = selected.currency!.trim();
+        debugPrint('🎯 Set edit currency from trip: ${currency.value}');
+      }
+    } catch (e) {
+      // If not found, leave existing currency (e.g., preferred currency)
+      debugPrint('ℹ️ No trip found to set currency for editing: $e');
+    }
   }
 
   void focusCreate() {
