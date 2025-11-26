@@ -12,12 +12,29 @@ class GroupTripAddNewFriendBottom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Put the controller here
-    final controller = Get.put(
-      GroupTripAddNewFriendBottomController(groupId: groupId),
-      tag: groupId,
-    );
-    // Debug print
+    // Try to find existing controller, otherwise create new one
+    late final GroupTripAddNewFriendBottomController controller;
+    try {
+      controller = Get.find<GroupTripAddNewFriendBottomController>(
+        tag: groupId,
+      );
+    } catch (e) {
+      // Controller doesn't exist, create it
+      controller = Get.put(
+        GroupTripAddNewFriendBottomController(groupId: groupId),
+        tag: groupId,
+      );
+    }
+
+    // Ensure friends are fetched/refreshed when this bottom sheet is displayed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (controller.friends.isEmpty) {
+        debugPrint('🔄 [GroupTripAddNewFriendBottom] Refreshing friends list');
+        controller.fetchFriendsFromAPI();
+      }
+    });
+
+    // Get the context for dark mode detection
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       top: false,
@@ -67,36 +84,36 @@ class GroupTripAddNewFriendBottom extends StatelessWidget {
                 ],
               ).marginSymmetric(vertical: 3),
 
-              Container(
-                height: MediaQuery.of(context).size.height / 15,
-                color: isDark
-                    ? AppColors.deepGrey
-                    : AppColors.lightGreyContainer,
+              // Container(
+              //   height: MediaQuery.of(context).size.height / 15,
+              //   color: isDark
+              //       ? AppColors.deepGrey
+              //       : AppColors.lightGreyContainer,
 
-                child: Row(
-                  children: [
-                    Text(
-                      'Add new'.tr,
-                      style: getTextStyle2(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFAAAAAA),
-                      ),
-                    ),
-                    Spacer(),
-                    GestureDetector(
-                      onTap: () {
-                        controller.addFriend();
-                      },
-                      child: const Icon(
-                        Icons.add,
-                        size: 24,
-                        shadows: [Shadow(blurRadius: 2, color: Colors.black38)],
-                      ),
-                    ),
-                  ],
-                ).marginSymmetric(horizontal: 24),
-              ),
+              //   child: Row(
+              //     children: [
+              //       Text(
+              //         'Add new'.tr,
+              //         style: getTextStyle2(
+              //           fontSize: 16,
+              //           fontWeight: FontWeight.w500,
+              //           color: Color(0xFFAAAAAA),
+              //         ),
+              //       ),
+              //       Spacer(),
+              //       GestureDetector(
+              //         onTap: () {
+              //           controller.addFriend();
+              //         },
+              //         child: const Icon(
+              //           Icons.add,
+              //           size: 24,
+              //           shadows: [Shadow(blurRadius: 2, color: Colors.black38)],
+              //         ),
+              //       ),
+              //     ],
+              //   ).marginSymmetric(horizontal: 24),
+              // ),
               Expanded(
                 child: Obx(() {
                   // Show loading indicator while fetching friends
@@ -114,7 +131,8 @@ class GroupTripAddNewFriendBottom extends StatelessWidget {
                   if (controller.friends.isEmpty) {
                     return Center(
                       child: Text(
-                        'No friends available.\nTap + to add friends from your list.'.tr,
+                        'No friends available.\nTap + to add friends from your list.'
+                            .tr,
                         textAlign: TextAlign.center,
                         style: getTextStyle2(
                           fontSize: 16,

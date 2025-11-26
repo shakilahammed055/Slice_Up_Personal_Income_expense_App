@@ -30,7 +30,7 @@ class SearchScreenController extends GetxController {
   final RxString searchText = ''.obs;
   final RxList<SearchResultItem> searchResults = <SearchResultItem>[].obs;
   final RxString headerValue = ''.obs;
-  String currency = 'USD';
+  String currency = '';
 
   @override
   void onInit() {
@@ -51,13 +51,14 @@ class SearchScreenController extends GetxController {
     searchResults.clear();
     try {
       final homeController = Get.find<HomeController>();
-      if (homeController.isApiDataLoaded.value && homeController.apiGroupedByDate.isNotEmpty) {
+      if (homeController.isApiDataLoaded.value &&
+          homeController.apiGroupedByDate.isNotEmpty) {
         // Use API data if available
         final Map<String, dynamic> data = {
-          'currency': 'USD', // Assume or fetch if needed
+          'currency': '', // prefer API value when available
           'groupedByDate': homeController.apiGroupedByDate,
         };
-        currency = data['currency'] ?? 'USD';
+        currency = data['currency'] ?? '';
         final List<dynamic> groupedByDate = data['groupedByDate'] ?? [];
 
         searchResults.assignAll(
@@ -65,11 +66,13 @@ class SearchScreenController extends GetxController {
             final int net = group['net'] ?? 0;
             final String date = group['date'] ?? '';
             final String dayName = _getDayNameFromDate(date);
-            final String formattedDate = date.length >= 7 ? date.substring(5).replaceAll('-', '/') : date;
+            final String formattedDate = date.length >= 7
+                ? date.substring(5).replaceAll('-', '/')
+                : date;
 
             return SearchResultItem(
               id: date,
-              iconPath: IconPath.lipstickIcon, 
+              iconPath: IconPath.lipstickIcon,
               title: '$dayName, $formattedDate',
               value: '${net >= 0 ? '+' : ''}${net.toString()} $currency',
               valueColor: net >= 0 ? AppColors.success : AppColors.error,
@@ -85,7 +88,9 @@ class SearchScreenController extends GetxController {
         final groupedEntries = expenseController.getEntriesByDate();
         searchResults.assignAll(
           groupedEntries.entries.map((entry) {
-            final double net = expenseController.getTotalAmountForDate(entry.key);
+            final double net = expenseController.getTotalAmountForDate(
+              entry.key,
+            );
             final String date = entry.key;
             final String dayName = _getDayNameFromDate(date);
             final String formattedDate = date; // Already in dd/MM/yyyy
@@ -94,12 +99,14 @@ class SearchScreenController extends GetxController {
               id: date,
               iconPath: IconPath.lipstickIcon,
               title: '$dayName, $formattedDate',
-              value: '${net >= 0 ? '+' : ''}${net.toStringAsFixed(2)} $currency',
+              value:
+                  '${net >= 0 ? '+' : ''}${net.toStringAsFixed(2)} $currency',
               valueColor: net >= 0 ? AppColors.success : AppColors.error,
             );
           }).toList(),
         );
-        headerValue.value = '${expenseController.entries.fold<double>(0.0, (sum, e) => sum + (e.isIncome ? e.amount : 0))} $currency';
+        headerValue.value =
+            '${expenseController.entries.fold<double>(0.0, (sum, e) => sum + (e.isIncome ? e.amount : 0))} $currency';
       }
     } catch (e) {
       // Fallback to sample data or handle error (e.g., show snackbar)
@@ -118,7 +125,11 @@ class SearchScreenController extends GetxController {
       } else {
         // Local format: dd/MM/yyyy
         final parts = dateStr.split('/');
-        date = DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+        date = DateTime(
+          int.parse(parts[2]),
+          int.parse(parts[1]),
+          int.parse(parts[0]),
+        );
       }
       return DateFormat('EEE').format(date);
     } catch (e) {

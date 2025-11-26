@@ -42,11 +42,18 @@ class StatusPageScreen extends StatelessWidget {
           ? AppColors.backgroundDark
           : AppColors.backgroundLightGrey,
       //  AppColors.backgroundLightGrey,
-      body: Obx(() {
-        return controller.showIndividual.value
-            ? const IndividualStatusScreen()
-            : const GroupStatusScreen();
-      }),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          if (trip != null && trip!.id != null && trip!.id!.isNotEmpty) {
+            await statusController.fetchGroupStatus(trip!.id!);
+          }
+        },
+        child: Obx(() {
+          return controller.showIndividual.value
+              ? const IndividualStatusScreen()
+              : const GroupStatusScreen();
+        }),
+      ),
     );
   }
 }

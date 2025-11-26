@@ -132,7 +132,9 @@ class HomeScreen extends StatelessWidget {
                   context: context,
                   isScrollControlled: true,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(34.r)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(34.r),
+                    ),
                   ),
                   builder: (context) => const FilterScreen(),
                 ),
@@ -171,7 +173,10 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 8.h),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 8.h,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -196,7 +201,9 @@ class HomeScreen extends StatelessWidget {
                                   Text(
                                     currentDeviceMonth,
                                     style: getTextStyle2(
-                                      color: isDark ? AppColors.textWhite : AppColors.black,
+                                      color: isDark
+                                          ? AppColors.textWhite
+                                          : AppColors.black,
                                       fontSize: 30.sp,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -208,10 +215,13 @@ class HomeScreen extends StatelessWidget {
                           // ✅ PERFECT INDEPENDENT LOGIC
                           Obx(() {
                             double displayAmount;
-                            final DateTime? selectedMonth = filterController.selectedMonthYearFilter.value;
-                            final int typeFilter = filterController.groupTwoSelected.value;
-                            final int groupOne = filterController.groupOneSelected.value;
-                            
+                            final DateTime? selectedMonth =
+                                filterController.selectedMonthYearFilter.value;
+                            final int typeFilter =
+                                filterController.groupTwoSelected.value;
+                            final int groupOne =
+                                filterController.groupOneSelected.value;
+
                             if (controller.isApiDataLoaded.value) {
                               double inc = 0.0;
                               double exp = 0.0;
@@ -219,11 +229,15 @@ class HomeScreen extends StatelessWidget {
                                 final String gDateStr = group['date'];
                                 final DateTime gDate = DateTime.parse(gDateStr);
                                 if (selectedMonth != null &&
-                                    (gDate.year != selectedMonth.year || gDate.month != selectedMonth.month))
+                                    (gDate.year != selectedMonth.year ||
+                                        gDate.month != selectedMonth.month))
                                   continue;
-                                final List<Map<String, dynamic>> trans = (group['transactions'] as List).cast<Map<String, dynamic>>();
+                                final List<Map<String, dynamic>> trans =
+                                    (group['transactions'] as List)
+                                        .cast<Map<String, dynamic>>();
                                 for (var t in trans) {
-                                  final double amt = (t['amount'] as num).toDouble();
+                                  final double amt = (t['amount'] as num)
+                                      .toDouble();
                                   if (t['transactionType'] == 'income') {
                                     inc += amt;
                                   } else {
@@ -231,18 +245,23 @@ class HomeScreen extends StatelessWidget {
                                   }
                                 }
                               }
-                              
+
                               // ✅ EXACTLY INDEPENDENT LOGIC:
-                              if (groupOne == 1) {                       // Total Expense
-                                displayAmount = inc - (inc - exp);        // Income - Remaining ✅
-                              } else if (groupOne == 0 && typeFilter == 0) {  // Total Remaining
-                                displayAmount = inc - exp;                // Income - Expense ✅
-                              } else if (typeFilter == 1) {               // Expense Only
-                                displayAmount = exp;                      // All Expenses ✅
-                              } else if (typeFilter == 2) {               // Income Only
-                                displayAmount = inc;                      // All Income ✅
+                              if (groupOne == 1) {
+                                // Total Expense
+                                displayAmount =
+                                    inc - (inc - exp); // Income - Remaining ✅
+                              } else if (groupOne == 0 && typeFilter == 0) {
+                                // Total Remaining
+                                displayAmount = inc - exp; // Income - Expense ✅
+                              } else if (typeFilter == 1) {
+                                // Expense Only
+                                displayAmount = exp; // All Expenses ✅
+                              } else if (typeFilter == 2) {
+                                // Income Only
+                                displayAmount = inc; // All Income ✅
                               } else {
-                                displayAmount = inc - exp;                // Default
+                                displayAmount = inc - exp; // Default
                               }
                             } else {
                               if (expenseController.entries.isEmpty) {
@@ -250,18 +269,31 @@ class HomeScreen extends StatelessWidget {
                               } else {
                                 double localInc = expenseController.entries
                                     .where((e) => e.isIncome)
-                                    .fold<double>(0.0, (sum, e) => sum + e.amount);
+                                    .fold<double>(
+                                      0.0,
+                                      (sum, e) => sum + e.amount,
+                                    );
                                 double localExp = expenseController.entries
                                     .where((e) => !e.isIncome)
-                                    .fold<double>(0.0, (sum, e) => sum + e.amount);
-                                
-                                if (groupOne == 1) {                      // Total Expense
-                                  displayAmount = localInc - (localInc - localExp); // Income - Remaining ✅
-                                } else if (groupOne == 0 && typeFilter == 0) {  // Total Remaining
+                                    .fold<double>(
+                                      0.0,
+                                      (sum, e) => sum + e.amount,
+                                    );
+
+                                if (groupOne == 1) {
+                                  // Total Expense
+                                  displayAmount =
+                                      localInc -
+                                      (localInc -
+                                          localExp); // Income - Remaining ✅
+                                } else if (groupOne == 0 && typeFilter == 0) {
+                                  // Total Remaining
                                   displayAmount = localInc - localExp;
-                                } else if (typeFilter == 1) {              // Expense Only
+                                } else if (typeFilter == 1) {
+                                  // Expense Only
                                   displayAmount = localExp;
-                                } else if (typeFilter == 2) {              // Income Only
+                                } else if (typeFilter == 2) {
+                                  // Income Only
                                   displayAmount = localInc;
                                 } else {
                                   displayAmount = localInc - localExp;
@@ -285,7 +317,9 @@ class HomeScreen extends StatelessWidget {
                                   displayAmount.toStringAsFixed(2),
                                   textAlign: TextAlign.right,
                                   style: getTextStyle2(
-                                    color: isDark ? Color(0xFF406DFF) : Color(0xFF2A31EF),
+                                    color: isDark
+                                        ? Color(0xFF406DFF)
+                                        : Color(0xFF2A31EF),
                                     fontSize: 30.sp,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -297,13 +331,163 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: 32.h),
+                    // controller.selectedAssistant.value.isNotEmpty
+                    //     ? Container(
+                    //         constraints: BoxConstraints(
+                    //           maxWidth: MediaQuery.of(context).size.width * 0.9,
+                    //         ),
+                    //         padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    //         decoration: ShapeDecoration(
+                    //           color: isDark
+                    //               ? Color(0xFF38383A)
+                    //               : const Color(0xFFEDEDF0),
+                    //           shape: RoundedRectangleBorder(
+                    //             borderRadius: BorderRadius.circular(12.r),
+                    //           ),
+                    //         ),
+                    //         child: Stack(
+                    //           children: [
+                    //             Container(
+                    //               padding: EdgeInsets.symmetric(vertical: 16.h),
+                    //               child: Column(
+                    //                 mainAxisSize: MainAxisSize.min,
+                    //                 crossAxisAlignment:
+                    //                     CrossAxisAlignment.center,
+                    //                 children: [
+                    //                   SizedBox(
+                    //                     height: 60.h,
+                    //                     width:
+                    //                         MediaQuery.of(context).size.width *
+                    //                         0.9,
+                    //                     child: Text(
+                    //                       'Ready to track your spending? Or just \nplanning to ignore it again'
+                    //                           .tr,
+                    //                       style: getTextStyle2(
+                    //                         color: isDark
+                    //                             ? AppColors.textWhite
+                    //                             : AppColors.black,
+                    //                         fontSize: 14.sp,
+                    //                         fontWeight: FontWeight.w500,
+                    //                         lineHeight: 22.sp,
+                    //                       ),
+                    //                       textAlign: TextAlign.left,
+                    //                     ),
+                    //                   ),
+                    //                 ],
+                    //               ),
+                    //             ),
+                    //             Positioned(
+                    //               right: 0,
+                    //               top: 10.h,
+                    //               child: Container(
+                    //                 width: 60.w,
+                    //                 height: 83.h,
+                    //                 decoration: BoxDecoration(
+                    //                   image: DecorationImage(
+                    //                     image: AssetImage(
+                    //                       controller.selectedAssistant.value ==
+                    //                               'supportive'.tr
+                    //                           ? IconPath.chiwawa1
+                    //                           : IconPath.rabbit1,
+                    //                     ),
+                    //                     fit: BoxFit.fill,
+                    //                   ),
+                    //                 ),
+                    //               ),
+                    //             ),
+
+                    //             Positioned(
+                    //               right: 5.w,
+                    //               top: 5.h,
+                    //               child: GestureDetector(
+                    //                 onTap: () =>
+                    //                     debugPrint('Share icon tapped'),
+                    //                 child: Container(
+                    //                   width: 30.w,
+                    //                   height: 30.h,
+                    //                   decoration: ShapeDecoration(
+                    //                     color: isDark
+                    //                         ? AppColors.textWhite
+                    //                         : AppColors.textWhite,
+                    //                     shape: RoundedRectangleBorder(
+                    //                       borderRadius: BorderRadius.circular(
+                    //                         20.r,
+                    //                       ),
+                    //                     ),
+                    //                   ),
+                    //                   child: Center(
+                    //                     child: Icon(
+                    //                       Icons.share,
+                    //                       color: isDark
+                    //                           ? AppColors.black
+                    //                           : AppColors.black,
+                    //                       size: 18.sp,
+                    //                     ),
+                    //                   ),
+                    //                 ),
+                    //               ),
+                    //             ),
+
+                    //           ],
+                    //         ),
+                    //       )
+                    //     : GestureDetector(
+                    //         onTap: () => showAssistantDialog(context),
+                    //         child: Container(
+                    //           constraints: BoxConstraints(
+                    //             maxWidth:
+                    //                 MediaQuery.of(context).size.width * 0.9,
+                    //           ),
+                    //           height: 88.h,
+                    //           padding: EdgeInsets.symmetric(horizontal: 24.w),
+                    //           decoration: ShapeDecoration(
+                    //             color: isDark
+                    //                 ? Color(0xFF38383A)
+                    //                 : const Color(0xFFEDEDF0),
+                    //             shape: RoundedRectangleBorder(
+                    //               borderRadius: BorderRadius.circular(16.r),
+                    //             ),
+                    //           ),
+                    //           child: Row(
+                    //             mainAxisAlignment: MainAxisAlignment.center,
+                    //             crossAxisAlignment: CrossAxisAlignment.center,
+                    //             children: [
+                    //               Icon(
+                    //                 Icons.add,
+                    //                 color: isDark
+                    //                     ? AppColors.textWhite
+                    //                     : AppColors.black,
+                    //                 size: 20.sp,
+                    //               ),
+                    //               SizedBox(width: 8.w),
+                    //               Text(
+                    //                 'Add assistant'.tr,
+                    //                 textAlign: TextAlign.center,
+                    //                 style: getTextStyle2(
+                    //                   color: isDark
+                    //                       ? AppColors.textWhite
+                    //                       : AppColors.black,
+                    //                   fontSize: 14.sp,
+                    //                   fontWeight: FontWeight.w500,
+                    //                 ),
+                    //               ),
+                    //             ],
+                    //           ),
+                    //         ),
+                    //       ),
                     controller.selectedAssistant.value.isNotEmpty
                         ? Container(
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.9,
+                            ),
                             padding: EdgeInsets.symmetric(horizontal: 16.w),
                             decoration: ShapeDecoration(
-                              color: isDark ? Color(0xFF38383A) : const Color(0xFFEDEDF0),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.r)),
+                              color: isDark
+                                  ? Color(0xFF38383A)
+                                  : const Color(0xFFEDEDF0),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.r),
+                              ),
                             ),
                             child: Stack(
                               children: [
@@ -311,15 +495,21 @@ class HomeScreen extends StatelessWidget {
                                   padding: EdgeInsets.symmetric(vertical: 16.h),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       SizedBox(
                                         height: 60.h,
-                                        width: MediaQuery.of(context).size.width * 0.9,
+                                        width:
+                                            MediaQuery.of(context).size.width *
+                                            0.9,
                                         child: Text(
-                                          'Ready to track your spending? Or just \nplanning to ignore it again'.tr,
+                                          'Ready to track your spending? Or just \nplanning to ignore it again'
+                                              .tr,
                                           style: getTextStyle2(
-                                            color: isDark ? AppColors.textWhite : AppColors.black,
+                                            color: isDark
+                                                ? AppColors.textWhite
+                                                : AppColors.black,
                                             fontSize: 14.sp,
                                             fontWeight: FontWeight.w500,
                                             lineHeight: 22.sp,
@@ -339,49 +529,66 @@ class HomeScreen extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       image: DecorationImage(
                                         image: AssetImage(
-                                          controller.selectedAssistant.value == 'supportive'.tr
-                                              ? IconPath.chiwawa1
-                                              : IconPath.rabbit1,
+                                          controller.selectedAssistant.value ==
+                                                  'Sarcastic Truth-Teller'.tr
+                                              ? IconPath.rabbit1
+                                              : IconPath.chiwawa1,
                                         ),
                                         fit: BoxFit.fill,
                                       ),
                                     ),
                                   ),
                                 ),
-                                Positioned(
-                                  right: 5.w,
-                                  top: 5.h,
-                                  child: GestureDetector(
-                                    onTap: () => debugPrint('Share icon tapped'),
-                                    child: Container(
-                                      width: 30.w,
-                                      height: 30.h,
-                                      decoration: ShapeDecoration(
-                                        color: isDark ? AppColors.textWhite : AppColors.textWhite,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.r)),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          Icons.share,
-                                          color: isDark ? AppColors.black : AppColors.black,
-                                          size: 18.sp,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                // Positioned(
+                                //   right: 5.w,
+                                //   top: 5.h,
+                                //   child: GestureDetector(
+                                //     onTap: () =>
+                                //         debugPrint('Share icon tapped'),
+                                //     child: Container(
+                                //       width: 30.w,
+                                //       height: 30.h,
+                                //       decoration: ShapeDecoration(
+                                //         color: isDark
+                                //             ? AppColors.textWhite
+                                //             : AppColors.textWhite,
+                                //         shape: RoundedRectangleBorder(
+                                //           borderRadius: BorderRadius.circular(
+                                //             20.r,
+                                //           ),
+                                //         ),
+                                //       ),
+                                //       child: Center(
+                                //         child: Icon(
+                                //           Icons.share,
+                                //           color: isDark
+                                //               ? AppColors.black
+                                //               : AppColors.black,
+                                //           size: 18.sp,
+                                //         ),
+                                //       ),
+                                //     ),
+                                //   ),
+                                // ),
                               ],
                             ),
                           )
                         : GestureDetector(
                             onTap: () => showAssistantDialog(context),
                             child: Container(
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.9),
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.9,
+                              ),
                               height: 88.h,
                               padding: EdgeInsets.symmetric(horizontal: 24.w),
                               decoration: ShapeDecoration(
-                                color: isDark ? Color(0xFF38383A) : const Color(0xFFEDEDF0),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                                color: isDark
+                                    ? Color(0xFF38383A)
+                                    : const Color(0xFFEDEDF0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16.r),
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -389,7 +596,9 @@ class HomeScreen extends StatelessWidget {
                                 children: [
                                   Icon(
                                     Icons.add,
-                                    color: isDark ? AppColors.textWhite : AppColors.black,
+                                    color: isDark
+                                        ? AppColors.textWhite
+                                        : AppColors.black,
                                     size: 20.sp,
                                   ),
                                   SizedBox(width: 8.w),
@@ -397,7 +606,9 @@ class HomeScreen extends StatelessWidget {
                                     'Add assistant'.tr,
                                     textAlign: TextAlign.center,
                                     style: getTextStyle2(
-                                      color: isDark ? AppColors.textWhite : AppColors.black,
+                                      color: isDark
+                                          ? AppColors.textWhite
+                                          : AppColors.black,
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -406,12 +617,15 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                    SizedBox(height: 24.h),
+                    SizedBox(height: 16.h),
                     // ✅ Entries display (KEEP ALL YOUR EXISTING CODE HERE)
                     Obx(() {
                       final homeController = Get.find<HomeController>();
-                      final filterController = Get.find<FilterScreenController>();
-                      final bool useApi = homeController.isApiDataLoaded.value && homeController.apiGroupedByDate.isNotEmpty;
+                      final filterController =
+                          Get.find<FilterScreenController>();
+                      final bool useApi =
+                          homeController.isApiDataLoaded.value &&
+                          homeController.apiGroupedByDate.isNotEmpty;
 
                       Widget noEntriesWidget = Padding(
                         padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -432,8 +646,10 @@ class HomeScreen extends StatelessWidget {
 
                       if (useApi) {
                         return Obx(() {
-                          final DateTime? selectedMonth = filterController.selectedMonthYearFilter.value;
-                          final int typeFilter = filterController.groupTwoSelected.value;
+                          final DateTime? selectedMonth =
+                              filterController.selectedMonthYearFilter.value;
+                          final int typeFilter =
+                              filterController.groupTwoSelected.value;
                           List<Widget> filteredGroupWidgets = [];
 
                           for (var group in homeController.apiGroupedByDate) {
@@ -443,37 +659,59 @@ class HomeScreen extends StatelessWidget {
                             try {
                               dateTime = DateTime.parse(dateStr);
                             } catch (e) {
-                              debugPrint('Error parsing date: $dateStr, error: $e');
+                              debugPrint(
+                                'Error parsing date: $dateStr, error: $e',
+                              );
                               continue;
                             }
                             if (selectedMonth != null &&
-                                (dateTime.year != selectedMonth.year || dateTime.month != selectedMonth.month))
+                                (dateTime.year != selectedMonth.year ||
+                                    dateTime.month != selectedMonth.month))
                               continue;
-                            final String formattedDate = DateFormat('EEE d MMM yyyy').format(dateTime);
-                            final List<Map<String, dynamic>> allTransactions = (group['transactions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+                            final String formattedDate = DateFormat(
+                              'EEE d MMM yyyy',
+                            ).format(dateTime);
+                            final List<Map<String, dynamic>> allTransactions =
+                                (group['transactions'] as List?)
+                                    ?.cast<Map<String, dynamic>>() ??
+                                [];
 
-                            final List<Map<String, dynamic>> filteredTransactions = allTransactions.where((t) {
+                            final List<Map<String, dynamic>>
+                            filteredTransactions = allTransactions.where((t) {
                               if (typeFilter == 0) return true;
-                              final bool isIncome = t['transactionType'] == 'income';
+                              final bool isIncome =
+                                  t['transactionType'] == 'income';
                               return typeFilter == 1 ? !isIncome : isIncome;
                             }).toList();
 
                             if (filteredTransactions.isEmpty) continue;
 
-                            final double net = filteredTransactions.fold<double>(0.0, (sum, t) {
-                              final double amount = (t['amount'] as num).toDouble();
-                              return sum + (t['transactionType'] == 'income' ? amount : -amount);
-                            });
+                            final double net = filteredTransactions
+                                .fold<double>(0.0, (sum, t) {
+                                  final double amount = (t['amount'] as num)
+                                      .toDouble();
+                                  return sum +
+                                      (t['transactionType'] == 'income'
+                                          ? amount
+                                          : -amount);
+                                });
 
                             filteredGroupWidgets.add(
                               Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 12.h),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 24.w,
+                                  vertical: 12.h,
+                                ),
                                 child: Container(
                                   width: double.infinity,
                                   clipBehavior: Clip.antiAlias,
                                   decoration: ShapeDecoration(
-                                    color: isDark ? AppColors.backgroundDark : AppColors.textWhite,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+                                    color: isDark
+                                        ? AppColors.backgroundDark
+                                        : AppColors.textWhite,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16.r),
+                                    ),
                                     shadows: [
                                       BoxShadow(
                                         color: const Color(0x1E000000),
@@ -485,29 +723,41 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         width: double.infinity,
                                         height: 48.h,
-                                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 16.w,
+                                          vertical: 12.h,
+                                        ),
                                         decoration: ShapeDecoration(
-                                          color: isDark ? Color(0xFF38383A) : const Color(0xFFEDEDF0),
+                                          color: isDark
+                                              ? Color(0xFF38383A)
+                                              : const Color(0xFFEDEDF0),
                                           shape: RoundedRectangleBorder(
                                             side: BorderSide(
                                               width: 1.w,
-                                              color: isDark ? Color(0xFF38383A) : const Color(0xFFEDEDF0),
+                                              color: isDark
+                                                  ? Color(0xFF38383A)
+                                                  : const Color(0xFFEDEDF0),
                                             ),
                                           ),
                                         ),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                           children: [
                                             Text(
                                               formattedDate,
                                               style: getTextStyle2(
-                                                color: isDark ? Color(0xFFAAAAAA) : const Color(0xFF828282),
+                                                color: isDark
+                                                    ? Color(0xFFAAAAAA)
+                                                    : const Color(0xFF828282),
                                                 fontSize: 14.sp,
                                                 fontWeight: FontWeight.w500,
                                               ),
@@ -519,7 +769,9 @@ class HomeScreen extends StatelessWidget {
                                                 '\$${net.toStringAsFixed(2)}',
                                                 textAlign: TextAlign.right,
                                                 style: getTextStyle2(
-                                                  color: isDark ? AppColors.textWhite : AppColors.black,
+                                                  color: isDark
+                                                      ? AppColors.textWhite
+                                                      : AppColors.black,
                                                   fontSize: 14.sp,
                                                   fontWeight: FontWeight.w500,
                                                   lineHeight: 22.sp,
@@ -532,16 +784,30 @@ class HomeScreen extends StatelessWidget {
                                       Container(
                                         width: double.infinity,
                                         height: 1.h,
-                                        color: isDark ? const Color(0xFF38383A) : const Color(0xFFEDEDF0),
+                                        color: isDark
+                                            ? const Color(0xFF38383A)
+                                            : const Color(0xFFEDEDF0),
                                       ),
-                                      ...filteredTransactions.asMap().entries.map((indexedEntry) {
-                                        final Map<String, dynamic> trans = indexedEntry.value;
-                                        final String? typeName = trans['typeName'] as String?;
-                                        final String iconStr = typeName?.split(' ').join(' ') ?? '';
-                                        final String title = trans['description'] as String? ?? '';
-                                        final double amount = (trans['amount'] as num).toDouble();
-                                        final bool isIncome = trans['transactionType'] == 'income';
-                                        final String transId = trans['_id'] as String;
+                                      ...filteredTransactions.asMap().entries.map((
+                                        indexedEntry,
+                                      ) {
+                                        final Map<String, dynamic> trans =
+                                            indexedEntry.value;
+                                        final String? typeName =
+                                            trans['typeName'] as String?;
+                                        final String iconStr =
+                                            typeName?.split(' ').join(' ') ??
+                                            '';
+                                        final String title =
+                                            trans['description'] as String? ??
+                                            '';
+                                        final double amount =
+                                            (trans['amount'] as num).toDouble();
+                                        final bool isIncome =
+                                            trans['transactionType'] ==
+                                            'income';
+                                        final String transId =
+                                            trans['_id'] as String;
 
                                         return Column(
                                           children: [
@@ -549,50 +815,92 @@ class HomeScreen extends StatelessWidget {
                                               Container(
                                                 width: double.infinity,
                                                 height: 1.h,
-                                                color: isDark ? const Color(0xFF38383A) : const Color(0xFFEDEDF0),
+                                                color: isDark
+                                                    ? const Color(0xFF38383A)
+                                                    : const Color(0xFFEDEDF0),
                                               ),
                                             Dismissible(
                                               key: Key(transId),
-                                              direction: DismissDirection.endToStart,
+                                              direction:
+                                                  DismissDirection.endToStart,
                                               background: Container(
                                                 width: double.infinity,
                                                 height: 52.h,
-                                                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                                                decoration: const BoxDecoration(color: Color(0xFFE21818)),
-                                                alignment: Alignment.centerRight,
-                                                child: Icon(Icons.delete, color: Colors.white, size: 24.sp),
+                                                padding: EdgeInsets.symmetric(
+                                                  horizontal: 16.w,
+                                                  vertical: 12.h,
+                                                ),
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFFE21818),
+                                                ),
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child: Icon(
+                                                  Icons.delete,
+                                                  color: Colors.white,
+                                                  size: 24.sp,
+                                                ),
                                               ),
                                               confirmDismiss: (direction) async {
                                                 try {
-                                                  final String description = trans['description'] as String? ?? 'this transaction';
-                                                  final success = await homeController.deleteTransaction(transId, description);
+                                                  final String description =
+                                                      trans['description']
+                                                          as String? ??
+                                                      'this transaction';
+                                                  final success =
+                                                      await homeController
+                                                          .deleteTransaction(
+                                                            transId,
+                                                            description,
+                                                          );
                                                   if (success) {
-                                                    await homeController.refreshIncomeAndExpenses();
+                                                    await homeController
+                                                        .refreshIncomeAndExpenses();
                                                   }
                                                   return success;
                                                 } catch (e) {
-                                                  debugPrint('Error deleting transaction: $e');
+                                                  debugPrint(
+                                                    'Error deleting transaction: $e',
+                                                  );
                                                   return false;
                                                 }
                                               },
                                               child: GestureDetector(
-                                                onTap: () => Get.to(() => const ExpenseScreen(), arguments: trans),
+                                                onTap: () => Get.to(
+                                                  () => const ExpenseScreen(),
+                                                  arguments: trans,
+                                                ),
                                                 child: Container(
                                                   width: double.infinity,
                                                   height: 48.h,
-                                                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 16.w,
+                                                    vertical: 8.h,
+                                                  ),
                                                   decoration: ShapeDecoration(
-                                                    color: isDark ? Color(0xFF262626) : AppColors.textWhite,
-                                                    shape: RoundedRectangleBorder(
-                                                      side: BorderSide(
-                                                        width: 1.w,
-                                                        color: isDark ? Color(0xFF38383A) : AppColors.textWhite,
-                                                      ),
-                                                    ),
+                                                    color: isDark
+                                                        ? Color(0xFF262626)
+                                                        : AppColors.textWhite,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                          side: BorderSide(
+                                                            width: 1.w,
+                                                            color: isDark
+                                                                ? Color(
+                                                                    0xFF38383A,
+                                                                  )
+                                                                : AppColors
+                                                                      .textWhite,
+                                                          ),
+                                                        ),
                                                   ),
                                                   child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .center,
                                                     children: [
                                                       SizedBox(
                                                         width: 100.w,
@@ -600,11 +908,15 @@ class HomeScreen extends StatelessWidget {
                                                         child: Text(
                                                           iconStr,
                                                           style: getTextStyle2(
-                                                            color: const Color(0xFF828282),
+                                                            color: const Color(
+                                                              0xFF828282,
+                                                            ),
                                                             fontSize: 14.sp,
-                                                            fontWeight: FontWeight.w600,
+                                                            fontWeight:
+                                                                FontWeight.w600,
                                                           ),
-                                                          overflow: TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
                                                       ),
                                                       SizedBox(
@@ -612,24 +924,40 @@ class HomeScreen extends StatelessWidget {
                                                         child: Text(
                                                           title,
                                                           style: getTextStyle2(
-                                                            color: isDark ? AppColors.textWhite : const Color(0xFF141414),
+                                                            color: isDark
+                                                                ? AppColors
+                                                                      .textWhite
+                                                                : const Color(
+                                                                    0xFF141414,
+                                                                  ),
                                                             fontSize: 14.sp,
-                                                            fontWeight: FontWeight.w500,
+                                                            fontWeight:
+                                                                FontWeight.w500,
                                                           ),
-                                                          overflow: TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
                                                       ),
                                                       SizedBox(
                                                         width: 100.w,
                                                         child: Text(
                                                           '${isIncome ? '+' : '-'} \$${amount.toStringAsFixed(2)}',
-                                                          textAlign: TextAlign.right,
+                                                          textAlign:
+                                                              TextAlign.right,
                                                           style: getTextStyle2(
-                                                            color: isIncome ? const Color(0xFF00D460) : const Color(0xFFEF5B00),
+                                                            color: isIncome
+                                                                ? const Color(
+                                                                    0xFF00D460,
+                                                                  )
+                                                                : const Color(
+                                                                    0xFFEF5B00,
+                                                                  ),
                                                             fontSize: 14.sp,
-                                                            fontWeight: FontWeight.w500,
+                                                            fontWeight:
+                                                                FontWeight.w500,
                                                           ),
-                                                          overflow: TextOverflow.ellipsis,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
                                                         ),
                                                       ),
                                                     ],
@@ -666,8 +994,12 @@ class HomeScreen extends StatelessWidget {
               bottom: 120.h,
               left: MediaQuery.of(context).size.width / 2 - 28.w,
               child: FloatingActionButton(
-                backgroundColor: isDark ? Color(0xFF406DFF) : const Color(0xFF2A31EF),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35.r)),
+                backgroundColor: isDark
+                    ? Color(0xFF406DFF)
+                    : const Color(0xFF2A31EF),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(35.r),
+                ),
                 onPressed: () => handleFabAction(context),
                 child: Icon(Icons.add, color: Colors.white, size: 32.sp),
               ),

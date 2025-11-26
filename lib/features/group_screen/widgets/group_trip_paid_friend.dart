@@ -7,11 +7,16 @@ import 'package:teddy_5618/features/group_screen/widgets/paid_by_individual.dart
 import 'package:teddy_5618/features/group_screen/widgets/paid_by_multiple.dart';
 
 class GroupTripPaidFriendBottom extends StatelessWidget {
-  const GroupTripPaidFriendBottom({super.key});
+  final String controllerTag;
+
+  const GroupTripPaidFriendBottom({
+    super.key,
+    this.controllerTag = 'groupTripSpent',
+  });
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<GroupTripSpentController>();
+    final controller = Get.find<GroupTripSpentController>(tag: controllerTag);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Load group members when the widget is built
@@ -120,9 +125,9 @@ class GroupTripPaidFriendBottom extends StatelessWidget {
           // Dynamic content area
           Obx(() {
             if (controller.isMultipleSelected.value) {
-              return const PaidByMultiple();
+              return PaidByMultiple(controllerTag: controllerTag);
             } else {
-              return const PaidByIndividual();
+              return PaidByIndividual(controllerTag: controllerTag);
             }
           }),
         ],

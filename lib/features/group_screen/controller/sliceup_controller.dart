@@ -6,7 +6,10 @@ import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
 import 'package:teddy_5618/core/services/storage_service.dart';
 import 'package:teddy_5618/features/group_screen/widgets/individual_card.dart';
+import 'package:teddy_5618/features/group_screen/controller/trip_text_controller.dart'
+    as triptext;
 import 'package:teddy_5618/features/group_screen/widgets/sliceup_balance_card.dart';
+import 'package:teddy_5618/core/constants/currency_symbols.dart';
 
 class SliceUpController extends GetxController {
   // API related observables
@@ -105,25 +108,22 @@ class SliceUpController extends GetxController {
 
           // Update group data
           if (data['group'] != null) {
-            groupData.clear();
-            groupData.addAll(data['group']);
+            // ✅ FIX: Use assignAll() for consistent observable updates
+            groupData.assignAll(data['group']);
 
             debugPrint('📊 [SLICEUP_CONTROLLER] Group data: $groupData');
           }
 
-          // Update summary data
-          if (data['summary'] != null) {
-            summaryData.clear();
-            summaryData.addAll(data['summary']);
-            _formatSummaryAmounts();
-
-            debugPrint('📊 [SLICEUP_CONTROLLER] Summary data: $summaryData');
-          }
+          // Build summary data from available fields
+          // (slice-up API doesn't provide a summary field directly)
+          _buildSummaryFromSliceUpData(data);
+          debugPrint('📊 [SLICEUP_CONTROLLER] Summary data: $summaryData');
 
           // Update settlements
           if (data['settlements'] != null) {
-            settlements.clear();
-            settlements.addAll(
+            // ✅ FIX: Use assignAll() instead of clear() + addAll()
+            // This ensures Obx() widgets properly detect changes
+            settlements.assignAll(
               List<Map<String, dynamic>>.from(data['settlements']),
             );
             debugPrint(
@@ -133,8 +133,8 @@ class SliceUpController extends GetxController {
 
           // Update total balances
           if (data['totalBalances'] != null) {
-            totalBalances.clear();
-            totalBalances.addAll(
+            // ✅ FIX: Use assignAll() instead of clear() + addAll()
+            totalBalances.assignAll(
               List<Map<String, dynamic>>.from(data['totalBalances']),
             );
             debugPrint(
@@ -147,6 +147,35 @@ class SliceUpController extends GetxController {
           debugPrint(
             '📊 [SLICEUP_CONTROLLER] Is all settled: ${isAllSettled.value}',
           );
+
+          // Notify TripTextController (if registered) so TripText mirrors update
+          try {
+            final tag = groupId;
+            if (tag.isNotEmpty &&
+                Get.isRegistered<triptext.TripTextController>(tag: tag)) {
+              final ttc = Get.find<triptext.TripTextController>(tag: tag);
+              // Only sync settlement status and structured summary data.
+              ttc.sliceupIsAllSettled.value = isAllSettled.value;
+              // Also sync summary data so totalExpenses is available for TripText
+              ttc.summaryData.clear();
+              ttc.summaryData.addAll({
+                'youllPay':
+                    summaryData['youllPay'] ?? {'currency': '', 'amount': 0},
+                'youllCollect':
+                    summaryData['youllCollect'] ??
+                    {'currency': '', 'amount': 0},
+                'totalExpenses': summaryData['totalExpenses'] ?? 0,
+              });
+              ttc.summaryData.refresh();
+              debugPrint(
+                '🔔 [SLICEUP_CONTROLLER] Notified TripTextController for group: $tag',
+              );
+            }
+          } catch (e) {
+            debugPrint(
+              '❌ [SLICEUP_CONTROLLER] Failed to notify TripTextController: $e',
+            );
+          }
 
           debugPrint(
             '✅ [SLICEUP_CONTROLLER] Slice-up data loaded successfully',
@@ -168,30 +197,87 @@ class SliceUpController extends GetxController {
     }
   }
 
+  // Helper method to build summary data from slice-up API response
+  void _buildSummaryFromSliceUpData(Map<String, dynamic> data) {
+    try {
+      // IMPORTANT: Use the API's summary field directly if available.
+      // The API already calculates the correct youllPay and youllCollect.
+      if (data['summary'] != null) {
+        final apiSummary = data['summary'] as Map<String, dynamic>;
+        summaryData.assignAll({
+          'youllPay': apiSummary['youllPay'] ?? {'currency': '', 'amount': 0},
+          'youllCollect':
+              apiSummary['youllCollect'] ?? {'currency': '', 'amount': 0},
+          'totalExpenses': apiSummary['totalExpenses'] ?? 0,
+        });
+        debugPrint(
+          '✅ [SLICEUP_CONTROLLER] Using API summary directly: $summaryData',
+        );
+      } else {
+        // Fallback: Calculate from totalBalances if API summary is not available
+        final totalExp = (groupData['totalExpenses'] ?? 0).toDouble();
+        double youllPayAmt = 0.0;
+        double youllCollectAmt = 0.0;
+
+        if (data['totalBalances'] != null) {
+          final balances = List<Map<String, dynamic>>.from(
+            data['totalBalances'],
+          );
+          for (var balance in balances) {
+            final netBalance = (balance['netBalance'] ?? 0).toDouble();
+            if (netBalance < 0) {
+              youllPayAmt += netBalance.abs();
+            } else if (netBalance > 0) {
+              youllCollectAmt += netBalance;
+            }
+          }
+        }
+
+        summaryData.assignAll({
+          'youllPay': {'currency': '', 'amount': youllPayAmt},
+          'youllCollect': {'currency': '', 'amount': youllCollectAmt},
+          'totalExpenses': totalExp,
+        });
+        debugPrint(
+          '⚠️ [SLICEUP_CONTROLLER] Calculated summary from balances (API summary not available)',
+        );
+      }
+
+      // Format amounts for display
+      _formatSummaryAmounts();
+
+      debugPrint(
+        '✅ [SLICEUP_CONTROLLER] Built summaryData from slice-up response',
+      );
+    } catch (e) {
+      debugPrint('❌ [SLICEUP_CONTROLLER] Error building summary: $e');
+    }
+  }
+
   // Helper method to format summary amounts for UI display
   void _formatSummaryAmounts() {
     if (summaryData.isNotEmpty) {
       // Prefer normalized 'youllPay'/'youllCollect' map entries.
       if (summaryData['youllPay'] != null) {
         final payData = summaryData['youllPay'] as Map<String, dynamic>;
-        final currency = payData['currency'] ?? 'USD';
+        final currency = payData['currency'] ?? '';
         final amount = payData['amount'] ?? 0;
         youllPayAmount.value = _formatCurrency(amount, currency);
       } else if (summaryData['totalUserBorrowed'] != null) {
         // Some API responses provide totals directly
         final amount = summaryData['totalUserBorrowed'] ?? 0;
-        final currency = summaryData['currency'] ?? 'USD';
+        final currency = summaryData['currency'] ?? '';
         youllPayAmount.value = _formatCurrency(amount, currency);
       }
 
       if (summaryData['youllCollect'] != null) {
         final collectData = summaryData['youllCollect'] as Map<String, dynamic>;
-        final currency = collectData['currency'] ?? 'USD';
+        final currency = collectData['currency'] ?? '';
         final amount = collectData['amount'] ?? 0;
         youllCollectAmount.value = _formatCurrency(amount, currency);
       } else if (summaryData['totalUserLent'] != null) {
         final amount = summaryData['totalUserLent'] ?? 0;
-        final currency = summaryData['currency'] ?? 'USD';
+        final currency = summaryData['currency'] ?? '';
         youllCollectAmount.value = _formatCurrency(amount, currency);
       }
 
@@ -227,26 +313,18 @@ class SliceUpController extends GetxController {
       }
       return '$currencySymbol ${val.toStringAsFixed(2)}';
     } catch (e) {
-      return 'US\$0';
+      return '${_getCurrencySymbol(currency)}0';
     }
   }
 
-  // Helper method to get currency symbol
+  // Helper method to get currency symbol. Uses centralized `currencySymbols` map.
   String _getCurrencySymbol(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'USD':
-        return 'US\$';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      case 'JPY':
-        return '¥';
-      case 'SGD':
-        return 'S\$';
-      default:
-        return currency;
+    final key = currency.toString().toUpperCase();
+    // If the API already returned a symbol (e.g. 'HK$'), return it unchanged.
+    if (currency.contains(RegExp(r'[^A-Za-z0-9]'))) {
+      return currency;
     }
+    return currencySymbols[key] ?? currency;
   }
 
   // Getter methods for accessing formatted data
@@ -255,17 +333,37 @@ class SliceUpController extends GetxController {
   List<String> get groupMembers =>
       List<String>.from(groupData['groupMembers'] ?? []);
 
+  // Current currency used for display. Prefer API summary currency, then group currency.
+  String get currency {
+    try {
+      if (summaryData.isNotEmpty && summaryData['youllPay'] != null) {
+        final p = summaryData['youllPay'] as Map<String, dynamic>;
+        if (p['currency'] != null && p['currency'].toString().isNotEmpty) {
+          return p['currency'].toString();
+        }
+      }
+      if (groupData.isNotEmpty &&
+          groupData['currency'] != null &&
+          groupData['currency'].toString().isNotEmpty) {
+        return groupData['currency'].toString();
+      }
+    } catch (e) {
+      // ignore and fall back
+    }
+    return '';
+  }
+
   // Helper method to get balance for a specific member
   String getBalanceForMember(String memberEmail) {
     // Check settlements where this member is involved
     for (var settlement in settlements) {
       if (settlement['from'].toString() == memberEmail) {
         final amount = settlement['amount'] ?? 0;
-        return 'Pay ${_formatCurrency(amount, 'USD')}';
+        return 'Pay ${_formatCurrency(amount, currency)}';
       }
       if (settlement['to'].toString() == memberEmail) {
         final amount = settlement['amount'] ?? 0;
-        return 'Collect ${_formatCurrency(amount, 'USD')}';
+        return 'Collect ${_formatCurrency(amount, currency)}';
       }
     }
 
@@ -274,9 +372,9 @@ class SliceUpController extends GetxController {
       if (balance['memberEmail'].toString() == memberEmail) {
         final netBalance = (balance['netBalance'] ?? 0).toDouble();
         if (netBalance > 0) {
-          return 'Collect ${_formatCurrency(netBalance, 'USD')}';
+          return 'Collect ${_formatCurrency(netBalance, currency)}';
         } else if (netBalance < 0) {
-          return 'Pay ${_formatCurrency(netBalance.abs(), 'USD')}';
+          return 'Pay ${_formatCurrency(netBalance.abs(), currency)}';
         }
       }
     }
@@ -303,9 +401,20 @@ class SliceUpController extends GetxController {
         // Debug log the settlement structure
         debugPrint('🔍 [SLICEUP_CONTROLLER] Settlement: $settlement');
 
-        // Extract name from email (before @)
-        final fromName = _getNameFromEmail(fromEmail);
-        final toName = _getNameFromEmail(toEmail);
+        // Prefer API-provided display names if available, fall back to email-derived name
+        final rawFromName =
+            settlement['fromName'] ?? settlement['formName'] ?? fromEmail;
+        final rawToName = settlement['toName'] ?? toEmail;
+        final fromName = _getDisplayName(
+          rawFromName.toString(),
+          fromEmail.toString(),
+        );
+        final toName = _getDisplayName(
+          rawToName.toString(),
+          toEmail.toString(),
+        );
+
+        final curr = currency;
 
         return IndividualTransactionEntry(
           fromAvatarColor: _getAvatarColor(fromName),
@@ -314,7 +423,7 @@ class SliceUpController extends GetxController {
           toAvatarColor: _getAvatarColor(toName),
           toAvatarText: _getInitials(toName),
           toName: toName,
-          amount: _formatCurrency(amount, 'USD'),
+          amount: _formatCurrency(amount, curr),
         );
       }).toList();
     } catch (e) {
@@ -369,15 +478,21 @@ class SliceUpController extends GetxController {
 
         // Debug log the balance structure
         debugPrint('🔍 [SLICEUP_CONTROLLER] Balance: $balance');
+        // Prefer API-provided `memberName` when present
+        final rawMemberName = balance['memberName'] ?? memberEmail;
+        final userName = _getDisplayName(
+          rawMemberName.toString(),
+          memberEmail.toString(),
+        );
 
-        final userName = _getNameFromEmail(memberEmail);
+        final curr = currency;
 
         return BalanceEntry(
           circleavatarColor: _getAvatarColor(userName),
           circleavatartext: _getInitials(userName),
           name: userName,
           amount:
-              '${isPositive ? '+' : ''}${_formatCurrency(netBalance.abs(), 'USD')}',
+              '${isPositive ? '+' : ''}${_formatCurrency(netBalance.abs(), curr)}',
           amountcolor: isPositive ? Colors.green : Colors.red,
         );
       }).toList();
@@ -422,6 +537,27 @@ class SliceUpController extends GetxController {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
     return name[0].toUpperCase();
+  }
+
+  // Normalize display name: prefer API-provided name, fall back to email-derived name
+  String _getDisplayName(String? rawNameOrEmail, String? emailFallback) {
+    try {
+      final raw = (rawNameOrEmail ?? '').trim();
+      if (raw.isEmpty) return _getNameFromEmail(emailFallback ?? '');
+
+      // If the raw value looks like an email, extract name from it
+      if (raw.contains('@')) {
+        return _getNameFromEmail(raw);
+      }
+
+      // Otherwise assume it's a proper name (e.g. "person 1")
+      String name = raw;
+      name = name[0].toUpperCase() + (name.length > 1 ? name.substring(1) : '');
+      if (name.length > 8) name = name.substring(0, 8);
+      return name;
+    } catch (e) {
+      return _getNameFromEmail(emailFallback ?? '');
+    }
   }
 
   // Helper method to get settlements where current user is involved

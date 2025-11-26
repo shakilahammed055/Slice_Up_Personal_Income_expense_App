@@ -1,11 +1,3 @@
-
-
-
-
-//   // Add your keys her
-
-
-
 // ignore_for_file: equal_keys_in_map, duplicate_ignore
 
 final Map<String, String> korean = {
@@ -326,7 +318,6 @@ final Map<String, String> korean = {
   'Category': '카테고리',
 
   // Add your keys here...
-
   'You\'ll collect': '당신이 모을 것입니다',
   'You\'ll pay': '당신이 지불할 것입니다',
   'All sliced up and settled!': '모든 것이 나뉘고 정산되었습니다!',
@@ -358,7 +349,18 @@ final Map<String, String> korean = {
       "모든 빚이 정산되거나 그들(또는 당신)이 더 이상 공동 비용의 일부가 아닐 때만 제거하거나 그룹을 나갈 수 있습니다",
   "Are you sure you want to remove them or leave the group yourself?":
       "그들을 제거하거나 직접 그룹을 떠나시겠습니까?",
-   "Ready to track your group expenses!": "그룹 지출을 추적할 준비가 되었습니다!"
+  "Ready to track your group expenses!": "그룹 지출을 추적할 준비가 되었습니다!",
 
-
+  'Email': '이메일',
+  // Additional UI strings
+  'No expenses found': '지출을 찾을 수 없습니다',
+  'Add your first expense to get started': '시작하려면 첫 지출을 추가하세요',
+  'No settlements yet': '아직 정산이 없습니다',
+  'Add some expenses to see settlements': '정산을 보려면 지출을 추가하세요',
+  'No balance information available': '사용 가능한 잔액 정보가 없습니다',
+  'Error loading data': '데이터 로드 오류',
+  'No category data available': '사용 가능한 카테고리 데이터가 없습니다',
+  'Me': '나',
+  'Per person': '1인당',
+  'People': '명',
 };

@@ -156,8 +156,11 @@ class HireAssistantController extends GetxController {
           for (var plan in plans) {
             final name = plan['name']?.toString().toLowerCase() ?? '';
             final id = plan['_id']?.toString() ?? '';
-            if (name.contains('free')) newPlanIds['free'] = id;
-            else if (name.contains('monthly')) newPlanIds['monthly'] = id;
+            if (name.contains('free')) {
+              newPlanIds['free'] = id;
+            // ignore: curly_braces_in_flow_control_structures
+            } else if (name.contains('monthly')) newPlanIds['monthly'] = id;
+            // ignore: curly_braces_in_flow_control_structures
             else if (name.contains('yearly')) newPlanIds['yearly'] = id;
           }
           planIds.assignAll(newPlanIds);
@@ -234,7 +237,9 @@ class HireAssistantController extends GetxController {
         final data = response.data;
         if (data != null && data['url'] != null) {
           final url = data['url'].toString();
+          // ignore: deprecated_member_use
           if (await canLaunch(url)) {
+            // ignore: deprecated_member_use
             await launch(url); // Open the URL immediately
           } else {
             throw Exception('Could not launch URL: $url');

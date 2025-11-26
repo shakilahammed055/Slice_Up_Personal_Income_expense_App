@@ -92,7 +92,8 @@ class GroupTripFriendSpentAmount extends StatelessWidget {
               ),
               12.horizontalSpace,
               Text(
-                name,
+                // Display name truncated to 10 chars for UI
+                name.length > 10 ? name.substring(0, 10) : name,
                 overflow: TextOverflow.ellipsis,
                 style: getTextStyle2(
                   fontSize: 14,
@@ -140,6 +141,28 @@ class GroupTripFriendSpentAmount extends StatelessWidget {
                   textInputAction: TextInputAction.done,
                   autofocus: false,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (value) {
+                    // Trigger recalculation when text changes
+                    // Determine which map we're using and call appropriate update
+                    if (identical(
+                      fieldMap,
+                      controller.multipleFriendControllers,
+                    )) {
+                      controller.updateMultipleFriendTotal();
+                      controller.updateMainTotal();
+                    } else if (identical(
+                      fieldMap,
+                      controller.customFriendControllers,
+                    )) {
+                      controller.updateCustomFriendTotal();
+                      controller.updateMainTotalForCustom();
+                    } else if (identical(
+                      fieldMap,
+                      controller.equalFriendControllers,
+                    )) {
+                      controller.updateEqualShareCalculation();
+                    }
+                  },
                   decoration: InputDecoration(
                     isDense: true,
                     hintText: "",

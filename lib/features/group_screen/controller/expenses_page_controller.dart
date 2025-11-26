@@ -21,6 +21,9 @@ class ExpensesPageController extends GetxController {
   var groupName = ''.obs;
   var groupInfo = <String, dynamic>{}.obs;
   var groupMembers = <Map<String, dynamic>>[].obs;
+  // Currency for the current group (used for display)
+  // Start empty so we don't force a hardcoded default; use API or settings
+  var groupCurrency = ''.obs;
 
   // Total amount observables for this specific group
   var totalAmount = 0.0.obs;
@@ -32,6 +35,10 @@ class ExpensesPageController extends GetxController {
   var currentExpenseView = ''.obs;
   var currentTransactionType = ''.obs;
   var currentSearchQuery = ''.obs;
+
+  // --- Internal guards to avoid duplicate/rapid API calls per group ---
+  final Map<String, bool> _inFlightFetches = {};
+  final Map<String, DateTime> _lastFetchAt = {};
 
   // Constructor to accept group ID
   ExpensesPageController({String? groupId}) {
@@ -266,6 +273,26 @@ class ExpensesPageController extends GetxController {
     String? search,
   ) async {
     try {
+      // Guard: avoid concurrent or rapid repeated requests for the same group
+      if (_inFlightFetches[groupId] == true) {
+        debugPrint(
+          '⏱️ [EXPENSES] Skipping getGroupDetails for $groupId — request already in-flight',
+        );
+        return;
+      }
+
+      final last = _lastFetchAt[groupId];
+      if (last != null &&
+          DateTime.now().difference(last) < Duration(seconds: 5)) {
+        debugPrint(
+          '⏱️ [EXPENSES] Skipping getGroupDetails for $groupId — last fetch ${DateTime.now().difference(last).inSeconds}s ago',
+        );
+        return;
+      }
+
+      // mark in-flight
+      _inFlightFetches[groupId] = true;
+
       // Prepare headers
       var headers = {
         'Authorization': token,
@@ -347,6 +374,14 @@ class ExpensesPageController extends GetxController {
             groupInfo.value = group;
             groupName.value = group['groupName']?.toString() ?? 'Unknown Group';
 
+            // Update group currency if provided by API
+            try {
+              final apiCurrency = group['currency']?.toString();
+              if (apiCurrency != null && apiCurrency.isNotEmpty) {
+                groupCurrency.value = apiCurrency;
+              }
+            } catch (_) {}
+
             // Convert groupMembers from list of emails to proper format
             final memberEmails = group['groupMembers'] as List<dynamic>? ?? [];
             groupMembers.value = memberEmails
@@ -361,6 +396,15 @@ class ExpensesPageController extends GetxController {
 
           // Update summary/totals if available
           if (summary.isNotEmpty) {
+            // Summary may contain currency info as well
+            try {
+              final summaryCurrency = summary['youllPay']?['currency']
+                  ?.toString();
+              if (summaryCurrency != null && summaryCurrency.isNotEmpty) {
+                groupCurrency.value = summaryCurrency;
+              }
+            } catch (_) {}
+
             final youllPay = summary['youllPay'] as Map<String, dynamic>? ?? {};
             final youllCollect =
                 summary['youllCollect'] as Map<String, dynamic>? ?? {};
@@ -383,6 +427,19 @@ class ExpensesPageController extends GetxController {
             }
             return <String, dynamic>{};
           }).toList();
+
+          debugPrint('🔍 [API_RESPONSE] Transaction IDs received from API:');
+          for (var i = 0; i < properTransactions.length; i++) {
+            final txId =
+                properTransactions[i]['_id'] ??
+                properTransactions[i]['expenseId'] ??
+                properTransactions[i]['id'] ??
+                'NO_ID';
+            final title =
+                properTransactions[i]['category']?['name'] ?? 'Unknown';
+            final amount = properTransactions[i]['totalExpenseAmount'] ?? 0;
+            debugPrint('  [$i] ID: $txId | Title: $title | Amount: $amount');
+          }
 
           // Process expenses for display
           await processExpenses(properTransactions);
@@ -417,6 +474,12 @@ class ExpensesPageController extends GetxController {
       debugPrint('Error in getGroupDetails: $e');
 
       rethrow;
+    } finally {
+      // Ensure in-flight flag cleared and record last fetch time
+      try {
+        _inFlightFetches[groupId] = false;
+        _lastFetchAt[groupId] = DateTime.now();
+      } catch (_) {}
     }
   }
 
@@ -506,19 +569,35 @@ class ExpensesPageController extends GetxController {
       } else if (amount is String) {
         val = double.tryParse(amount) ?? 0.0;
       }
-      final currencySymbol = getCurrencySymbol(currency);
+      // If currency string is empty, prefer groupCurrency, otherwise leave empty
+      final currencyToUse = (currency.toString().isEmpty)
+          ? (groupCurrency.value.isNotEmpty ? groupCurrency.value : '')
+          : currency;
+
+      final currencySymbol = getCurrencySymbol(currencyToUse);
       if ((val % 1) == 0) {
         return '$currencySymbol ${val.toInt()}';
       }
       return '$currencySymbol ${val.toStringAsFixed(2)}';
     } catch (e) {
-      return 'US\$0';
+      final fallback = getCurrencySymbol(
+        groupCurrency.value.isNotEmpty ? groupCurrency.value : '',
+      );
+      return '$fallback 0';
     }
   }
 
   // Helper to return currency symbol
   String getCurrencySymbol(String currency) {
-    switch (currency.toUpperCase()) {
+    final c = currency.toString();
+
+    // If the currency string contains non-alpha characters (like 'HK$'),
+    // return it as-is so symbols from API are preserved.
+    if (RegExp(r'[^A-Za-z]').hasMatch(c)) {
+      return c;
+    }
+
+    switch (c.toUpperCase()) {
       case 'USD':
         return 'US\$';
       case 'EUR':
@@ -527,10 +606,12 @@ class ExpensesPageController extends GetxController {
         return '£';
       case 'JPY':
         return '¥';
-      case 'SGD':
-        return 'S\$';
+      case 'HKD':
+        return 'HK\$';
+
       default:
-        return currency.toUpperCase();
+        // Unknown alphabetic code: return uppercased code (e.g. 'AUD')
+        return c.toUpperCase();
     }
   }
 
@@ -589,39 +670,66 @@ class ExpensesPageController extends GetxController {
         final expense = await formatExpenseData(transaction);
         formattedList.add(expense);
       }
+      debugPrint(
+        '💰 [EXPENSES] Formatted ${formattedList.length} transactions',
+      );
 
-      // Deduplicate potential duplicates by date + category + total amount
+      // Deduplicate by unique expense ID to properly handle updates
+      // When an expense is updated, it should replace the old one, not appear as a new entry
       final Map<String, Map<String, dynamic>> dedupedMap = {};
+      debugPrint('💰 [EXPENSES] Starting deduplication process...');
+
       for (var expense in formattedList) {
-        final date = (expense['date'] ?? '').toString();
-        final categoryName = (expense['categoryName'] ?? '').toString();
-        final rawTotal = expense['rawData'] != null
-            ? (expense['rawData']['totalExpenseAmount'] ??
-                      expense['rawData']['amount'] ??
-                      expense['formattedTotalAmount'])
-                  .toString()
-            : expense['formattedTotalAmount'].toString();
+        // Use the expense ID as the primary key for deduplication
+        final expenseId = (expense['expenseId'] ?? expense['id'] ?? '')
+            .toString();
+        final title = expense['title'] ?? 'Unknown';
+        final amount = expense['formattedTotalAmount'] ?? 'N/A';
 
-        final key = '${date}_${categoryName}_$rawTotal';
+        if (expenseId.isEmpty) {
+          // If no ID, use the old fallback logic (date + category + amount)
+          final date = (expense['date'] ?? '').toString();
+          final categoryName = (expense['categoryName'] ?? '').toString();
+          final rawTotal = expense['rawData'] != null
+              ? (expense['rawData']['totalExpenseAmount'] ??
+                        expense['rawData']['amount'] ??
+                        expense['formattedTotalAmount'])
+                    .toString()
+              : expense['formattedTotalAmount'].toString();
+          final key = '${date}_${categoryName}_$rawTotal';
 
-        if (!dedupedMap.containsKey(key)) {
-          dedupedMap[key] = expense;
-        } else {
-          final existing = dedupedMap[key]!;
-          final existingNotes = (existing['notes'] ?? '').toString();
-          final currentNotes = (expense['notes'] ?? '').toString();
-
-          // Prefer the one with user notes
-          if (existingNotes.isEmpty && currentNotes.isNotEmpty) {
+          if (!dedupedMap.containsKey(key)) {
             dedupedMap[key] = expense;
-          } else if (existingNotes.isNotEmpty && currentNotes.isEmpty) {
-            // keep existing
-          } else if (existingNotes.isNotEmpty && currentNotes.isNotEmpty) {
-            if (currentNotes.length > existingNotes.length)
-              dedupedMap[key] = expense;
+            debugPrint(
+              '💰 [DEDUP] Added (no ID, fallback key): $key | $title | $amount',
+            );
           }
+          continue;
+        }
+
+        // Use expense ID as the key (ensures updates replace old data)
+        if (!dedupedMap.containsKey(expenseId)) {
+          dedupedMap[expenseId] = expense;
+          debugPrint(
+            '💰 [DEDUP] Added new expense: $expenseId | $title | $amount',
+          );
+        } else {
+          // If same ID exists, replace with the latest version
+          debugPrint(
+            '💰 [DEDUP] Duplicate ID detected: $expenseId | $title | $amount - REPLACING old entry',
+          );
+          dedupedMap[expenseId] = expense;
         }
       }
+
+      debugPrint(
+        '💰 [EXPENSES] After deduplication: ${dedupedMap.length} unique expenses (from ${formattedList.length})',
+      );
+      dedupedMap.forEach((key, expense) {
+        debugPrint(
+          '  - $key: ${expense['title']} | ${expense['formattedTotalAmount']}',
+        );
+      });
 
       // Apply filters and group by date
       Map<String, List<Map<String, dynamic>>> groupedExpenses = {};
@@ -710,20 +818,42 @@ class ExpensesPageController extends GetxController {
     try {
       // Extract basic info from your API structure
       final amount = transaction['totalExpenseAmount'] ?? 0;
-      // Prefer the user's selected currency (if available) for display labels.
-      String currency = transaction['currency'] ?? 'USD';
+      // Currency selection order:
+      // 1) transaction['currency'] (explicit per-expense)
+      // 2) groupCurrency (from API)
+      // 3) user setting (mapped to code when possible)
+      // Leave empty here and let formatCurrency fallback to USD only at display time.
+      String currency = '';
+      final txCurrency = transaction['currency']?.toString() ?? '';
+      if (txCurrency.isNotEmpty) {
+        currency = txCurrency;
+      } else if (groupCurrency.value.isNotEmpty) {
+        currency = groupCurrency.value;
+      }
+
       try {
-        final setting = Get.find<SettingController>();
-        final sel = setting.currency.value;
-        if (sel.isNotEmpty) {
-          final mapped = _mapSelectedCurrencyToCode(sel);
-          if (mapped != null && mapped.isNotEmpty) {
-            currency = mapped;
+        // Only use user-selected currency if no transaction/group currency was provided
+        if (currency.isEmpty) {
+          final setting = Get.find<SettingController>();
+          final sel = setting.currency.value;
+          if (sel.isNotEmpty) {
+            final mapped = _mapSelectedCurrencyToCode(sel);
+            if (mapped != null && mapped.isNotEmpty) {
+              currency = mapped;
+            } else {
+              // mapping returned empty (e.g. for locale-specific symbols); use raw selection
+              currency = sel;
+            }
           }
         }
       } catch (e) {
-        // no settings controller available, fall back to transaction currency
+        // no settings controller available, fall back to transaction/group currency
       }
+
+      // Debug: show which currency will be used for formatting
+      debugPrint(
+        '🪙 [CURRENCY] Using currency value: "$currency" | groupCurrency: "${groupCurrency.value}"',
+      );
       final category = transaction['category'] ?? {};
       final createdAt = transaction['expenseDate'] ?? '';
       var notesRaw = transaction['note'] ?? '';
@@ -748,6 +878,7 @@ class ExpensesPageController extends GetxController {
       }
 
       // Format total amount and per-user amount
+      // If currency is still empty here, formatCurrency will fallback to group or USD.
       final formattedTotalAmount = formatCurrency(amount, currency);
       // Prefer user-specific amount when available (userInvolvement.amount),
       // otherwise fall back to net or the total expense amount.
@@ -791,6 +922,10 @@ class ExpensesPageController extends GetxController {
           transaction['id'] ??
           '';
 
+      debugPrint(
+        '📝 [FORMAT] Expense ID: "$expenseId" | Title: "$categoryName" | Amount: $formattedTotalAmount',
+      );
+
       return {
         // expose the API's primary id under expenseId and keep id for compatibility
         'expenseId': expenseId,
@@ -814,7 +949,8 @@ class ExpensesPageController extends GetxController {
       return {
         'id': '',
         'title': 'Unknown',
-        'amount': 'US\$ 0',
+        'amount':
+            '${getCurrencySymbol(groupCurrency.value.isNotEmpty ? groupCurrency.value : '')} 0',
         'date': 'Today',
         'status': 'Unknown',
         'statusColor': Colors.grey,
@@ -830,12 +966,12 @@ class ExpensesPageController extends GetxController {
     final s = selected.toUpperCase();
     if (s.contains('USD') ||
         s.contains('US\$') ||
-        s.contains('\$') && !s.contains('SGD') && !s.contains('S\$'))
+        (s.contains('\$') && !s.contains('S\$')))
       return 'USD';
     if (s.contains('EUR') || s.contains('€')) return 'EUR';
     if (s.contains('JPY') || s.contains('¥')) return 'JPY';
     if (s.contains('KRW') || s.contains('₩')) return 'KRW';
-    if (s.contains('SGD') || s.contains('S\$')) return 'SGD';
+    if (s.contains('S\$')) return '';
     // fallback: try to extract alphabetic code
     final letters = RegExp(r'[A-Z]{3}').firstMatch(s);
     if (letters != null) return letters.group(0);
@@ -1064,10 +1200,22 @@ class ExpensesPageController extends GetxController {
   }
 
   // Formatted total amount getters
-  String get formattedTotalAmount => formatCurrency(totalAmount.value, 'USD');
-  String get formattedTotalOwed => formatCurrency(totalOwed.value, 'USD');
-  String get formattedTotalLent => formatCurrency(totalLent.value, 'USD');
-  String get formattedNetBalance => formatCurrency(netBalance.value, 'USD');
+  String get formattedTotalAmount => formatCurrency(
+    totalAmount.value,
+    groupCurrency.value.isNotEmpty ? groupCurrency.value : '',
+  );
+  String get formattedTotalOwed => formatCurrency(
+    totalOwed.value,
+    groupCurrency.value.isNotEmpty ? groupCurrency.value : '',
+  );
+  String get formattedTotalLent => formatCurrency(
+    totalLent.value,
+    groupCurrency.value.isNotEmpty ? groupCurrency.value : '',
+  );
+  String get formattedNetBalance => formatCurrency(
+    netBalance.value,
+    groupCurrency.value.isNotEmpty ? groupCurrency.value : '',
+  );
 
   // Check if user owes money
   bool get oweseMoney => netBalance.value < 0;

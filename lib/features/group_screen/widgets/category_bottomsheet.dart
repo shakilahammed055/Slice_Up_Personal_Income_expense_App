@@ -10,11 +10,14 @@ class CategoryBottomsheet extends StatelessWidget {
   final RxList<String> types;
   final Function(String) onTypeSelected;
   final bool isIncome;
+  final String controllerTag;
+
   const CategoryBottomsheet({
     super.key,
     required this.types,
     required this.onTypeSelected,
     required this.isIncome,
+    this.controllerTag = 'groupTripSpent',
   });
 
   @override
@@ -22,7 +25,9 @@ class CategoryBottomsheet extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // ✅ Inject GroupTripSpentController
-    final groupTripController = Get.find<GroupTripSpentController>();
+    final groupTripController = Get.find<GroupTripSpentController>(
+      tag: controllerTag,
+    );
 
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.8,

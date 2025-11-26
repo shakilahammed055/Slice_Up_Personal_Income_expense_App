@@ -8,37 +8,27 @@ import 'package:teddy_5618/features/group_screen/controller/expenses_page_contro
 import 'package:teddy_5618/features/group_screen/model/trip_model.dart';
 import 'package:teddy_5618/features/group_screen/controller/expense_event_controller.dart';
 
-class ExpensesPageScreen extends StatefulWidget {
+class ExpensesPageScreen extends StatelessWidget {
   final Trip? trip; // Add trip parameter
 
   const ExpensesPageScreen({super.key, this.trip});
 
   @override
-  State<ExpensesPageScreen> createState() => _ExpensesPageScreenState();
-}
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-class _ExpensesPageScreenState extends State<ExpensesPageScreen>
-    with WidgetsBindingObserver, RouteAware {
-  late ExpensesPageController controller;
-  late String controllerTag;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-
-    // Initialize controller
-    controllerTag = widget.trip?.id ?? 'default';
-    controller = Get.put(
-      ExpensesPageController(groupId: widget.trip?.id),
+    // Initialize controller with trip ID
+    final controllerTag = trip?.id ?? 'default';
+    final controller = Get.put(
+      ExpensesPageController(groupId: trip?.id),
       tag: controllerTag,
     );
 
     // Set up event listener for expense updates
-    if (widget.trip?.id != null) {
+    if (trip?.id != null) {
       try {
         final eventController = Get.put(ExpenseEventController());
-        eventController.listenToExpenseUpdates(widget.trip!.id!, () {
+        eventController.listenToExpenseUpdates(trip!.id!, () {
           debugPrint(
             "🔔 [EXPENSES_PAGE] Received expense update event, refreshing...",
           );
@@ -50,76 +40,11 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
     }
 
     // Debug: Print trip information
-    debugPrint(
-      "🔍 [EXPENSES_PAGE] Trip provided: ${widget.trip?.id} - ${widget.trip?.name}",
-    );
+    debugPrint("🔍 [EXPENSES_PAGE] Trip provided: ${trip?.id} - ${trip?.name}");
     debugPrint("🏷️ [EXPENSES_PAGE] Controller tag: $controllerTag");
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Subscribe to route changes if there's a RouteObserver in the app
-    final ModalRoute<dynamic>? route = ModalRoute.of(context);
-    if (route is PageRoute) {
-      // Note: This would require a RouteObserver to be added to MaterialApp.navigatorObservers
-      // For now, we'll rely on the other refresh mechanisms
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // RouteAware methods
-  @override
-  void didPopNext() {
-    // Called when this page becomes visible again (e.g., returning from another page)
-    debugPrint("🔄 [EXPENSES_PAGE] Returned to page, refreshing expenses...");
-    controller.refreshExpenses();
-  }
-
-  @override
-  void didPush() {
-    // Called when this page is pushed onto the navigation stack
-    debugPrint("📥 [EXPENSES_PAGE] Page pushed");
-  }
-
-  @override
-  void didPop() {
-    // Called when this page is popped from the navigation stack
-    debugPrint("📤 [EXPENSES_PAGE] Page popped");
-  }
-
-  @override
-  void didPushNext() {
-    // Called when a new page is pushed on top of this page
-    debugPrint("⏭️ [EXPENSES_PAGE] New page pushed on top");
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-
-    // Refresh expenses when app becomes active (foreground)
-    if (state == AppLifecycleState.resumed) {
-      debugPrint("🔄 [EXPENSES_PAGE] App resumed, refreshing expenses...");
-      controller.refreshExpenses();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // make controller available for inner closures
-    final expensesController = controller;
 
     // If no trip is provided, show a message
-    if (widget.trip == null ||
-        widget.trip!.id == null ||
-        widget.trip!.id!.isEmpty) {
+    if (trip == null || trip!.id == null || trip!.id!.isEmpty) {
       return Scaffold(
         backgroundColor: isDark
             ? AppColors.backgroundDark
@@ -160,7 +85,6 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
       backgroundColor: isDark
           ? AppColors.backgroundDark
           : AppColors.backgroundLightGrey,
-      //  AppColors.backgroundLightGrey,
       body: SafeArea(
         child: SizedBox(
           height: MediaQuery.of(context).size.height,
@@ -202,31 +126,53 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
               );
             }
 
-            // Show empty state
+            // Show empty state (still scrollable so pull-to-refresh works)
             if (controller.expenses.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.receipt_long_outlined,
-                      size: 64,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'No expenses found',
-                      style: getTextStyle2(
-                        fontSize: 16,
-                        color: isDark ? AppColors.textWhite : AppColors.black,
+              return RefreshIndicator(
+                onRefresh: controller.refreshExpenses,
+                color: AppColors.green,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_outlined,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No expenses found'.tr,
+                                style: getTextStyle2(
+                                  fontSize: 16,
+                                  color: isDark
+                                      ? AppColors.textWhite
+                                      : AppColors.black,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Add your first expense to get started'.tr,
+                                style: getTextStyle2(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Add your first expense to get started',
-                      style: getTextStyle2(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               );
             }
@@ -237,17 +183,17 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
                 // Expenses list
                 Expanded(
                   child: RefreshIndicator(
-                    onRefresh: expensesController.refreshExpenses,
+                    onRefresh: controller.refreshExpenses,
                     color: AppColors.green,
                     child: ListView.builder(
-                      itemCount: expensesController.expenses.length,
+                      itemCount: controller.expenses.length,
                       itemBuilder: (context, index) {
-                        final dayData = expensesController.expenses[index];
+                        final dayData = controller.expenses[index];
                         return expensescard(
                           context,
                           dayData,
-                          expensesController,
-                          widget.trip?.id,
+                          controller,
+                          trip?.id,
                         );
                       },
                     ),
@@ -264,7 +210,7 @@ class _ExpensesPageScreenState extends State<ExpensesPageScreen>
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35)),
         onPressed: () async {
           // Pass the trip ID to the spent screen
-          final groupId = widget.trip?.id ?? controller.groupId.value;
+          final groupId = trip?.id ?? controller.groupId.value;
           debugPrint(
             "🚀 [EXPENSES_FAB] Navigating to GroupTripSpentScreen with groupId: $groupId",
           );
@@ -300,28 +246,21 @@ Widget expensescard(
   final List<dynamic> expenses = dayData['expenses'] ?? [];
 
   return Container(
-    // margin: const EdgeInsets.all(16.0),
     padding: const EdgeInsets.only(left: 24.0, right: 24, top: 24, bottom: 5),
     decoration: BoxDecoration(borderRadius: BorderRadius.circular(16.0)),
     child: Container(
       decoration: BoxDecoration(
         color: isDark ? Color(0xFF262626) : AppColors.textWhite,
-        //  Colors.white,
         boxShadow: [
           BoxShadow(
             color: isDark
                 ? AppColors.backgroundDark
                 : const Color.fromARGB(255, 200, 200, 200),
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
             blurRadius: 5,
           ),
         ],
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -331,15 +270,13 @@ Widget expensescard(
           Container(
             alignment: Alignment.topLeft,
             height: 45,
-
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.only(
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 topRight: Radius.circular(16),
               ),
               color: isDark ? AppColors.deepGrey : AppColors.lightGreyContainer,
             ),
-
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Align(
@@ -348,15 +285,13 @@ Widget expensescard(
                   date,
                   style: TextStyle(
                     fontSize: 14,
-                    // color: Colors.grey[600],
-                    color: isDark ? Color(0xFFAAAAAA) : Colors.grey[600],
+                    color: isDark ? const Color(0xFFAAAAAA) : Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ),
           ),
-
           Column(
             children: _buildExpensesList(expenses, isDark, controller, groupId),
           ),

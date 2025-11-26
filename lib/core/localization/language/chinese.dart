@@ -37,9 +37,6 @@ final Map<String, String> chinese = {
   'Registration failed': '注册失败',
   'Signup error': '注册错误',
 
-
-
-
   //LoginScreen
   'Welcome back!': '欢迎回来',
   'Forgot password?': '忘记密码',
@@ -71,7 +68,6 @@ final Map<String, String> chinese = {
   'Passwords do not match': '密码不匹配',
   'Success': '成功',
   'Password has been reset successfully!': '密码已重置成功!',
-
 
   'Resetting password...': '正在重置密码...',
   'Password reset successfully': '密码重置成功',
@@ -320,9 +316,7 @@ final Map<String, String> chinese = {
   'Category': '类别',
 
   // Add your keys here...
-
-
-   'You\'ll collect': '您将收取',
+  'You\'ll collect': '您将收取',
   'You\'ll pay': '您将支付',
   'All sliced up and settled!': '全部分好并结清了！',
   'My expenses': '我的支出',
@@ -352,6 +346,19 @@ final Map<String, String> chinese = {
       "只有在所有债务结清或他们（或您）不再参与任何共享支出后，才能移除他们或退出群组",
   "Are you sure you want to remove them or leave the group yourself?":
       "您确定要移除他们或自己离开群组吗？",
-    "Ready to track your group expenses!": "准备好追踪您的群组支出！"   
+  "Ready to track your group expenses!": "准备好追踪您的群组支出！",
 
+  'Email': '电子邮件',
+
+  // Additional UI strings
+  'No expenses found': '未找到支出记录',
+  'Add your first expense to get started': '添加您的第一个支出以开始',
+  'No settlements yet': '尚未结算',
+  'Add some expenses to see settlements': '添加一些支出以查看结算',
+  'No balance information available': '没有可用的余额信息',
+  'Error loading data': '加载数据出错',
+  'No category data available': '没有可用的类别数据',
+  'Me': '我',
+  'Per person': '每人',
+  'People': '人',
 };

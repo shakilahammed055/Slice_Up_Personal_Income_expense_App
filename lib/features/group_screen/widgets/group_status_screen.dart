@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
-import 'package:teddy_5618/core/utils/constants/app_texts.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
 import 'package:teddy_5618/core/utils/constants/responsive_helper.dart';
 import 'package:teddy_5618/features/home_screen/widgets/expense_bar_chart.dart';
@@ -24,70 +23,32 @@ class GroupStatusScreen extends StatelessWidget {
       statusController = Get.put(StatusScreenController());
     }
 
+    // Helper to format amounts without repeating the currency symbol.
+    String formatWithoutCurrency(double amount) {
+      final formatted = statusController.getFormattedAmount(
+        amount,
+        statusController.involvedCurrency.value,
+      );
+      final currencyPrefix = statusController.involvedCurrency.value;
+      if (formatted.startsWith(currencyPrefix)) {
+        return formatted.substring(currencyPrefix.length).trim();
+      }
+      // Fallback: remove first token (likely the currency) if any
+      final parts = formatted.split(RegExp(r"\s+"));
+      return parts.length > 1 ? parts.sublist(1).join(' ') : formatted;
+    }
+
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
         child: Column(
           children: [
             const SizedBox(height: 24),
-            // Top container
-            // Center(
-            //   child: Container(
-            //     width: r.size.width / 1.1,
-            //     decoration: BoxDecoration(
-            //       borderRadius: const BorderRadiusDirectional.only(
-            //         topStart: Radius.circular(10),
-            //         topEnd: Radius.circular(10),
-            //       ),
-            //       color: isDark
-            //           ? AppColors.deepGrey
-            //           : AppColors.lightGreyContainer,
 
-            //       boxShadow: const [
-            //         BoxShadow(
-            //           color: Color(0x1A000000),
-            //           spreadRadius: 1,
-            //           blurRadius: 1,
-            //           offset: Offset(0, 1),
-            //         ),
-            //       ],
-            //     ),
-            //     child: Column(
-            //       children: [
-            //         Row(
-            //           children: [
-            //             Text(
-            //               AppText.groupstatustitle,
-            //               style: getTextStyle2(
-            //                 fontSize: 16,
-            //                 fontWeight: FontWeight.w600,
-            //                 color: isDark
-            //                     ? AppColors.textWhite
-            //                     : AppColors.backgroundDark,
-            //                 // color: AppColors.backgroundDark,
-            //                 lineHeight: 18,
-            //               ),
-            //             ),
-            //             Spacer(),
-            //             Image.asset(
-            //               IconPath.rabbit1,
-            //               width: 72.549.w,
-            //               height: 92.647.h,
-            //             ),
-            //           ],
-            //         ).marginOnly(left: 16, right: 10),
-            //       ],
-            //     ),
-            //   ),
-            // ),
-
-            // Bottom container (was Positioned)
-            // const SizedBox(height: 16),
             Container(
               width: r.size.width / 1.1,
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(
-                Radius.circular(10)
-                ),
+                borderRadius: const BorderRadius.all(Radius.circular(10)),
                 color: isDark ? Color(0xFF262626) : AppColors.textWhite,
 
                 boxShadow: const [
@@ -101,6 +62,7 @@ class GroupStatusScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  SizedBox(height: 10),
                   Row(
                     children: [
                       Text(
@@ -112,26 +74,16 @@ class GroupStatusScreen extends StatelessWidget {
                               ? AppColors.textWhite
                               : AppColors.backgroundDark,
                         ),
-                      ).marginOnly(bottom: 20),
+                      ),
                       Spacer(),
                       Obx(
                         () => Column(
                           children: [
-                            SizedBox(height: 10),
                             Text(
                               statusController.getFormattedAmount(
                                 statusController.totalExpenses.value,
                                 statusController.involvedCurrency.value,
                               ),
-                              style: getTextStyle2(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textGrey,
-                              ),
-                            ),
-                            SizedBox(height: 10),
-                            Text(
-                              '+ ${statusController.getFormattedAmount(statusController.involvedAmount.value, statusController.involvedCurrency.value)}',
                               style: getTextStyle2(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -149,7 +101,49 @@ class GroupStatusScreen extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        'Involved'.tr,
+                        'My expenses'.tr,
+                        style: getTextStyle2(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? AppColors.textWhite
+                              : AppColors.backgroundDark,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedPercentage(
+                            statusController.myExpensesPercentage.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textGrey,
+                          ),
+                        ),
+                      ),
+                      Spacer(),
+                      Obx(
+                        () => Text(
+                          statusController.getFormattedAmount(
+                            statusController.myExpensesAmount.value,
+                            statusController.myExpensesCurrency.value,
+                          ),
+                          style: getTextStyle2(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textGrey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ).marginSymmetric(horizontal: 14, vertical: 8),
+
+                  Row(
+                    children: [
+                      Text(
+                        'My split amount'.tr, //it also means involved amount
                         style: getTextStyle2(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -168,125 +162,12 @@ class GroupStatusScreen extends StatelessWidget {
                           style: getTextStyle2(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.textGrey,
+                            color: AppColors.green,
                           ),
                         ),
                       ),
                     ],
                   ).marginSymmetric(horizontal: 16, vertical: 8),
-                  Row(
-                    children: [
-                      Text(
-                        'My expenses',
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textWhite
-                              : AppColors.backgroundDark,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedPercentage(
-                            statusController.myExpensesPercentage.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                      Spacer(),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedAmount(
-                            statusController.myExpensesAmount.value,
-                            statusController.myExpensesCurrency.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.green,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).marginSymmetric(horizontal: 14, vertical: 8),
-                  Row(
-                    children: [
-                      Text(
-                        AppText.involved,
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textWhite
-                              : AppColors.backgroundDark,
-                        ),
-                      ),
-
-                      Spacer(),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedAmount(
-                            statusController.involvedAmount.value,
-                            statusController.involvedCurrency.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: isDark
-                                ? AppColors.textGrey
-                                : AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).marginSymmetric(horizontal: 14, vertical: 8),
-                  Row(
-                    children: [
-                      Text(
-                        AppText.myExpense,
-                        style: getTextStyle2(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? AppColors.textWhite
-                              : AppColors.backgroundDark,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedPercentage(
-                            statusController.myExpensesPercentage.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textGrey,
-                          ),
-                        ),
-                      ),
-                      Spacer(),
-                      Obx(
-                        () => Text(
-                          statusController.getFormattedAmount(
-                            statusController.myExpensesAmount.value,
-                            statusController.myExpensesCurrency.value,
-                          ),
-                          style: getTextStyle2(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.green,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).marginSymmetric(horizontal: 14, vertical: 8),
                 ],
               ),
             ),
@@ -315,10 +196,12 @@ class GroupStatusScreen extends StatelessWidget {
                           person.memberEmail,
                         );
 
-                        // Extract name from email
-                        String displayName = person.memberEmail.split('@')[0];
+                        // Prefer API-provided memberName, fall back to email-derived name
+                        String displayName = (person.memberName.isNotEmpty)
+                            ? person.memberName
+                            : person.memberEmail.split('@')[0];
                         if (isMe) {
-                          displayName = "$displayName (Me)";
+                          displayName = "$displayName (${'Me'.tr})";
                         }
 
                         return Padding(
@@ -335,8 +218,8 @@ class GroupStatusScreen extends StatelessWidget {
                               ),
                               child: Center(
                                 child: Text(
-                                  person.memberEmail.isNotEmpty
-                                      ? person.memberEmail[0].toUpperCase()
+                                  displayName.isNotEmpty
+                                      ? displayName[0].toUpperCase()
                                       : "U",
                                   style: TextStyle(
                                     fontSize: 14,
@@ -346,15 +229,26 @@ class GroupStatusScreen extends StatelessWidget {
                               ),
                             ),
                             icontext: displayName,
+                            // Left-most: user's expense (shows currency)
                             valueText: statusController.getFormattedAmount(
                               person.involved.amount,
                               statusController.involvedCurrency.value,
                             ),
-                            valueText2:
-                                "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                            // Middle: involved amount (no currency)
+                            middleText: formatWithoutCurrency(
+                              person.myExpense.amount,
+                            ),
+                            // Right-most: total group expenses (no currency)
+                            valueText2: formatWithoutCurrency(
+                              statusController.totalExpenses.value,
+                            ),
                             valueColor: AppColors.green,
                             lightbarColor: AppColors.greylightbarcolor,
-                            progressValue: person.involved.percentage / 100,
+                            // Colored progress represents myExpense percentage
+                            progressValue: person.myExpense.percentage / 100,
+                            // Background/light progress represents involved percentage
+                            lightProgressValue:
+                                person.involved.percentage / 100,
                           ),
                         );
                       }).toList(),
@@ -371,7 +265,7 @@ class GroupStatusScreen extends StatelessWidget {
                         ? Center(child: CircularProgressIndicator())
                         : Center(
                             child: Text(
-                              'No category data available',
+                              'No category data available'.tr,
                               style: getTextStyle2(
                                 fontSize: 16,
                                 color: isDark
@@ -408,18 +302,27 @@ class GroupStatusScreen extends StatelessWidget {
                                   style: const TextStyle(fontSize: 20),
                                 ),
                                 icontext: categoryDisplayName,
+                                // Left-most: involved amountin this category (with currency)
                                 valueText: statusController.getFormattedAmount(
                                   category.involved.amount,
                                   statusController.involvedCurrency.value,
                                 ),
-                                valueText2:
-                                    "/${statusController.getFormattedAmount(statusController.totalExpenses.value, statusController.involvedCurrency.value)}",
+                                // Middle: user's expense  for this category (no currency)
+                                middleText: formatWithoutCurrency(
+                                  category.myExpense.amount,
+                                ),
+                                // Right-most: total group expenses (no currency)
+                                valueText2: formatWithoutCurrency(
+                                  statusController.totalExpenses.value,
+                                ),
                                 valueColor: AppColors.green,
                                 lightbarColor: AppColors.greylightbarcolor,
-                                progressValue: statusController
-                                    .getRelativeProgressForGroup(
-                                      category.involved.amount,
-                                    ), // Use group-specific relative progress
+                                // Colored progress: myExpense percentage
+                                progressValue:
+                                    category.myExpense.percentage / 100,
+                                // Light/background progress: involved percentage
+                                lightProgressValue:
+                                    category.involved.percentage / 100,
                               ),
                             );
                           })

@@ -43,12 +43,36 @@ class GroupTripAddNewFriendBottomController extends GetxController {
       return;
     }
 
+    // Enforce using a controller instance tagged with the groupId so both
+    // the parent widget and this bottom-sheet share the same reactive state.
+    debugPrint(
+      "🔎 Looking for GroupTripAddNewFriendController with tag '$groupId'...",
+    );
     try {
-      _friendSelectionController = Get.find<GroupTripAddNewFriendController>();
+      _friendSelectionController = Get.find<GroupTripAddNewFriendController>(
+        tag: groupId,
+      );
+      debugPrint(
+        "✅ Found existing GroupTripAddNewFriendController with tag '$groupId'.",
+      );
     } catch (e) {
-      _friendSelectionController = Get.put(GroupTripAddNewFriendController());
+      // If none exists, create one but register it using the same tag so
+      // subsequent lookups (parent or other sheets) point to the same instance.
+      debugPrint(
+        "⚠️ No tagged controller found for '$groupId'. Creating one with the same tag.",
+      );
+      _friendSelectionController = Get.put(
+        GroupTripAddNewFriendController(),
+        tag: groupId,
+      );
+      debugPrint(
+        "✅ Created GroupTripAddNewFriendController with tag '$groupId'.",
+      );
     }
 
+    debugPrint(
+      "📞 [GroupTripAddNewFriendBottom] Calling fetchFriendsFromAPI...",
+    );
     fetchFriendsFromAPI();
     ever(
       friends,
@@ -60,12 +84,22 @@ class GroupTripAddNewFriendBottomController extends GetxController {
   Future<void> fetchFriendsFromAPI() async {
     try {
       isLoading.value = true;
+      debugPrint(
+        '🔄 [GroupTripAddNewFriendBottom] Starting fetchFriendsFromAPI for groupId: $groupId',
+      );
+
       String? token = await AuthService.getApprovalToken();
 
       if (token == null || token.isEmpty) {
+        debugPrint('❌ [GroupTripAddNewFriendBottom] No token found');
         Get.snackbar('Error', 'Authentication token not found');
+        isLoading.value = false;
         return;
       }
+
+      debugPrint(
+        '🔑 [GroupTripAddNewFriendBottom] Token obtained, making API request to: ${Urls.allfriends}',
+      );
 
       var headers = {'Authorization': token};
       var request = http.Request('GET', Uri.parse(Urls.allfriends));
@@ -74,38 +108,93 @@ class GroupTripAddNewFriendBottomController extends GetxController {
       http.StreamedResponse response = await request.send();
       String responseBody = await response.stream.bytesToString();
 
+      debugPrint(
+        '📦 [GroupTripAddNewFriendBottom] API Response Status: ${response.statusCode}',
+      );
+      debugPrint(
+        '📦 [GroupTripAddNewFriendBottom] API Response Body: $responseBody',
+      );
+
       if (response.statusCode == 200) {
         Map<String, dynamic> jsonResponse = json.decode(responseBody);
+        debugPrint(
+          '📋 [GroupTripAddNewFriendBottom] Parsed JSON: $jsonResponse',
+        );
+
         if (jsonResponse['data'] != null) {
           List<dynamic> friendsData = jsonResponse['data'];
+          debugPrint(
+            '👥 [GroupTripAddNewFriendBottom] Found ${friendsData.length} friends',
+          );
 
           allFriendsFromAPI.clear();
           friends.clear();
 
           for (var friend in friendsData) {
+            final String email = friend['email'] ?? '';
+            final String name =
+                friend['name'] ??
+                friend['email']?.split('@')[0] ??
+                'Unknown Friend';
+
+            // Default selection state is false
+            final RxBool isSelected = false.obs;
+
+            // If the main selection controller already has this member
+            // as part of the group (loaded from getGroupMembers),
+            // mark them as selected so the checkbox is pre-checked
+            // even after app restart.
+            try {
+              if (_friendSelectionController != null && email.isNotEmpty) {
+                final existingMember = _friendSelectionController!
+                    .getMemberByEmail(email);
+                if (existingMember != null) {
+                  isSelected.value = true;
+                }
+              }
+            } catch (e) {
+              debugPrint(
+                '⚠️ [GroupTripAddNewFriendBottom] Error checking existing member: $e',
+              );
+            }
+
             Map<String, dynamic> friendData = {
               'id': friend['_id'] ?? '',
-              'name':
-                  friend['name'] ??
-                  friend['email']?.split('@')[0] ??
-                  'Unknown Friend',
-              'email': friend['email'] ?? '',
-              'isSelected': false.obs,
+              'name': name,
+              'email': email,
+              'isSelected': isSelected,
             };
             allFriendsFromAPI.add(friendData);
             friends.add(Map.from(friendData));
+            debugPrint(
+              '✅ [GroupTripAddNewFriendBottom] Added friend: ${friendData['name']} (${friendData['email']})',
+            );
           }
+          debugPrint(
+            '✅ [GroupTripAddNewFriendBottom] Total friends loaded: ${friends.length}',
+          );
+        } else {
+          debugPrint(
+            '⚠️ [GroupTripAddNewFriendBottom] No data field in response',
+          );
         }
       } else {
+        debugPrint(
+          '❌ [GroupTripAddNewFriendBottom] Error response: ${response.statusCode} - ${response.reasonPhrase}',
+        );
         Get.snackbar(
           'Error',
           'Failed to fetch friends: ${response.reasonPhrase}',
         );
       }
     } catch (e) {
+      debugPrint('💥 [GroupTripAddNewFriendBottom] Exception: $e');
       Get.snackbar('Error', 'An error occurred while fetching friends: $e');
     } finally {
       isLoading.value = false;
+      debugPrint(
+        '🏁 [GroupTripAddNewFriendBottom] fetchFriendsFromAPI completed',
+      );
     }
   }
 
@@ -136,7 +225,8 @@ class GroupTripAddNewFriendBottomController extends GetxController {
           builder: (BuildContext context) => ConfirmationDialog(
             title: 'You can’t remove them or leave this group just yet'.tr,
             content:
-                'You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses'.tr
+                'You can only remove them or leave the group after all debts are settled or they (or you) are no longer part of any shared expenses'
+                    .tr
                     .tr,
             button1: 'Okay'.tr,
             singleButton: true,
@@ -398,6 +488,21 @@ class GroupTripAddNewFriendBottomController extends GetxController {
         if (_friendSelectionController != null &&
             selectedFriendNames.isNotEmpty) {
           _friendSelectionController!.addSelectedFriends(selectedFriendNames);
+
+          // Also immediately upsert full member details (name/email) so that
+          // avatars in GroupTripAddNewFriend update right away, even if
+          // getGroupMembers returns stale data on the first call.
+          final List<Map<String, String>> membersToAdd = friends
+              .where((friend) => (friend['isSelected'] as RxBool).isTrue)
+              .map(
+                (friend) => {
+                  'email': friend['email'].toString(),
+                  'name': friend['name'].toString(),
+                },
+              )
+              .toList();
+
+          _friendSelectionController!.upsertMembersFromEmails(membersToAdd);
         }
 
         Get.snackbar(

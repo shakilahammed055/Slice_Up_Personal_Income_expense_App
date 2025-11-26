@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable, use_build_context_synchronously
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:get/get.dart' hide Response;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,6 +8,7 @@ import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:teddy_5618/core/Urls/endpoint.dart';
 import 'package:teddy_5618/core/localization/language_service.dart';
+import 'package:teddy_5618/core/services/storage_service.dart';
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';
@@ -56,40 +58,67 @@ class SettingController extends GetxController {
     super.onInit();
     await loadInitialSettings();
     await loadSavedLanguage();
-    await fetchProfileSettings();
-    await fetchCategories();
+    // Delay API calls until after the widget tree is built
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await fetchProfileSettings();
+      await fetchCategories();
+    });
   }
 
   Future<void> fetchCategories() async {
     try {
-      final response = await dio.Dio().get(
+      final String? token = await _getTokenForSession();
+      if (token == null || token.isEmpty) {
+        debugPrint('Cannot fetch categories: missing auth token');
+        return;
+      }
+
+      final response = await _dio.get(
         Urls.getallcategory,
         options: dio.Options(
-          headers: {
-            'Authorization': await AuthService.getApprovalToken() ?? '',
-          },
+          headers: {'Authorization': token},
+          validateStatus: (_) => true,
         ),
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data['success'] == true && data['data'] is List) {
+        if (data is Map<String, dynamic> &&
+            data['success'] == true &&
+            data['data'] is List) {
           categoryDetails.clear();
           personalCategories.clear();
           groupCategories.clear();
           for (var category in data['data']) {
-            categoryDetails.add(category);
-            if (category['type'] == 'personal') {
-              personalCategories.add(category['name']);
-            } else if (category['type'] == 'group') {
-              groupCategories.add(category['name']);
+            if (category is Map<String, dynamic>) {
+              categoryDetails.add(category);
+              if (category['type'] == 'personal') {
+                personalCategories.add(category['name']);
+              } else if (category['type'] == 'group') {
+                groupCategories.add(category['name']);
+              }
             }
           }
         }
+      } else {
+        final message = response.data is Map<String, dynamic>
+            ? response.data['message']
+            : null;
+        debugPrint(
+          'Failed to fetch categories: status=${response.statusCode}, message=$message',
+        );
+        // EasyLoading.showError(
+        //   message ?? 'Failed to fetch categories: ${response.statusCode}',
+        // );
       }
+    } on dio.DioException catch (e) {
+      debugPrint('DioException while fetching categories: ${e.type}');
+      debugPrint('Error message: ${e.message}');
+      debugPrint('Response status: ${e.response?.statusCode}');
+      debugPrint('Response data: ${e.response?.data}');
+      EasyLoading.showError('Unable to fetch categories at the moment');
     } catch (e) {
       debugPrint('Error fetching categories: $e');
-      // Keep existing categories if API call fails
     }
   }
 
@@ -295,7 +324,7 @@ class SettingController extends GetxController {
       final String? approvalToken = await AuthService.getApprovalToken();
       if (approvalToken == null || approvalToken.isEmpty) {
         debugPrint('No approval token found');
-        EasyLoading.showError('No authentication token found');
+        // EasyLoading.showError('No authentication token found');
         return;
       }
       debugPrint(
@@ -353,6 +382,22 @@ class SettingController extends GetxController {
               language.value = displayName;
               await _saveLanguage(displayName);
               LanguageService.updateLocale(nameToLocale(displayName));
+            }
+            // Add date range handling
+            if (profileData['startDate'] != null &&
+                profileData['endDate'] != null) {
+              try {
+                DateTime startDate = DateTime.parse(profileData['startDate']);
+                DateTime endDate = DateTime.parse(profileData['endDate']);
+                selectedStartDate.value = startDate.day;
+                selectedEndDate.value = endDate.day;
+                isDateRangeSet.value = true;
+                dateRange.value = '${startDate.day}~${endDate.day}';
+                debugPrint('Set dateRange to: ${dateRange.value}');
+              } catch (e) {
+                debugPrint('Error parsing dates: $e');
+                EasyLoading.showError('Invalid date format from server');
+              }
             }
             debugPrint('Profile settings updated successfully');
             EasyLoading.showSuccess('Profile loaded');
@@ -418,12 +463,13 @@ class SettingController extends GetxController {
   }
 
   String _apiAssistantTypeToDisplay(String apiType) {
-    switch (apiType) {
-      case 'Supportive_Friendly':
+    switch (apiType.toLowerCase()) {
+      case 'supportive':
+      case 'supportive_friendly':
         return 'Supportive & Friendly'.tr;
-      case 'SarcasticTruth-Teller':
+      case 'sarcastictruth-teller':
         return 'Sarcastic Truth-Teller'.tr;
-      case 'None':
+      case 'none':
         return ''.tr;
       default:
         return 'Supporter'.tr;
@@ -779,13 +825,13 @@ class SettingController extends GetxController {
   String _displayToApiAssistantType(String displayType) {
     switch (displayType) {
       case 'Supportive & Friendly':
-        return 'Supportive_Friendly';
+        return 'supportive'; // Map to API value
       case 'Sarcastic Truth-Teller':
         return 'SarcasticTruth-Teller';
       case '':
         return 'None';
       default:
-        return 'Supportive_Friendly';
+        return 'supportive'; // Default to supportive
     }
   }
 
@@ -991,19 +1037,41 @@ class SettingController extends GetxController {
 
   Future<void> pickImage(ImageSource source) async {
     PermissionStatus status;
+
     if (source == ImageSource.camera) {
       status = await Permission.camera.request();
-      if (status.isDenied) {
-        EasyLoading.showError('Camera access is required.');
+      if (status.isDenied || status.isPermanentlyDenied) {
+        EasyLoading.showError('Camera access is required to take photos.');
+        openAppSettings(); // Optional: guide user to settings
         return;
       }
     } else {
-      status = await Permission.storage.request();
+      // For gallery - use Permission.photos on Android 13+
+      if (Platform.isAndroid) {
+        final androidInfo = await DeviceInfoPlugin().androidInfo;
+        if (androidInfo.version.sdkInt >= 33) {
+          status = await Permission.photos.request();
+        } else {
+          status = await Permission.storage.request();
+        }
+      } else {
+        status = await Permission.photos.request(); // iOS uses photos
+      }
+
       if (status.isDenied) {
-        EasyLoading.showError('Storage access is required.');
+        EasyLoading.showError('Gallery access is required to select photos.');
+        return;
+      }
+
+      if (status.isPermanentlyDenied) {
+        EasyLoading.showError(
+          'Gallery access denied. Please enable in settings.',
+        );
+        openAppSettings();
         return;
       }
     }
+
     try {
       final XFile? image = await _picker.pickImage(source: source);
       if (image != null && await File(image.path).exists()) {
@@ -1020,6 +1088,7 @@ class SettingController extends GetxController {
         EasyLoading.showInfo('No image selected');
       }
     } catch (e) {
+      debugPrint('Image picker error: $e');
       EasyLoading.showError('Failed to pick image: $e');
     } finally {
       EasyLoading.dismiss();
@@ -1120,6 +1189,116 @@ class SettingController extends GetxController {
       return null;
     }
   }
+  // Future<String?> _uploadImage(File imageFile) async {
+  //   debugPrint('Starting image upload process...');
+  //   try {
+  //     debugPrint('Retrieving approval token...');
+  //     final String? approvalToken = await AuthService.getApprovalToken();
+  //     if (approvalToken == null || approvalToken.isEmpty) {
+  //       debugPrint('No approval token found');
+  //       EasyLoading.showError('No authentication token found');
+  //       return null;
+  //     }
+  //     debugPrint(
+  //       'Approval token retrieved: ${approvalToken.substring(0, 20)}...',
+  //     );
+
+  //     // Check if imageFile exists at the provided path
+  //     if (!await imageFile.exists()) {
+  //       debugPrint('File does not exist at path: ${imageFile.path}');
+  //       EasyLoading.showError('Image file not found at the specified path');
+  //       return null;
+  //     }
+
+  //     debugPrint('Preparing form data...');
+  //     final String fileName = imageFile.path.split('/').last;
+  //     debugPrint('Image file name: $fileName');
+
+  //     final dio.FormData formData = dio.FormData.fromMap({
+  //       'files': await dio.MultipartFile.fromFile(
+  //         imageFile.path, // Send the full file path here
+  //         filename: fileName, // Only the filename is required here
+  //       ),
+  //     });
+
+  //     debugPrint('Form data prepared successfully');
+  //     debugPrint('Sending POST request to API...');
+
+  //     final dio.Response response = await _dio.post(
+  //       Urls.uploadimage,
+  //       data: formData,
+  //       options: dio.Options(headers: {'Authorization': approvalToken}),
+  //       onSendProgress: (sent, total) {
+  //         debugPrint(
+  //           'Upload progress: ${(sent / total * 100).toStringAsFixed(0)}%',
+  //         );
+  //       },
+  //     );
+
+  //     debugPrint('API response received: statusCode=${response.statusCode}');
+  //     debugPrint('Response data: ${response.data}');
+
+  //     if (response.statusCode == 200 || response.statusCode == 201) {
+  //       debugPrint('Parsing response data...');
+  //       dynamic responseData = response.data;
+
+  //       if (responseData is Map<String, dynamic>) {
+  //         final String? imageUrl =
+  //             responseData['img'] ??
+  //             responseData['path'] ??
+  //             responseData['url'] ??
+  //             responseData['data']?['img'];
+  //         debugPrint('Extracted image URL: $imageUrl');
+  //         return imageUrl;
+  //       } else if (responseData is String && responseData.startsWith('http')) {
+  //         debugPrint('Direct URL received: $responseData');
+  //         return responseData;
+  //       } else {
+  //         debugPrint('Unexpected response format: ${responseData.runtimeType}');
+  //         EasyLoading.showError('Unexpected response format from server');
+  //         return null;
+  //       }
+  //     } else {
+  //       debugPrint(
+  //         'Upload failed with status: ${response.statusCode}, response: ${response.data}',
+  //       );
+  //       EasyLoading.showError('Server error: ${response.statusCode}');
+  //       return null;
+  //     }
+  //   } on dio.DioException catch (e) {
+  //     debugPrint('DioException during upload: ${e.type}');
+  //     debugPrint('Error message: ${e.message}');
+  //     debugPrint('Response status: ${e.response?.statusCode}');
+  //     debugPrint('Response data: ${e.response?.data}');
+
+  //     String errorMessage = 'Failed to upload image';
+  //     if (e.type == dio.DioExceptionType.connectionTimeout ||
+  //         e.type == dio.DioExceptionType.sendTimeout ||
+  //         e.type == dio.DioExceptionType.receiveTimeout) {
+  //       errorMessage =
+  //           'Connection timeout. Please check your internet connection.';
+  //     } else if (e.type == dio.DioExceptionType.badResponse) {
+  //       errorMessage = 'Server error: ${e.response?.statusCode}';
+  //       if (e.response?.statusCode == 401) {
+  //         errorMessage = 'Authentication failed. Please login again.';
+  //       } else if (e.response?.statusCode == 413) {
+  //         errorMessage = 'Image file is too large.';
+  //       } else if (e.response?.statusCode == 500) {
+  //         errorMessage =
+  //             'Server error: ${e.response?.data['message'] ?? 'Unexpected error'}';
+  //       }
+  //     } else if (e.message != null) {
+  //       errorMessage = e.message!;
+  //     }
+
+  //     EasyLoading.showError(errorMessage);
+  //     return null;
+  //   } catch (e) {
+  //     debugPrint('Unexpected error during upload: $e');
+  //     EasyLoading.showError('Unexpected error occurred');
+  //     return null;
+  //   }
+  // }
 
   void addCategory(String type) {
     Get.defaultDialog(
@@ -1183,11 +1362,65 @@ class SettingController extends GetxController {
     }
   }
 
+  Future<void> logout() async {
+    EasyLoading.show(status: 'Logging out...');
+    try {
+      final String? token = await _getTokenForSession();
+      if (token == null || token.isEmpty) {
+        debugPrint('Logout failed: missing auth token');
+        EasyLoading.showError('No authentication token found');
+        return;
+      }
+      final dio.Response response = await _dio.post(
+        Urls.logout,
+        options: dio.Options(
+          headers: {'Authorization': token, 'Content-Type': 'application/json'},
+        ),
+      );
 
-
-
-
-  
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        await StorageService.logoutUser();
+        await _clearAllLocalData();
+        EasyLoading.showSuccess('Logged out successfully');
+        Future.delayed(
+          const Duration(milliseconds: 400),
+          () => Get.offAll(LoginScreen()),
+        );
+      } else {
+        debugPrint(
+          'Logout failed: status=${response.statusCode}, data=${response.data}',
+        );
+        EasyLoading.showError('Failed to log out: ${response.statusCode}');
+      }
+    } on dio.DioException catch (e) {
+      debugPrint('DioException during logout: ${e.type}');
+      debugPrint('Error message: ${e.message}');
+      debugPrint('Response status: ${e.response?.statusCode}');
+      debugPrint('Response data: ${e.response?.data}');
+      String errorMessage = 'Failed to log out';
+      if (e.type == dio.DioExceptionType.connectionTimeout ||
+          e.type == dio.DioExceptionType.sendTimeout ||
+          e.type == dio.DioExceptionType.receiveTimeout) {
+        errorMessage =
+            'Connection timeout. Please check your internet connection.';
+      } else if (e.type == dio.DioExceptionType.badResponse) {
+        errorMessage = 'Server error: ${e.response?.statusCode}';
+        if (e.response?.statusCode == 401) {
+          errorMessage = 'Authentication failed. Please login again.';
+        }
+      } else if (e.message != null) {
+        errorMessage = e.message!;
+      }
+      EasyLoading.showError(errorMessage);
+    } catch (e) {
+      debugPrint('Unexpected error during logout: $e');
+      EasyLoading.showError('Unexpected error occurred');
+    } finally {
+      EasyLoading.dismiss();
+    }
+  }
 
   Future<void> deleteAccount() async {
     try {
@@ -1304,6 +1537,31 @@ class SettingController extends GetxController {
       debugPrint('All local data cleared successfully');
     } catch (e) {
       debugPrint('Error clearing local data: $e');
+    }
+  }
+
+  Future<String?> _getTokenForSession() async {
+    String? token = await AuthService.getApprovalToken();
+    if (token != null && token.isNotEmpty) {
+      await _cacheTokenInStorage(token);
+      return token;
+    }
+    try {
+      await StorageService.init();
+      token = StorageService.token;
+    } catch (e) {
+      debugPrint('Failed to initialize StorageService: $e');
+    }
+    return token;
+  }
+
+  Future<void> _cacheTokenInStorage(String token) async {
+    try {
+      await StorageService.init();
+      final String? userId = await AuthService.getUserId();
+      await StorageService.saveToken(token, userId ?? '');
+    } catch (e) {
+      debugPrint('Failed to cache token in StorageService: $e');
     }
   }
 }

@@ -147,6 +147,10 @@ class GroupTripHomeScreen extends StatelessWidget {
                   (t) => t.id == trip.id,
                   orElse: () => trip, // Fallback to original trip if not found
                 );
+                // Debug: show both the passed-in trip name and the controller-resolved name
+                debugPrint(
+                  '🔍 [GROUP_TRIP_HOME] Passed trip.name: "${trip.name}", controller currentTrip.name: "${currentTrip.name}"',
+                );
                 return Text(
                   currentTrip.name,
                   style: getTextStyle2(
@@ -162,7 +166,7 @@ class GroupTripHomeScreen extends StatelessWidget {
 
               TripText(groupId: trip.id).marginOnly(left: 24),
               const SizedBox(height: 12),
-              GroupTripAddNewFriend(trip: trip),
+              GroupTripAddNewFriend(trip: trip, controllerTag: controllerTag),
               const SizedBox(height: 12),
               // ✅ Make tab bar and view take remaining space
               Expanded(child: GroupTripUpperNavbar(trip: trip)),

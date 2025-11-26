@@ -11,6 +11,15 @@ class GroupTripAddNewFriendController extends GetxController {
   final RxList<Map<String, dynamic>> allFriends = <Map<String, dynamic>>[].obs;
   final RxBool isLoading = false.obs;
 
+  // Observable list to hold group members with full details
+  final RxList<Map<String, dynamic>> groupMembers =
+      <Map<String, dynamic>>[].obs;
+
+  // When true, local members were just updated from a successful add
+  // and we should be careful not to overwrite them with a stale
+  // getGroupMembers response that may not yet include the new members.
+  final RxBool hasFreshLocalMembers = false.obs;
+
   // Current trip info for API calls
   String? currentTripName;
   String? currentTripId;
@@ -54,6 +63,9 @@ class GroupTripAddNewFriendController extends GetxController {
 
     // Automatically fetch trip members when trip is set (only for new tripId)
     if (tripId != null && tripId.isNotEmpty) {
+      // We are changing trip; clear any freshness flag so that
+      // the first getGroupMembers for this trip can populate normally.
+      hasFreshLocalMembers.value = false;
       fetchTripMembersFromAPI(tripId);
     }
   }
@@ -92,64 +104,103 @@ class GroupTripAddNewFriendController extends GetxController {
         // Extract group members from the response
         if (jsonResponse['data'] != null) {
           var membersData = jsonResponse['data'];
+          List<Map<String, dynamic>> fetchedMembers = [];
           List<String> memberNames = [];
 
-          // Handle different response structures
-          if (membersData is List) {
-            // If data is directly a list of members
-            for (var member in membersData) {
-              String memberName = '';
-              if (member is Map<String, dynamic>) {
-                memberName =
-                    member['name'] ??
-                    member['email']?.split('@')[0] ??
-                    'Unknown Member';
-              } else if (member is String) {
-                memberName = member.contains('@')
-                    ? member.split('@')[0]
-                    : member;
-              }
-              if (memberName.isNotEmpty) {
-                memberNames.add(memberName);
-              }
-            }
-          } else if (membersData is Map<String, dynamic>) {
-            // If data contains nested member information
+          // Only process members from the 'members' array in the response
+          // Ignore the separate 'owner' field - owner is already included in 'members' with isOwner: true
+          if (membersData is Map<String, dynamic>) {
+            // Extract members array from the API response structure
             List<dynamic> members =
                 membersData['members'] ?? membersData['groupMembers'] ?? [];
 
+            // Get total members count from the response
+            int totalMembers = membersData['totalMembers'] ?? members.length;
+
+            debugPrint("📊 Total members from API: $totalMembers");
+
+            // Process each member from the members array only
             for (var member in members) {
-              String memberName = '';
               if (member is Map<String, dynamic>) {
-                memberName =
-                    member['name'] ??
-                    member['email']?.split('@')[0] ??
-                    'Unknown Member';
-              } else if (member is String) {
-                memberName = member.contains('@')
-                    ? member.split('@')[0]
-                    : member;
+                String email = member['email'] ?? '';
+                String name = member['name'] ?? '';
+                bool isOwner = member['isOwner'] ?? false;
+
+                if (email.isNotEmpty) {
+                  String initial = name.isNotEmpty
+                      ? name[0].toUpperCase()
+                      : email[0].toUpperCase();
+
+                  fetchedMembers.add({
+                    'email': email,
+                    'name': name,
+                    'initial': initial,
+                    'isOwner': isOwner,
+                  });
+                  memberNames.add(name.isNotEmpty ? name : email);
+                }
               }
-              if (memberName.isNotEmpty) {
-                memberNames.add(memberName);
+            }
+          } else if (membersData is List) {
+            // Fallback: if data is directly a list of members
+            for (var member in membersData) {
+              if (member is Map<String, dynamic>) {
+                String email = member['email'] ?? '';
+                String name = member['name'] ?? '';
+                bool isOwner = member['isOwner'] ?? false;
+
+                if (email.isNotEmpty) {
+                  String initial = name.isNotEmpty
+                      ? name[0].toUpperCase()
+                      : email[0].toUpperCase();
+
+                  fetchedMembers.add({
+                    'email': email,
+                    'name': name,
+                    'initial': initial,
+                    'isOwner': isOwner,
+                  });
+                  memberNames.add(name.isNotEmpty ? name : email);
+                }
               }
             }
           }
 
-          debugPrint("👥 Found ${memberNames.length} members: $memberNames");
+          debugPrint(
+            "👥 Found ${fetchedMembers.length} members from 'members' array: $memberNames",
+          );
+
+          // If we already have locally fresh members from a recent
+          // addGroupMember call, avoid overwriting them with an API
+          // response that still only contains the owner or fewer
+          // members than we already display. This prevents the
+          // "need to tap Add twice" behaviour.
+          if (hasFreshLocalMembers.value &&
+              fetchedMembers.length < groupMembers.length &&
+              groupMembers.isNotEmpty) {
+            debugPrint(
+              "⚠️ Skipping overwrite of groupMembers with stale API response (fetched=${fetchedMembers.length}, local=${groupMembers.length})",
+            );
+            return;
+          }
+
+          groupMembers.assignAll(fetchedMembers);
           selectedFriendNames.assignAll(memberNames);
         } else {
           debugPrint("⚠️ No data field in response");
+          groupMembers.clear();
           selectedFriendNames.clear();
         }
       } else {
         String errorBody = await response.stream.bytesToString();
         debugPrint("❌ Error response: ${response.statusCode} - $errorBody");
         // If no members found, that's okay - start with empty list
+        groupMembers.clear();
         selectedFriendNames.clear();
       }
     } catch (e) {
       debugPrint("💥 Exception in fetchTripMembersFromAPI: $e");
+      groupMembers.clear();
       selectedFriendNames.clear();
     } finally {
       isLoading.value = false;
@@ -293,8 +344,78 @@ class GroupTripAddNewFriendController extends GetxController {
     return avatarColors[index % avatarColors.length];
   }
 
+  // Get the initial letter from a member name/email
+  String getMemberInitial(String? name, String? email) {
+    if (name != null && name.isNotEmpty) {
+      return name[0].toUpperCase();
+    }
+    if (email != null && email.isNotEmpty) {
+      return email[0].toUpperCase();
+    }
+    return '?';
+  }
+
+  // Get member by email (for uniqueness)
+  Map<String, dynamic>? getMemberByEmail(String email) {
+    try {
+      return groupMembers.firstWhere((member) => member['email'] == email);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get all member emails (unique identifiers)
+  List<String> getAllMemberEmails() {
+    return groupMembers.map((member) => member['email'] as String).toList();
+  }
+
+  // Add or update members locally based on their email and name so that
+  // UI avatars can update immediately after adding, without waiting for
+  // the backend getGroupMembers response to reflect the change.
+  void upsertMembersFromEmails(List<Map<String, String>> membersToAdd) {
+    // Mark that local members are now the freshest source of truth
+    // so that a stale getGroupMembers response does not immediately
+    // wipe them out.
+    hasFreshLocalMembers.value = true;
+
+    for (var member in membersToAdd) {
+      final String email = member['email'] ?? '';
+      final String name = member['name'] ?? '';
+
+      if (email.isEmpty) {
+        continue;
+      }
+
+      final int existingIndex = groupMembers.indexWhere(
+        (m) => m['email'] == email,
+      );
+
+      final String initial = getMemberInitial(name, email);
+
+      final Map<String, dynamic> newMember = {
+        'email': email,
+        'name': name,
+        'initial': initial,
+        'isOwner': false,
+      };
+
+      if (existingIndex >= 0) {
+        groupMembers[existingIndex] = newMember;
+      } else {
+        groupMembers.add(newMember);
+      }
+
+      final String displayName = name.isNotEmpty ? name : email;
+      if (!selectedFriendNames.contains(displayName)) {
+        selectedFriendNames.add(displayName);
+      }
+    }
+  }
+
   // Refresh friends data
   Future<void> refreshFriends() async {
+    // Manual refresh should trust the API again.
+    hasFreshLocalMembers.value = false;
     await refreshAllData();
   }
 }

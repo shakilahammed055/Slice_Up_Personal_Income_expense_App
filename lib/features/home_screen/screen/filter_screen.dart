@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:teddy_5618/core/common/styles/global_text_style.dart';
 import 'package:teddy_5618/core/utils/constants/colors.dart';
+import 'package:teddy_5618/core/utils/constants/app_texts.dart';
 import 'package:teddy_5618/features/home_screen/controller/filter_screen_controller.dart';
 import 'package:teddy_5618/features/home_screen/widgets/month_year_bar.dart';
 
@@ -67,7 +68,7 @@ class FilterScreen extends StatelessWidget {
                         child: _buildGroupRow(
                           context: context,
                           title1: 'Total Remaining'.tr,
-                          title2: '(Income - Expense)'.tr,
+                          title2: AppText.incomeExpense.tr,
                           showCheck: controller.groupOneSelected.value == 0,
                         ),
                       ),
@@ -78,8 +79,8 @@ class FilterScreen extends StatelessWidget {
                         onTap: () => controller.selectGroupOne(1),
                         child: _buildGroupRow(
                           context: context,
-                          title1: 'Total Expense'.tr,
-                          title2: '(Income - Remaining)'.tr,
+                          title1: AppText.totalExpense.tr,
+                          title2: AppText.incomeRemain.tr,
                           showCheck: controller.groupOneSelected.value == 1,
                         ),
                       ),
@@ -91,7 +92,7 @@ class FilterScreen extends StatelessWidget {
                         onTap: () => controller.selectGroupTwo(0),
                         child: _buildSingleRow(
                           context: context,
-                          title: 'All'.tr,                    // ✅ ADDED ALL
+                          title: 'All'.tr, // ✅ ADDED ALL
                           showCheck: controller.groupTwoSelected.value == 0,
                         ),
                       ),
@@ -126,7 +127,9 @@ class FilterScreen extends StatelessWidget {
                           onDateSelected: (DateTime date) {
                             controller.updateMonthYearFilter(date);
                           },
-                          initialDate: controller.selectedMonthYearFilter.value ?? DateTime.now(),
+                          initialDate:
+                              controller.selectedMonthYearFilter.value ??
+                              DateTime.now(),
                         ),
                       ),
                     ),
@@ -136,12 +139,20 @@ class FilterScreen extends StatelessWidget {
                         return GestureDetector(
                           onTap: () => controller.clearMonthFilter(),
                           child: Container(
-                            margin: EdgeInsets.symmetric(horizontal: 20.w, vertical: 10.h),
-                            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                            margin: EdgeInsets.symmetric(
+                              horizontal: 20.w,
+                              vertical: 10.h,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 16.w,
+                              vertical: 8.h,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8.r),
-                              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                color: Colors.red.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Text(
                               'Clear Month Filter'.tr,

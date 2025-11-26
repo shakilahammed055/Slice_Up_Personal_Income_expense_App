@@ -1,20 +1,4 @@
-// import 'package:get/get.dart';
-// import 'package:teddy_5618/features/auth/screen/signup_screen.dart';
 
-// class SplashScreenController extends GetxController {
-//   //
-//     @override
-//   void onInit() {
-//     navigateAfterDelay();
-//     super.onInit();
-//   }
-
-//   void navigateAfterDelay() {
-//     Future.delayed(Duration(seconds: 3), () {
-//       Get.offAll(() => SignupScreen());
-//     });
-//   }
-// }
 
 import 'package:get/get.dart';
 import 'package:teddy_5618/features/auth/auth_service/auth_service.dart';

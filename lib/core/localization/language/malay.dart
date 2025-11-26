@@ -1,16 +1,13 @@
 // ignore_for_file: equal_keys_in_map, duplicate_ignore
 
 final Map<String, String> malay = {
-
   //SplashScreen1
-   'Sign up or Login': 'Daftar atau Log Masuk',
+  'Sign up or Login': 'Daftar atau Log Masuk',
   'By signing up or logging in, you agree to our ':
       'Dengan mendaftar atau log masuk, anda bersetuju dengan kami ',
   'Terms of Use': 'Syarat Penggunaan',
   ' and ': ' dan ',
   'Privacy Policy.': 'Dasar Privasi.',
-
-
 
   //SignupScreen
   'Sign up': 'Daftar',
@@ -21,13 +18,14 @@ final Map<String, String> malay = {
   'Confirm Password': 'Sahkan Kata Laluan',
   'Sign Up': 'Daftar',
 
-
   "Password is required": "Kata laluan diperlukan",
   "Email is required": "Emel diperlukan",
   "Confirm password is required": "Pengesahan kata laluan diperlukan",
-  "Confirm password must be at least 8 characters": "Pengesahan kata laluan mesti sekurang-kurangnya 8 aksara",
+  "Confirm password must be at least 8 characters":
+      "Pengesahan kata laluan mesti sekurang-kurangnya 8 aksara",
   "Passwords do not match": "Kata laluan tidak sepadan",
-  "Sign up successful, please verify your email": "Pendaftaran berjaya, sila sahkan emel anda",
+  "Sign up successful, please verify your email":
+      "Pendaftaran berjaya, sila sahkan emel anda",
   "Signing up...": "Sedang mendaftar...",
   "OTPVerified": "OTP disahkan",
   "Signup successful!": "Pendaftaran berjaya!",
@@ -45,11 +43,11 @@ final Map<String, String> malay = {
   'Registration failed': 'Pendaftaran gagal',
   'Signup error': 'Ralat pendaftaran',
 
-
   //LoginScreen
   'Welcome back!': 'Selamat kembali!',
   'Forgot password?': 'Lupa kata laluan?',
-  'Password must be at least 8 characters': 'Kata laluan mestilah sekurang-kurangnya 8 aksara',
+  'Password must be at least 8 characters':
+      'Kata laluan mestilah sekurang-kurangnya 8 aksara',
 
   //OtpScreen
   'Verify your email': 'Sahkan e-mel anda',
@@ -69,27 +67,27 @@ final Map<String, String> malay = {
   'Failed to resend OTP': 'Gagal menghantar semula OTP',
   'Sending OTP...': 'Sedang menghantar OTP...',
 
-
   //ForgetPasswordScreen
   'Next': 'Seterusnya',
 
-    //ResetPassword
+  //ResetPassword
   'Reset Your Password': 'Tetapkan Semula Kata Laluan Anda',
   'Reset Password': 'Tetapkan Semula Kata Laluan',
   'Passwords do not match': 'Kata laluan tidak sepadan',
   'Success': 'Kejayaan',
-  'Password has been reset successfully!': 'Kata laluan telah berjaya ditetapkan semula!',
+  'Password has been reset successfully!':
+      'Kata laluan telah berjaya ditetapkan semula!',
 
   'Resetting password...': 'Sedang menetapkan semula kata laluan...',
   'Password reset successfully': 'Kata laluan berjaya ditetapkan semula',
   'Failed to reset password': 'Gagal menetapkan semula kata laluan',
 
   //ProfileSetupScreen
-   'Welcome! \nWhat’s your name?' : 'Selamat datang! \nSiapa nama anda?',
-    'Name' : 'Nama',
-    'Finish' : 'Selesai',
+  'Welcome! \nWhat’s your name?': 'Selamat datang! \nSiapa nama anda?',
+  'Name': 'Nama',
+  'Finish': 'Selesai',
 
-     //HomeScreen
+  //HomeScreen
   'Continue setting': 'Teruskan tetapan',
   'Total S\$': 'Jumlah SRM',
   'Ready to track your spending? \nOr just planning to ignore it again':
@@ -128,7 +126,6 @@ final Map<String, String> malay = {
   'Income': 'pendapatan',
   'Expenses': 'Perbelanjaan',
   'Saving': 'Menyimpan',
-
 
   //Showmonthsetting
   'Month setting': 'Penetapan bulan',
@@ -183,7 +180,6 @@ final Map<String, String> malay = {
   'Type': 'taip',
   'Select Type': 'Pilih Jenis',
 
-
   //GroupScreen
   'Our': 'kami',
   'Spending': 'Perbelanjaan',
@@ -198,7 +194,8 @@ final Map<String, String> malay = {
   'Please enter a valid email address.': 'Sila masukkan alamat e-mel yang sah.',
   'Duplicate Email': 'E-mel Pendua',
   'Trip Name Required': 'Nama Perjalanan Diperlukan',
-  'Please enter a name for your trip.': 'Sila masukkan nama untuk perjalanan anda.',
+  'Please enter a name for your trip.':
+      'Sila masukkan nama untuk perjalanan anda.',
 
   //GroupTripSpentController
   'Equally': 'sama-sama',
@@ -309,15 +306,15 @@ final Map<String, String> malay = {
 
   'Send': 'Hantar',
 
- 'Reset password'  : 'Tetapkan semula kata laluan',
-  
-  'Enter your Email Address' : 'Masukkan Alamat E-mel anda',
+  'Reset password': 'Tetapkan semula kata laluan',
 
-   'To Collect' : 'Untuk Mengumpul', // Malay
-'To pay' : 'Untuk Membayar', // Malay
-'Total balance' : 'Jumlah Baki', // Malay
+  'Enter your Email Address': 'Masukkan Alamat E-mel anda',
 
-'AI Assistant': 'Pembantu AI',
+  'To Collect': 'Untuk Mengumpul', // Malay
+  'To pay': 'Untuk Membayar', // Malay
+  'Total balance': 'Jumlah Baki', // Malay
+
+  'AI Assistant': 'Pembantu AI',
   'AI Assistant Chatbot': 'Chatbot Pembantu AI',
   'Smart Budget Suggestions': 'Cadangan Bajet Pintar',
   'Split Bills': 'Bahagikan Bil',
@@ -325,13 +322,13 @@ final Map<String, String> malay = {
   'Free Plan': 'Pelan Percuma',
   'Processing...': 'Memproses...',
   'Hire': 'Sewa',
-    
- 'Total Amount': 'Jumlah Amaun',
+
+  'Total Amount': 'Jumlah Amaun',
   'Share with (Equally)': 'Kongsi dengan (Sama Rata)',
   // ignore: equal_keys_in_map
   'Category': 'Kategori',
 
-   'You\'ll collect': 'Anda akan mengutip',
+  'You\'ll collect': 'Anda akan mengutip',
   'You\'ll pay': 'Anda akan membayar',
   'All sliced up and settled!': 'Semuanya telah dibahagi dan diselesaikan!',
   'My expenses': 'Perbelanjaan saya',
@@ -352,7 +349,7 @@ final Map<String, String> malay = {
   'Add Notes': 'Tambah Nota',
   'To delete them, they must be removed from your group, or you can delete the entire group':
       'Untuk memadam mereka, mereka mesti dikeluarkan daripada kumpulan anda, atau anda boleh memadam keseluruhan kumpulan',
-  'Okay': 'Baik' ,
+  'Okay': 'Baik',
 
   "You won’t be able to undo this.":
       "Anda tidak akan dapat membatalkan tindakan ini.",
@@ -366,13 +363,24 @@ final Map<String, String> malay = {
   "Are you sure you want to remove them or leave the group yourself?":
       "Adakah anda pasti mahu mengeluarkan mereka atau meninggalkan kumpulan sendiri?",
 
-    "Ready to track your group expenses!":
-      "Sedia untuk menjejak perbelanjaan kumpulan anda!"
-  
+  "Ready to track your group expenses!":
+      "Sedia untuk menjejak perbelanjaan kumpulan anda!",
 
+  'Email': 'E-mel',
 
-
-
+  // Additional UI strings
+  'No expenses found': 'Tiada perbelanjaan ditemui',
+  'Add your first expense to get started':
+      'Tambah perbelanjaan pertama anda untuk bermula',
+  'No settlements yet': 'Tiada penyelesaian lagi',
+  'Add some expenses to see settlements':
+      'Tambah beberapa perbelanjaan untuk melihat penyelesaian',
+  'No balance information available': 'Tiada maklumat baki tersedia',
+  'Error loading data': 'Ralat memuatkan data',
+  'No category data available': 'Tiada data kategori tersedia',
+  'Me': 'Saya',
+  'Per person': 'Seorang',
+  'People': 'Orang',
 
   // Add your keys here...
 };
